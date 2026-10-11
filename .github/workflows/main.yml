@@ -1,15 +1,15 @@
-name: Build FCM Guard APK
+name: Build and Release FCM Guard
 
 on:
   push:
-    branches: [ "main", "master" ]
-  pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Cấp quyền ghi để tạo Release tự động
 
     steps:
     - name: Checkout code
@@ -21,7 +21,6 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    # Lưu lại chữ ký số để các lần build sau dùng chung một chữ ký
     - name: Cache Android Keystore
       uses: actions/cache@v4
       with:
@@ -38,8 +37,13 @@ jobs:
     - name: Build Debug APK with Gradle
       run: gradle assembleDebug
 
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
+    # Tự động tạo hoặc cập nhật bản Release mang tên "latest" kèm file APK
+    - name: Upload to GitHub Releases
+      uses: ncipollo/release-action@v1
       with:
-        name: FCM-Guard-Debug-APK
-        path: app/build/outputs/apk/debug/app-debug.apk
+        artifacts: "app/build/outputs/apk/debug/app-debug.apk"
+        tag: "latest"
+        name: "FCM Guard Auto Update"
+        allowUpdates: true
+        replacesArtifacts: true
+        body: "Bản cập nhật tự động mới nhất từ GitHub Actions."
