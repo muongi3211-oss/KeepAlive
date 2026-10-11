@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.Settings
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -50,6 +51,42 @@ class MainActivity : AppCompatActivity() {
             }
         }
         layout.addView(clearButton)
+
+        // Nút đường tắt: Mở cài đặt Dịch vụ Google Play trực tiếp
+        val openGmsButton = Button(this).apply {
+            text = "Mở cài đặt Dịch vụ Google Play"
+            setOnClickListener {
+                try {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.parse("package:com.google.android.gms")
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "Không mở được cài đặt: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        layout.addView(openGmsButton)
+
+        // Nút đường tắt: Yêu cầu bỏ hạn chế pin cho FCM Guard
+        val batteryOptButton = Button(this).apply {
+            text = "Tắt hạn chế pin cho FCM Guard"
+            setOnClickListener {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    try {
+                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(this@MainActivity, "Lỗi: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(this@MainActivity, "Thiết bị không hỗ trợ", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        layout.addView(batteryOptButton)
 
         logTextView = TextView(this).apply {
             text = "Đang tải dữ liệu...\n"
