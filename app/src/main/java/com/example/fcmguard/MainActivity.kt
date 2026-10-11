@@ -1,15 +1,10 @@
 package com.example.fcmguard
 
-import android.app.DownloadManager
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.provider.Settings
 import android.widget.Button
 import android.widget.LinearLayout
@@ -20,8 +15,6 @@ import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
     private lateinit var logTextView: TextView
-    private var downloadId: Long = -1L
-    private lateinit var downloadReceiver: BroadcastReceiver
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,25 +97,18 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(scrollView)
 
-        // Nút bấm cập nhật: Tải ngầm và tự động bật giao diện cài đặt ngay khi xong
+        // Nút bấm cập nhật: Mở trực tiếp trình duyệt để tải file ổn định tuyệt đối
         val updateButton = Button(this).apply {
-            text = "Kiểm tra & Cập nhật ngay"
+            text = "Kiểm tra & Tải bản cập nhật mới"
             setOnClickListener {
-                val apkUrl = "https://github.com/muongi311-oss/KeepAlive/releases/download/latest/app-debug.apk"
-                
-                Toast.makeText(this@MainActivity, "Đang tải bản cập nhật ngầm...", Toast.LENGTH_SHORT).show()
-                
-                val request = DownloadManager.Request(Uri.parse(apkUrl)).apply {
-                    setTitle("FCM Guard Update")
-                    setDescription("Đang tải phiên bản mới...")
-                    setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-                    setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "fcm_guard_update.apk")
-                    setAllowedOverMetered(true)
-                    setAllowedOverRoaming(true)
+                val releaseUrl = "https://github.com/muongi311-oss/KeepAlive/releases/latest"
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl))
+                    startActivity(intent)
+                    Toast.makeText(this@MainActivity, "Đang mở trang tải về...", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "Không mở được trình duyệt: ${e.message}", Toast.LENGTH_LONG).show()
                 }
-
-                val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                downloadId = dm.enqueue(request)
             }
         }
         layout.addView(updateButton)
@@ -131,45 +117,6 @@ class MainActivity : AppCompatActivity() {
 
         LogStore.add(applicationContext, "System: Mở ứng dụng FCM Guard thành công.")
         startGuardService()
-
-        // Lắng nghe sự kiện tải xong để tự động mở màn hình cài đặt
-        downloadReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                if (id == downloadId) {
-                    val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                    val uri = dm.getUriForDownloadedFile(downloadId)
-                    if (uri != null) {
-                        try {
-                            val installIntent = Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(uri, "application/vnd.android.package-archive")
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            startActivity(installIntent)
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Lỗi mở trình cài đặt: ${e.message}", Toast.LENGTH_LONG).show()
-                        }
-                    } else {
-                        Toast.makeText(context, "Không tìm thấy file APK đã tải.", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        }
-        
-        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(downloadReceiver, filter, Context.RECEIVER_EXPORTED)
-        } else {
-            registerReceiver(downloadReceiver, filter)
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        try {
-            unregisterReceiver(downloadReceiver)
-        } catch (e: Exception) {}
     }
 
     override fun onResume() {
