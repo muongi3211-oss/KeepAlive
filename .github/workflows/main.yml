@@ -21,6 +21,15 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    # Lưu lại chữ ký số để các lần build sau dùng chung một chữ ký
+    - name: Cache Android Keystore
+      uses: actions/cache@v4
+      with:
+        path: ~/.android
+        key: android-debug-keystore-fixed
+        restore-keys: |
+          android-debug-keystore-
+
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
