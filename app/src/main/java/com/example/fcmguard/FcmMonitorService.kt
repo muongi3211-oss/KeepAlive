@@ -100,11 +100,8 @@ class FcmMonitorService : Service() {
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build()
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE)
-            } else {
-                startForeground(1, notification)
-            }
+            startForeground(1, notification)
+
         } catch (e: Exception) {
             Log.e("FcmGuard", "Error foreground: ${e.message}")
         }
