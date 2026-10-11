@@ -91,3 +91,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+// Thêm vào MainActivity.kt của bạn
+val updateButton = Button(this).apply {
+    text = "Kiểm tra cập nhật mới"
+    setOnClickListener {
+        val apkUrl = "https://github.com/muongi311-oss/KeepAlive/releases/download/latest/app-debug.apk" // https://github.com/muongi311-oss/KeepAlive
+        
+        
+        Toast.makeText(this@MainActivity, "Đang tải bản cập nhật...", Toast.LENGTH_SHORT).show()
+        
+        val request = DownloadManager.Request(Uri.parse(apkUrl)).apply {
+            setTitle("FCM Guard Update")
+            setDescription("Đang tải phiên bản mới...")
+            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "fcm_guard_update.apk")
+            setAllowedOverMetered(true)
+            setAllowedOverRoaming(true)
+        }
+
+        val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        dm.enqueue(request)
+        
+        Toast.makeText(this@MainActivity, "Đã tải về thư mục Download! Hãy bấm vào thông báo khi tải xong để cài đè.", Toast.LENGTH_LONG).show()
+    }
+}
+layout.addView(updateButton)
