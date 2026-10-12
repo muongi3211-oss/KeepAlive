@@ -100,7 +100,7 @@ class FcmMonitorService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override onDestroy() {
+    override fun onDestroy() {
         super.onDestroy()
         screenReceiver?.let {
             try {
