@@ -18,7 +18,7 @@ class FcmMonitorService : Service() {
         private const val NOTIF_ID = 1001
     }
 
-    private var wakeLock: PowerManager.WakeLock? = nil
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
