@@ -9,8 +9,8 @@
 
     <application
         android:allowBackup="false"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:icon="@android:drawable/ic_menu_compass"
+        android:label="KeepAlive"
         android:supportsRtl="true">
 
         <!-- Giao diện chính của ứng dụng -->
