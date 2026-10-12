@@ -22,9 +22,16 @@ class FcmMonitorService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent == null) {
+            LogStore.add(applicationContext, "⚠️ Cảnh báo: App đã bị hệ thống kill ngầm và được khởi động lại!")
+        } else {
+            LogStore.add(applicationContext, "✅ Dịch vụ đang chạy ổn định.")
+        }
+        
         pingGoogleServices()
         return START_STICKY
     }
+
 
     private fun startForegroundServiceNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
