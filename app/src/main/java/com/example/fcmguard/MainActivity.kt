@@ -19,11 +19,13 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Tạo layout dạng dọc
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(30, 30, 30, 30)
         }
 
+        // Tiêu đề ứng dụng
         val title = TextView(this).apply {
             text = "FCM Guard - Giám sát & Chống Ngủ Đông"
             textSize = 18f
@@ -32,6 +34,7 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(title)
 
+        // Nút Làm mới nhật ký
         val refreshButton = Button(this).apply {
             text = "Làm mới nhật ký"
             setOnClickListener {
@@ -40,6 +43,7 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(refreshButton)
 
+        // Nút Xóa toàn bộ log
         val clearButton = Button(this).apply {
             text = "Xóa toàn bộ log"
             setOnClickListener {
@@ -49,7 +53,7 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(clearButton)
 
-        // Nút đường tắt: Mở cài đặt Dịch vụ Google Play trực tiếp
+        // Nút Mở cài đặt Dịch vụ Google Play
         val openGmsButton = Button(this).apply {
             text = "Mở cài đặt Dịch vụ Google Play"
             setOnClickListener {
@@ -65,11 +69,11 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(openGmsButton)
 
-        // Nút đường tắt: Yêu cầu bỏ hạn chế pin cho FCM Guard
+        // Nút Tắt hạn chế pin cho FCM Guard
         val batteryOptButton = Button(this).apply {
             text = "Tắt hạn chế pin cho FCM Guard"
             setOnClickListener {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.V) {
                     try {
                         val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                             data = Uri.parse("package:$packageName")
@@ -85,6 +89,7 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(batteryOptButton)
 
+        // Vùng hiển thị Log nhật ký
         logTextView = TextView(this).apply {
             text = "Đang tải dữ liệu...\n"
             textSize = 14f
@@ -97,11 +102,10 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(scrollView)
 
-        // Nút bản cập nhật: Khởi tạo trực tiếp bằng code Kotlin (không dùng findViewById gây lỗi)
+        // Nút Kiểm tra bản cập nhật (Trỏ chuẩn trực tiếp đến GitHub Releases)
         val btnUpdate = Button(this).apply {
             text = "Kiểm tra bản cập nhật"
             setOnClickListener {
-                // Trỏ trực tiếp đến trang Releases / Latest trên GitHub của bạn
                 val updateUrl = "https://github.com/muongi3211-oss/KeepAlive/releases/latest"
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateUrl))
                 try {
@@ -113,11 +117,16 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(btnUpdate)
 
-
+        // Thiết lập giao diện hiển thị
         setContentView(layout)
 
-        LogStore.add(applicationContext, "System: Mở ứng dụng FCM Guard thành công.")
-        startGuardService()
+        // Khởi động service an toàn ở cuối hàm onCreate
+        try {
+            LogStore.add(applicationContext, "System: Mở ứng dụng FCM Guard thành công.")
+            startGuardService()
+        } catch (e: Exception) {
+            LogStore.add(applicationContext, "Lỗi khởi động service: ${e.message}")
+        }
     }
 
     override fun onResume() {
@@ -131,7 +140,7 @@ class MainActivity : AppCompatActivity() {
         for (log in logs) {
             sb.append(log).append("\n\n")
         }
-        logTextView.text = if (sb.isEmpty()) "Chưa có sự kiện nào." else sb.toString()
+        logTextView.text = if (sb.isEmpty()) "Không có sự kiện nào." else sb.toString()
     }
 
     private fun startGuardService() {
