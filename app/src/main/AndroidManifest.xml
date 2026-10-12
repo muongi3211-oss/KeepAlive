@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.fcmguard">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Các quyền hệ thống cần thiết để chạy ngầm, bỏ qua tối ưu pin và tự khởi động -->
+    <!-- Các quyền hệ thống cần thiết -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -10,11 +9,11 @@
 
     <application
         android:allowBackup="false"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:icon="@android:drawable/ic_dialog_info"
+        android:label="KeepAlive"
         android:supportsRtl="true">
 
-        <!-- Giao diện chính của ứng dụng (MainActivity) -->
+        <!-- Giao diện chính của ứng dụng -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -24,7 +23,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Dịch vụ giám sát / giữ kết nối FCM chính (FcmMonitorService) -->
+        <!-- Dịch vụ giám sát / giữ kết nối FCM chính -->
         <service
             android:name=".FcmMonitorService"
             android:exported="false"
@@ -34,13 +33,13 @@
                 android:value="Maintain background connection for push notifications" />
         </service>
 
-        <!-- Dịch vụ JobService phụ trách đánh thức định kỳ (FcmKeepAliveJobService) -->
+        <!-- Dịch vụ JobService phụ trách đánh thức định kỳ -->
         <service
             android:name=".FcmKeepAliveJobService"
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="false" />
 
-        <!-- Bộ nhận sự kiện khởi động lại máy, mở khóa và cập nhật ứng dụng (BootReceiver) -->
+        <!-- Bộ nhận sự kiện khởi động lại máy, mở khóa và cập nhật ứng dụng -->
         <receiver
             android:name=".BootReceiver"
             android:enabled="true"
