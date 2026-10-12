@@ -19,13 +19,11 @@ class FcmKeepAliveJobService : JobService() {
             val builder = JobInfo.Builder(JOB_ID, componentName)
                 .setPersisted(true)
                 .setRequiresCharging(false)
-                .setDeviceIdleMode(false)
+                .setRequiresDeviceIdle(false) // Sửa lại đúng tên phương thức của JobInfo.Builder
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                builder.setPeriodic(JobInfo.MIN_PERIODIC_INTERVAL_MILLIS, JobInfo.MIN_PERIODIC_FLEX_MILLIS)
-            } else {
-                builder.setPeriodic(15 * 60 * 1000L)
-            }
+            // Đặt thời gian lặp lại định kỳ 15 phút (an toàn và tương thích mọi phiên bản Android)
+            val intervalMillis = 15 * 60 * 1000L
+            builder.setPeriodic(intervalMillis)
 
             val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
             scheduler.schedule(builder.build())
