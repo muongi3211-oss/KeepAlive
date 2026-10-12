@@ -10,14 +10,26 @@ class ScreenStateReceiver : BroadcastReceiver() {
 
     companion object {
         private val handler = Handler(Looper.getMainLooper())
+        private var appContextRef: Context? = null
+
         private val periodicRunnable = object : Runnable {
             override fun run() {
-                // Định kỳ mỗi 10 phút khi màn hình vẫn đang tắt[span_2](start_span)[span_2](end_span)
                 appContextRef?.let { pingGoogleServices(it) }
                 handler.postDelayed(this, 10 * 60 * 1000L)
             }
         }
-        private var appContextRef: Context? = null
+
+        private fun pingGoogleServices(context: Context) {
+            try {
+                val gmsIntent = Intent("com.google.android.intent.action.MCS_HEARTBEAT").apply {
+                    setPackage("com.google.android.gms")
+                }
+                context.sendBroadcast(gmsIntent)
+                LogStore.add(context, "Aurogon Allowlist: Đã duy trì kết nối GMS thông minh.")
+            } catch (e: Exception) {
+                LogStore.add(context, "Lỗi Aurogon Pulse: ${e.message}")
+            }
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -26,39 +38,27 @@ class ScreenStateReceiver : BroadcastReceiver() {
 
         when (intent.action) {
             Intent.ACTION_SCREEN_OFF -> {
-                // Xóa bỏ lịch trình cũ nếu có để tránh chồng chéo
                 handler.removeCallbacksAndMessages(null)
 
-                // 1. Nhịp 1: 40 giây sau khi tắt màn hình[span_3](start_span)[span_3](end_span)
+                // 1. Nhịp 1: 40 giây sau khi tắt màn hình
                 handler.postDelayed({
                     pingGoogleServices(appContext)
                 }, 40 * 1000L)
 
-                // 2. Nhịp 2: Phút thứ 2[span_4](start_span)[span_4](end_span)
+                // 2. Nhịp 2: Phút thứ 2
                 handler.postDelayed({
                     pingGoogleServices(appContext)
                 }, 2 * 60 * 1000L)
 
-                // 3. Nhịp 3: Bắt đầu chu kỳ lặp lại mỗi 10 phút tiếp theo[span_5](start_span)[span_5](end_span)
+                // 3. Nhịp 3: Bắt đầu chu kỳ lặp lại mỗi 10 phút
                 handler.postDelayed(periodicRunnable, 12 * 60 * 1000L)
             }
 
             Intent.ACTION_SCREEN_ON -> {
-                // Khi bật màn hình sẽ khôi phục thêm 1 lần rồi dừng toàn bộ lịch ngầm[span_6](start_span)[span_6](end_span)
+                // Khôi phục 1 lần khi sáng màn hình và dừng lịch ngầm
                 handler.removeCallbacksAndMessages(null)
                 pingGoogleServices(appContext)
             }
-        }
-    }
-
-    private static fun pingGoogleServices(context: Context) {
-        try {
-            val gmsIntent = Intent("com.google.android.intent.action.MCS_HEARTBEAT")
-            gmsIntent.setPackage("com.google.android.gms")
-            context.sendBroadcast(gmsIntent)
-            LogStore.add(context, "Aurogon Allowlist: Đã duy trì kết nối GMS thông minh.")
-        } catch (e: Exception) {
-            LogStore.add(context, "Lỗi Aurogon Pulse: ${e.message}")
         }
     }
 }
