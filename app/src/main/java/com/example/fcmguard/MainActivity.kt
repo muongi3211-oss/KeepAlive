@@ -34,6 +34,27 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(title)
 
+        // Nút Kích hoạt bảo vệ thủ công (Bấm để bật service an toàn)
+        val btnStartService = Button(this).apply {
+            text = "Kích hoạt bảo vệ ngay"
+            setOnClickListener {
+                try {
+                    val intent = Intent(this@MainActivity, FcmMonitorService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(intent)
+                    } else {
+                        startService(intent)
+                    }
+                    LogStore.add(applicationContext, "Đã bật dịch vụ bảo vệ thủ công.")
+                    updateLogs()
+                    Toast.makeText(this@MainActivity, "Đã kích hoạt dịch vụ!", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "Lỗi bật service: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        layout.addView(btnStartService)
+
         // Nút Làm mới nhật ký
         val refreshButton = Button(this).apply {
             text = "Làm mới nhật ký"
@@ -89,7 +110,6 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(batteryOptButton)
 
-
         // Vùng hiển thị Log nhật ký
         logTextView = TextView(this).apply {
             text = "Đang tải dữ liệu...\n"
@@ -118,16 +138,9 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(btnUpdate)
 
-        // Thiết lập giao diện hiển thị
+        // Hiển thị giao diện an toàn 100% không sợ crash lúc mở
         setContentView(layout)
-
-        // Khởi động service an toàn ở cuối hàm onCreate
-        try {
-            LogStore.add(applicationContext, "System: Mở ứng dụng FCM Guard thành công.")
-            startGuardService()
-        } catch (e: Exception) {
-            LogStore.add(applicationContext, "Lỗi khởi động service: ${e.message}")
-        }
+        LogStore.add(applicationContext, "System: Mở ứng dụng FCM Guard thành công.")
     }
 
     override fun onResume() {
@@ -142,18 +155,5 @@ class MainActivity : AppCompatActivity() {
             sb.append(log).append("\n\n")
         }
         logTextView.text = if (sb.isEmpty()) "Không có sự kiện nào." else sb.toString()
-    }
-
-    private fun startGuardService() {
-        try {
-            val intent = Intent(this, FcmMonitorService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
-        } catch (e: Exception) {
-            LogStore.add(applicationContext, "Lỗi khởi động Service: ${e.message}")
-        }
     }
 }
