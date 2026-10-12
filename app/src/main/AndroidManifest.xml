@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.fcmguard">
 
-    <!-- Các quyền hệ thống cần thiết -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -13,9 +13,8 @@
         android:label="KeepAlive"
         android:supportsRtl="true">
 
-        <!-- Giao diện chính của ứng dụng -->
         <activity
-            android:name="com.example.fcmguard.MainActivity"
+            android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -23,9 +22,8 @@
             </intent-filter>
         </activity>
 
-        <!-- Dịch vụ giám sát / giữ kết nối FCM chính -->
         <service
-            android:name="com.example.fcmguard.FcmMonitorService"
+            android:name=".FcmMonitorService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
@@ -33,15 +31,13 @@
                 android:value="Maintain background connection for push notifications" />
         </service>
 
-        <!-- Dịch vụ JobService phụ trách đánh thức định kỳ -->
         <service
-            android:name="com.example.fcmguard.FcmKeepAliveJobService"
+            android:name=".FcmKeepAliveJobService"
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="false" />
 
-        <!-- Bộ nhận sự kiện khởi động lại máy, mở khóa và cập nhật ứng dụng -->
         <receiver
-            android:name="com.example.fcmguard.BootReceiver"
+            android:name=".BootReceiver"
             android:enabled="true"
             android:exported="true"
             android:directBootAware="true">
