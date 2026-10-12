@@ -98,19 +98,18 @@ class MainActivity : AppCompatActivity() {
         layout.addView(scrollView)
 
         // Nút bấm cập nhật: Mở trực tiếp trình duyệt để tải file ổn định tuyệt đối
-        val updateButton = Button(this).apply {
-            text = "Kiểm tra & Tải bản cập nhật mới"
-            setOnClickListener {
-                val releaseUrl = "https://github.com/muongi311-oss/KeepAlive/releases/latest"
-                try {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl))
-                    startActivity(intent)
-                    Toast.makeText(this@MainActivity, "Đang mở trang tải về...", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Toast.makeText(this@MainActivity, "Không mở được trình duyệt: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
+val btnUpdate = findViewById<Button>(R.id.btnUpdate) // Hoặc ID nút cập nhật của bạn
+btnUpdate?.setOnClickListener {
+    // Trỏ trực tiếp đến trang Releases / Latest trên GitHub của bạn
+    val updateUrl = "https://github.com/muongi3211-oss/KeepAlive/releases/latest"
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateUrl))
+    try {
+        startActivity(intent)
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+
         layout.addView(updateButton)
 
         setContentView(layout)
