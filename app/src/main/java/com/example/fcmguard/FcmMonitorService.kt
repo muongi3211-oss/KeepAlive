@@ -22,7 +22,6 @@ class FcmMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "FcmMonitorService đã khởi tạo.")
         startForegroundServiceNotification()
         acquireWakeLock()
     }
@@ -41,7 +40,7 @@ class FcmMonitorService : Service() {
 
             val notification: Notification = Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle("FcmGuard đang bảo vệ")
-                .setContentText("Đang duy trì danh sách trắng kết nối FCM")
+                .setContentText("Đang duy trì kết nối FCM ngầm")
                 .setSmallIcon(android.R.drawable.ic_menu_compass)
                 .setOngoing(true)
                 .build()
@@ -65,54 +64,29 @@ class FcmMonitorService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "Thực thi bơm danh sách trắng cho Google Play Services...")
-        
-        // 1. Gửi tín hiệu ép đánh thức FCM
-        sendFcmHeartbeat()
-
-        // 2. Kích hoạt lệnh ngầm đẩy GMS vào danh sách ưu tiên của HyperOS / MIUI Security Center
-        injectGmsIntoMiuiWhitelist()
-
+        // Kích hoạt đồng thời cơ chế đánh thức MiPush và FCM Heartbeat
+        triggerSystemProtection()
         return START_STICKY
     }
 
-    private fun sendFcmHeartbeat() {
+    private fun triggerSystemProtection() {
         try {
-            val heartbeatIntent = Intent("com.google.android.intent.action.MCS_HEARTBEAT").apply {
-                setPackage("com.google.android.gms")
-            }
-            sendBroadcast(heartbeatIntent)
-        } catch (e: Exception) {
-            Log.e(TAG, "Heartbeat error: ${e.message}")
-        }
-    }
-
-    // Cơ chế gọi ngầm các thành phần bảo vệ hệ thống của Xiaomi
-    private fun injectGmsIntoMiuiWhitelist() {
-        try {
-            // Gửi lệnh cấu hình trực tiếp tới PowerKeeper / Security Center để bảo vệ GMS
-            val intentsToTry = listOf(
-                Intent("miui.intent.action.POWER_SAVE_MODE_CHANGE"),
-                Intent("com.miui.powerkeeper.action.TOGGLE_POWER_MODE"),
-                Intent("miui.intent.action.APP_ADJUST_MODE")
-            )
-            
-            for (i in intentsToTry) {
-                i.putExtra("package_name", "com.google.android.gms")
-                i.putExtra("is_white_list", true)
-                sendBroadcast(i)
-            }
-            
-            // Đánh thức dịch vụ quản lý nền của MiPush / MILLET thông qua Broadcast ẩn
+            // 1. Kích hoạt luồng nhận tin MiPush ẩn của Xiaomi Framework
             val milletIntent = Intent("com.xiaomi.mipush.RECEIVE_ACTION").apply {
                 setPackage("com.google.android.gms")
                 putExtra("mipush_payload_type", 0)
             }
             sendBroadcast(milletIntent)
 
-            Log.d(TAG, "Đã gửi lệnh chèn GMS vào danh sách trắng hệ thống thành công.")
+            // 2. Bơm tín hiệu đánh thức MCS Heartbeat trực tiếp vào Google Play Services
+            val heartbeatIntent = Intent("com.google.android.intent.action.MCS_HEARTBEAT").apply {
+                setPackage("com.google.android.gms")
+            }
+            sendBroadcast(heartbeatIntent)
+
+            Log.d(TAG, "Đã gửi tín hiệu tương tác hệ thống thành công.")
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi bơm danh sách trắng hệ thống: ${e.message}")
+            Log.e(TAG, "Lỗi tương tác hệ thống: ${e.message}")
         }
     }
 
@@ -124,7 +98,7 @@ class FcmMonitorService : Service() {
             wakeLock?.release()
         } catch (e: Exception) {}
 
-        // Tự phục hồi dịch vụ ngay lập tức khi bị hệ thống quét
+        // Tự phục hồi dịch vụ ngay lập tức khi bị hệ thống quét dọn
         val restartIntent = Intent(applicationContext, FcmMonitorService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(restartIntent)
