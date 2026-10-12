@@ -73,7 +73,7 @@ class MainActivity : AppCompatActivity() {
         val batteryOptButton = Button(this).apply {
             text = "Tắt hạn chế pin cho FCM Guard"
             setOnClickListener {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.V) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     try {
                         val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                             data = Uri.parse("package:$packageName")
@@ -88,6 +88,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         layout.addView(batteryOptButton)
+
 
         // Vùng hiển thị Log nhật ký
         logTextView = TextView(this).apply {
