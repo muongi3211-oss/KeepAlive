@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.net.Uri
+import android.provider.Settings
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -12,6 +14,7 @@ import android.widget.Toast
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestWriteSettingsPermission()
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -39,6 +42,18 @@ class MainActivity : Activity() {
                     Toast.makeText(this@MainActivity, "Lỗi: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
+        }
+        private fun requestWriteSettingsPermission() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (!Settings.System.canWrite(this)) {
+            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            startActivity(intent)
+    } else {
+        Toast.makeText(this, "✅ Đã có quyền Thay đổi cài đặt hệ thống.", Toast.LENGTH_SHORT).show()
+    }
+    }
         }
 
         val btnUpdate = Button(this).apply {
