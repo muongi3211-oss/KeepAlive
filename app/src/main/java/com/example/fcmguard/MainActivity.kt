@@ -1,159 +1,59 @@
 package com.example.fcmguard
 
+import android.app.Activity
 import android.content.Intent
-import android.graphics.Color
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : AppCompatActivity() {
-    private lateinit var logTextView: TextView
-
+class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Tạo layout dạng dọc
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(30, 30, 30, 30)
+            setPadding(50, 50, 50, 50)
         }
 
-        // Tiêu đề ứng dụng
-        val title = TextView(this).apply {
-            text = "FCM Guard - Giám sát & Chống Ngủ Đông"
+        val tvStatus = TextView(this).apply {
+            text = "FCM Guard - Đang hoạt động"
             textSize = 18f
-            setTypeface(null, android.graphics.Typeface.BOLD)
-            setPadding(0, 0, 0, 10)
+            setPadding(0, 0, 0, 40)
         }
-        layout.addView(title)
 
-        // Nút Kích hoạt bảo vệ thủ công (Bấm để bật service an toàn)
-        val btnStartService = Button(this).apply {
+        val btnStart = Button(this).apply {
             text = "Kích hoạt bảo vệ ngay"
             setOnClickListener {
                 try {
-                    val intent = Intent(this@MainActivity, FcmMonitorService::class.java)
+                    val serviceIntent = Intent(this@MainActivity, FcmMonitorService::class.java)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        startForegroundService(intent)
+                        startForegroundService(serviceIntent)
                     } else {
-                        startService(intent)
+                        startService(serviceIntent)
                     }
-                    LogStore.add(applicationContext, "Đã bật dịch vụ bảo vệ thủ công.")
-                    updateLogs()
-                    Toast.makeText(this@MainActivity, "Đã kích hoạt dịch vụ!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Đã khởi động dịch vụ!", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(this@MainActivity, "Lỗi bật service: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivity, "Lỗi: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
-        layout.addView(btnStartService)
 
-        // Nút Làm mới nhật ký
-        val refreshButton = Button(this).apply {
-            text = "Làm mới nhật ký"
-            setOnClickListener {
-                updateLogs()
-            }
-        }
-        layout.addView(refreshButton)
-
-        // Nút Xóa toàn bộ log
-        val clearButton = Button(this).apply {
-            text = "Xóa toàn bộ log"
-            setOnClickListener {
-                LogStore.clear(this@MainActivity)
-                updateLogs()
-            }
-        }
-        layout.addView(clearButton)
-
-        // Nút Mở cài đặt Dịch vụ Google Play
-        val openGmsButton = Button(this).apply {
-            text = "Mở cài đặt Dịch vụ Google Play"
-            setOnClickListener {
-                try {
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.parse("package:com.google.android.gms")
-                    }
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    Toast.makeText(this@MainActivity, "Không mở được cài đặt: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-        layout.addView(openGmsButton)
-
-        // Nút Tắt hạn chế pin cho FCM Guard
-        val batteryOptButton = Button(this).apply {
-            text = "Tắt hạn chế pin cho FCM Guard"
-            setOnClickListener {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    try {
-                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                            data = Uri.parse("package:$packageName")
-                        }
-                        startActivity(intent)
-                    } catch (e: Exception) {
-                        Toast.makeText(this@MainActivity, "Lỗi: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                } else {
-                    Toast.makeText(this@MainActivity, "Thiết bị không hỗ trợ", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-        layout.addView(batteryOptButton)
-
-        // Vùng hiển thị Log nhật ký
-        logTextView = TextView(this).apply {
-            text = "Đang tải dữ liệu...\n"
-            textSize = 14f
-            setTextColor(Color.DKGRAY)
-            setPadding(0, 20, 0, 0)
-        }
-
-        val scrollView = ScrollView(this).apply {
-            addView(logTextView)
-        }
-        layout.addView(scrollView)
-
-        // Nút Kiểm tra bản cập nhật (Trỏ chuẩn trực tiếp đến GitHub Releases)
         val btnUpdate = Button(this).apply {
             text = "Kiểm tra bản cập nhật"
             setOnClickListener {
                 val updateUrl = "https://github.com/muongi3211-oss/KeepAlive/releases/latest"
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateUrl))
-                try {
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(updateUrl))
+                startActivity(intent)
             }
         }
+
+        layout.addView(tvStatus)
+        layout.addView(btnStart)
         layout.addView(btnUpdate)
 
-        // Hiển thị giao diện an toàn 100% không sợ crash lúc mở
         setContentView(layout)
-        LogStore.add(applicationContext, "System: Mở ứng dụng FCM Guard thành công.")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        updateLogs()
-    }
-
-    private fun updateLogs() {
-        val logs = LogStore.getLogs(this)
-        val sb = StringBuilder()
-        for (log in logs) {
-            sb.append(log).append("\n\n")
-        }
-        logTextView.text = if (sb.isEmpty()) "Không có sự kiện nào." else sb.toString()
     }
 }
