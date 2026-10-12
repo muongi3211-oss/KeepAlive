@@ -97,20 +97,22 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(scrollView)
 
-        // Nút bấm cập nhật: Mở trực tiếp trình duyệt để tải file ổn định tuyệt đối
-val btnUpdate = findViewById<Button>(R.id.btnUpdate) // Hoặc ID nút cập nhật của bạn
-btnUpdate?.setOnClickListener {
-    // Trỏ trực tiếp đến trang Releases / Latest trên GitHub của bạn
-    val updateUrl = "https://github.com/muongi3211-oss/KeepAlive/releases/latest"
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateUrl))
-    try {
-        startActivity(intent)
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
-}
+        // Nút bản cập nhật: Khởi tạo trực tiếp bằng code Kotlin (không dùng findViewById gây lỗi)
+        val btnUpdate = Button(this).apply {
+            text = "Kiểm tra bản cập nhật"
+            setOnClickListener {
+                // Trỏ trực tiếp đến trang Releases / Latest trên GitHub của bạn
+                val updateUrl = "https://github.com/muongi3211-oss/KeepAlive/releases/latest"
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateUrl))
+                try {
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        layout.addView(btnUpdate)
 
-        layout.addView(updateButton)
 
         setContentView(layout)
 
