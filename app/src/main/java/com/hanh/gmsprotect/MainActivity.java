@@ -29,7 +29,8 @@ import android.widget.ImageView;
 public class MainActivity extends Activity {
     private static final String PREFS = "setup_v1";
     private static final String KEY_SETUP_DONE = "setup_done";
-
+    private static final String KEY_BATTERY_USER_CONFIRMED = "key_battery_user_confirmed";
+    
     private GmsProtector.Result protectResult = GmsProtector.Result.FAILED;
     private int onboardingStep = 0;
     private boolean waitingAutostartSettingsReturn = false;
@@ -247,10 +248,8 @@ public class MainActivity extends Activity {
         TextView title = new TextView(this);
         title.setGravity(Gravity.CENTER);
         title.setTextSize(22f);
-        title.setTextColor(UiKit.TEXT);
-        title.setTypeface(title.getTypeface(), Typeface.BOLD);
-        title.setText(onboardingStep == 0 ? R.string.autostart_title
-                : onboardingStep == 1 ? R.string.system_access_title : R.string.battery_title);
+title.setText((int) (onboardingStep == 0 ? R.string.autostart_title 
+    : onboardingStep == 1 ? R.string.system_access_title : R.string.battery_title));
         card.addView(title, matchWidthWithBottom(dp(9)));
 
         TextView body = UiKit.muted(this,
@@ -347,10 +346,8 @@ public class MainActivity extends Activity {
         success.addView(status, pillLp);
 
         TextView title = new TextView(this);
-        title.setText(ok ? R.string.success_title
-                : protectResult == GmsProtector.Result.GMS_MISSING ? R.string.gms_missing : R.string.protect_failed);
-        title.setTextSize(ok ? 23f : 19f);
-        title.setTextColor(UiKit.TEXT);
+        title.setText((int) (ok ? R.string.success_title 
+    : protectResult == GmsProtector.Result.GMS_MISSING ? R.string.gms_missing : R.string.protect_failed));
         title.setTypeface(title.getTypeface(), Typeface.BOLD);
         title.setGravity(Gravity.CENTER);
         success.addView(title, matchWidthWithBottom(dp(9)));
