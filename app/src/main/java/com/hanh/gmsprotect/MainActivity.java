@@ -29,8 +29,6 @@ public class MainActivity extends Activity {
     private static final String PREFS = "setup_v1";
     private static final String KEY_SETUP_DONE = "setup_done";
 
-    private static final long DAY_MS = 24L * 60L * 60L * 1000L;
-
     private GmsProtector.Result protectResult = GmsProtector.Result.FAILED;
     private int onboardingStep = 0;
     private boolean waitingAutostartSettingsReturn = false;
@@ -594,44 +592,6 @@ public class MainActivity extends Activity {
         card.addView(note);
 
         return card;
-    }
-
-    private View buildCryptoAddressRow(String network, String address) {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(11), dp(9), dp(9), dp(9));
-        box.setBackground(UiKit.rounded(0xFFF8F7FF, 12, this, UiKit.BORDER, 1));
-
-        TextView label = new TextView(this);
-        label.setText(network);
-        label.setTextSize(11.5f);
-        label.setTextColor(UiKit.TEXT);
-        label.setTypeface(label.getTypeface(), Typeface.BOLD);
-        box.addView(label, matchWidth());
-
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, dp(5), 0, 0);
-
-        TextView value = new TextView(this);
-        value.setText(address);
-        value.setTextSize(10.5f);
-        value.setTextColor(UiKit.MUTED);
-        value.setTextIsSelectable(true);
-        value.setTypeface(Typeface.MONOSPACE);
-        row.addView(value, new LinearLayout.LayoutParams(0, -2, 1f));
-
-        Button copy = UiKit.secondaryButton(this, getString(R.string.copy), v -> {
-            ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText(network, address));
-            toast(getString(R.string.copied_address, network));
-        });
-        LinearLayout.LayoutParams copyLp = new LinearLayout.LayoutParams(dp(82), dp(42));
-        copyLp.leftMargin = dp(8);
-        row.addView(copy, copyLp);
-        box.addView(row, matchWidth());
-        return box;
     }
 
     private void openWriteSettingsAccess() {
