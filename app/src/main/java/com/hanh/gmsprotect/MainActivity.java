@@ -28,25 +28,15 @@ import android.widget.ImageView;
 public class MainActivity extends Activity {
     private static final String PREFS = "setup_v1";
     private static final String KEY_SETUP_DONE = "setup_done";
-    private static final String KEY_BATTERY_USER_CONFIRMED = "battery_user_confirmed_v1";
-    private static final String KEY_DONATE_START_MS = "donate_start_ms";
-    private static final String KEY_DONATE_LAUNCH_COUNT = "donate_launch_count";
-    private static final String KEY_DONATE_LAST_PROMPT_MS = "donate_last_prompt_ms";
-    private static final String KEY_DONATE_PROMPT_COUNT = "donate_prompt_count";
 
     private static final long DAY_MS = 24L * 60L * 60L * 1000L;
-    private static final long DONATE_FIRST_DELAY_MS = 7L * DAY_MS;
-    private static final long DONATE_REPEAT_DELAY_MS = 30L * DAY_MS;
-    private static final int DONATE_MIN_LAUNCHES = 3;
-    private static final int DONATE_MAX_AUTO_PROMPTS = 3;
 
     private GmsProtector.Result protectResult = GmsProtector.Result.FAILED;
     private int onboardingStep = 0;
     private boolean waitingAutostartSettingsReturn = false;
     private boolean waitingWriteSettingsReturn = false;
     private boolean waitingBatterySettingsReturn = false;
-    private boolean donatePromptCheckedThisSession = false;
-
+    
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -68,7 +58,6 @@ public class MainActivity extends Activity {
         MilletWatchScheduler.schedule(this);
 
         if (isSetupDone()) {
-            recordReturningLaunchForDonate();
             showMainScreen();
         } else {
             continueSetupFlow();
@@ -197,17 +186,6 @@ public class MainActivity extends Activity {
     private void setSetupDone(boolean done) {
         android.content.SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         android.content.SharedPreferences.Editor editor = prefs.edit().putBoolean(KEY_SETUP_DONE, done);
-        if (done && prefs.getLong(KEY_DONATE_START_MS, 0L) == 0L) {
-            editor.putLong(KEY_DONATE_START_MS, System.currentTimeMillis());
-            editor.putInt(KEY_DONATE_LAUNCH_COUNT, Math.max(1, prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0)));
-        }
-        editor.apply();
-    }
-
-    private void recordReturningLaunchForDonate() {
-        android.content.SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        int launches = prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0);
-        prefs.edit().putInt(KEY_DONATE_LAUNCH_COUNT, launches + 1).apply();
     }
 
     private View buildHeader() {
