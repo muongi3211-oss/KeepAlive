@@ -1,5 +1,6 @@
 package com.hanh.gmsprotect;
 
+import com.hanh.gmsprotect.R;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
