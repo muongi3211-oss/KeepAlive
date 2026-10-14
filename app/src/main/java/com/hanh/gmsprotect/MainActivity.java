@@ -450,20 +450,6 @@ public class MainActivity extends Activity {
         }
         page.addView(success, cardMargin());
 
-        // Keep the top bar clean. Compatibility check lives below Donate.
-        page.addView(buildAdvancedCard(), cardMargin());
-        page.addView(buildDonateCard(), cardMargin());
-        page.addView(buildCompatibilityCard(), cardMargin());
-
-        View setupCard = buildSetupCardIfNeeded();
-        if (setupCard != null) {
-            page.addView(setupCard, cardMargin());
-        }
-        page.addView(buildAppInfoCard(), cardMargin());
-
-        // Setup actions are shown only when something is actually missing.
-        // Do not stack permission dialogs over the main screen.
-        page.post(this::maybeShowDonatePrompt);
     }
 
     private View buildSetupCardIfNeeded() {
@@ -529,40 +515,6 @@ public class MainActivity extends Activity {
         return setup;
     }
 
-    private void maybeShowDonatePrompt() {
-        if (donatePromptCheckedThisSession || !isSetupDone() || isFinishing()) return;
-        donatePromptCheckedThisSession = true;
-
-        android.content.SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        long now = System.currentTimeMillis();
-        long start = prefs.getLong(KEY_DONATE_START_MS, 0L);
-        int launches = prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0);
-        long lastPrompt = prefs.getLong(KEY_DONATE_LAST_PROMPT_MS, 0L);
-        int promptCount = prefs.getInt(KEY_DONATE_PROMPT_COUNT, 0);
-
-        if (start <= 0L) {
-            prefs.edit().putLong(KEY_DONATE_START_MS, now).apply();
-            return;
-        }
-        if (now - start < DONATE_FIRST_DELAY_MS) return;
-        if (launches < DONATE_MIN_LAUNCHES) return;
-        if (promptCount >= DONATE_MAX_AUTO_PROMPTS) return;
-        if (lastPrompt > 0L && now - lastPrompt < DONATE_REPEAT_DELAY_MS) return;
-
-        long days = Math.max(7L, (now - start) / DAY_MS);
-        prefs.edit()
-                .putLong(KEY_DONATE_LAST_PROMPT_MS, now)
-                .putInt(KEY_DONATE_PROMPT_COUNT, promptCount + 1)
-                .apply();
-
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.donate_reminder_title)
-                .setMessage(getString(R.string.donate_reminder_message, days))
-                .setPositiveButton(R.string.donate_button, (dialog, which) -> showDonateDialog())
-                .setNegativeButton(R.string.donate_later, null)
-                .show();
-    }
-
     private View buildCompatibilityCard() {
         LinearLayout card = UiKit.card(this);
 
@@ -581,34 +533,6 @@ public class MainActivity extends Activity {
                 startActivity(new Intent(this, CompatibilityActivity.class))), matchWidth());
         return card;
     }
-
-    private View buildDonateCard() {
-        LinearLayout card = UiKit.card(this);
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-
-        LinearLayout texts = new LinearLayout(this);
-        texts.setOrientation(LinearLayout.VERTICAL);
-        TextView title = new TextView(this);
-        title.setText(R.string.donate_title);
-        title.setTextSize(15f);
-        title.setTextColor(UiKit.TEXT);
-        title.setTypeface(title.getTypeface(), Typeface.BOLD);
-        title.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_donate_heart, 0, 0, 0);
-        title.setCompoundDrawablePadding(dp(5));
-        texts.addView(title);
-        TextView desc = UiKit.muted(this, getString(R.string.donate_desc), 11f);
-        desc.setPadding(0, dp(4), dp(8), 0);
-        texts.addView(desc);
-
-        row.addView(texts, new LinearLayout.LayoutParams(0, -2, 1f));
-        row.addView(UiKit.secondaryButton(this, getString(R.string.donate_button), v -> showDonateDialog()),
-                new LinearLayout.LayoutParams(dp(90), dp(46)));
-        card.addView(row);
-        return card;
-    }
-
 
     private View buildAdvancedCard() {
         LinearLayout card = UiKit.card(this);
@@ -691,62 +615,7 @@ public class MainActivity extends Activity {
         note.setPadding(0, dp(6), 0, dp(9));
         card.addView(note);
 
-        Button fb = UiKit.secondaryButton(this, getString(R.string.facebook), v -> openFacebookProfile());
-        fb.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_facebook, 0, 0, 0);
-        fb.setCompoundDrawablePadding(dp(7));
-        card.addView(fb, matchWidth());
         return card;
-    }
-
-    private void showDonateDialog() {
-        final String usdtEvm = "0x4cC35bE54c358146E7b71E58f965532193848FDd";
-        final String usdtTrc20 = "TD8fkqHy5cGQU3tFf7Qi7AeeqrAWi6e9Rm";
-
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setGravity(Gravity.CENTER_HORIZONTAL);
-        content.setPadding(dp(22), dp(10), dp(22), dp(12));
-
-        TextView thanks = new TextView(this);
-        thanks.setText(R.string.donate_thanks);
-        thanks.setTextSize(14f);
-        thanks.setTextColor(UiKit.TEXT);
-        thanks.setGravity(Gravity.CENTER);
-        content.addView(thanks, matchWidthWithBottom(dp(14)));
-
-        ImageView qr = new ImageView(this);
-        qr.setImageResource(R.drawable.donate_qr);
-        qr.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        qr.setAdjustViewBounds(true);
-        qr.setBackground(UiKit.rounded(Color.WHITE, 16, this));
-        qr.setPadding(dp(10), dp(10), dp(10), dp(10));
-        content.addView(qr, new LinearLayout.LayoutParams(dp(240), dp(240)));
-
-        TextView hint = UiKit.muted(this, getString(R.string.donate_qr_hint), 12f);
-        hint.setGravity(Gravity.CENTER);
-        hint.setPadding(0, dp(12), 0, dp(12));
-        content.addView(hint, matchWidth());
-
-        TextView cryptoTitle = new TextView(this);
-        cryptoTitle.setText(R.string.donate_usdt);
-        cryptoTitle.setTextSize(13f);
-        cryptoTitle.setTextColor(UiKit.TEXT);
-        cryptoTitle.setTypeface(cryptoTitle.getTypeface(), Typeface.BOLD);
-        content.addView(cryptoTitle, matchWidth());
-        content.addView(buildCryptoAddressRow("USDT - EVM", usdtEvm), matchWidthWithTop(dp(8)));
-        content.addView(buildCryptoAddressRow("USDT - TRC20", usdtTrc20), matchWidthWithTop(dp(8)));
-
-        TextView warning = UiKit.muted(this, getString(R.string.donate_network_warning), 10.5f);
-        warning.setPadding(0, dp(9), 0, 0);
-        content.addView(warning, matchWidth());
-
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.donate_dialog_title)
-                .setView(scroll)
-                .setPositiveButton(R.string.close, null)
-                .show();
     }
 
     private View buildCryptoAddressRow(String network, String address) {
