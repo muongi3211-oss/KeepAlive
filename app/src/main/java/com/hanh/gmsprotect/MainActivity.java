@@ -1,10 +1,6 @@
 package com.hanh.gmsprotect;
 
-import com.hanh.gmsprotect.R;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -24,19 +20,18 @@ import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ImageView;
 
 public class MainActivity extends Activity {
     private static final String PREFS = "setup_v1";
     private static final String KEY_SETUP_DONE = "setup_done";
-    private static final String KEY_BATTERY_USER_CONFIRMED = "key_battery_user_confirmed";
-    
+    private static final String KEY_BATTERY_USER_CONFIRMED = "battery_user_confirmed_v1";
+
     private GmsProtector.Result protectResult = GmsProtector.Result.FAILED;
     private int onboardingStep = 0;
     private boolean waitingAutostartSettingsReturn = false;
     private boolean waitingWriteSettingsReturn = false;
     private boolean waitingBatterySettingsReturn = false;
-    
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -46,15 +41,9 @@ public class MainActivity extends Activity {
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         }
 
-        // User requirement: refresh MiPush protection every time the app is opened.
+        // Duy trì tính năng bảo vệ MiPush và GMS mỗi khi mở ứng dụng
         protectResult = GmsProtector.protect(this);
-        // If the optional Aurogon background switch was already enabled, make
-        // sure its monitor service is alive after a process restart.
         AurogonAllowlistService.startIfEnabled(this);
-
-        // Ask JobScheduler/system_server to watch the exact MILLET Settings.System
-        // URI. The process does not need to stay alive; the job repairs GMS/Play
-        // Store only when PowerKeeper later removes either entry.
         MilletWatchScheduler.schedule(this);
 
         if (isSetupDone()) {
@@ -64,29 +53,24 @@ public class MainActivity extends Activity {
         }
     }
 
-
     @Override
     protected void onResume() {
         super.onResume();
 
         if (waitingAutostartSettingsReturn) {
             waitingAutostartSettingsReturn = false;
-            // HyperOS may update the AppOp a moment after the settings screen closes.
             checkAutostartAfterReturn(0);
             return;
         }
 
         if (waitingWriteSettingsReturn) {
             waitingWriteSettingsReturn = false;
-            // HyperOS can apply WRITE_SETTINGS a fraction after this Activity resumes.
             checkWriteSettingsAfterReturn(0);
             return;
         }
 
         if (waitingBatterySettingsReturn) {
             waitingBatterySettingsReturn = false;
-            // Read Android's observable battery-exemption flags again. Xiaomi's
-            // private PowerKeeper mode is not exposed via a public read API.
             if (isSetupDone()) showMainScreen();
             else showOnboarding(2);
         }
@@ -128,8 +112,6 @@ public class MainActivity extends Activity {
         }
 
         if (state == XiaomiSetupState.AutostartState.UNKNOWN) {
-            // Some HyperOS versions hide the vendor AppOp from third-party apps.
-            // Stay on this step and expose a manual confirmation fallback.
             showOnboarding(0);
             return;
         }
@@ -176,16 +158,14 @@ public class MainActivity extends Activity {
         return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(KEY_SETUP_DONE, false);
     }
 
-    /** This flag records the USER'S confirmation, not a claim that Xiaomi's
-     * private PowerKeeper database could be read or changed silently. */
     private boolean isBatteryUserConfirmed() {
         return getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getBoolean(KEY_BATTERY_USER_CONFIRMED, false);
     }
 
     private void setSetupDone(boolean done) {
-        android.content.SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        android.content.SharedPreferences.Editor editor = prefs.edit().putBoolean(KEY_SETUP_DONE, done);
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                .putBoolean(KEY_SETUP_DONE, done).apply();
     }
 
     private View buildHeader() {
@@ -248,8 +228,10 @@ public class MainActivity extends Activity {
         TextView title = new TextView(this);
         title.setGravity(Gravity.CENTER);
         title.setTextSize(22f);
-title.setText((int) (onboardingStep == 0 ? R.string.autostart_title 
-    : onboardingStep == 1 ? R.string.system_access_title : R.string.battery_title));
+        title.setTextColor(UiKit.TEXT);
+        title.setTypeface(title.getTypeface(), Typeface.BOLD);
+        title.setText(onboardingStep == 0 ? R.string.autostart_title
+                : onboardingStep == 1 ? R.string.system_access_title : R.string.battery_title);
         card.addView(title, matchWidthWithBottom(dp(9)));
 
         TextView body = UiKit.muted(this,
@@ -279,9 +261,6 @@ title.setText((int) (onboardingStep == 0 ? R.string.autostart_title
             card.addView(UiKit.primaryButton(this, getString(R.string.system_access_button), v ->
                     openWriteSettingsAccess()), matchWidth());
         } else {
-            // Native HyperOS mode requires a real user choice. Public Android
-            // DeviceIdle exemption is useful telemetry, but is NOT the same as
-            // Xiaomi's PowerKeeper "noRestrict" database row.
             boolean ignoringDoze = BatterySetupState.isIgnoringBatteryOptimizations(this);
             int dozeText = ignoringDoze ? R.string.battery_doze_granted : R.string.battery_doze_missing;
             TextView doze = UiKit.muted(this, getString(dozeText), 12f);
@@ -291,15 +270,11 @@ title.setText((int) (onboardingStep == 0 ? R.string.autostart_title
             warning.setGravity(Gravity.CENTER);
             card.addView(warning, matchWidthWithBottom(dp(14)));
 
-            // Keep a single battery button: open the Android exemption request,
-            // which is the action known to work on the target device.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !ignoringDoze) {
                 card.addView(UiKit.primaryButton(this, getString(R.string.battery_button),
                         v -> requestAndroidBatteryExemption()), matchWidthWithBottom(dp(9)));
             }
             card.addView(UiKit.secondaryButton(this, getString(R.string.battery_continue), v -> {
-                // User confirms having selected Xiaomi No restrictions manually.
-                // Never mislabel this as a vendor-verified permission.
                 getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                         .putBoolean(KEY_BATTERY_USER_CONFIRMED, true).apply();
                 continueSetupFlow();
@@ -346,8 +321,10 @@ title.setText((int) (onboardingStep == 0 ? R.string.autostart_title
         success.addView(status, pillLp);
 
         TextView title = new TextView(this);
-        title.setText((int) (ok ? R.string.success_title 
-    : protectResult == GmsProtector.Result.GMS_MISSING ? R.string.gms_missing : R.string.protect_failed));
+        title.setText(ok ? R.string.success_title
+                : protectResult == GmsProtector.Result.GMS_MISSING ? R.string.gms_missing : R.string.protect_failed);
+        title.setTextSize(ok ? 23f : 19f);
+        title.setTextColor(UiKit.TEXT);
         title.setTypeface(title.getTypeface(), Typeface.BOLD);
         title.setGravity(Gravity.CENTER);
         success.addView(title, matchWidthWithBottom(dp(9)));
@@ -424,6 +401,14 @@ title.setText((int) (onboardingStep == 0 ? R.string.autostart_title
         }
         page.addView(success, cardMargin());
 
+        page.addView(buildAdvancedCard(), cardMargin());
+        page.addView(buildCompatibilityCard(), cardMargin());
+
+        View setupCard = buildSetupCardIfNeeded();
+        if (setupCard != null) {
+            page.addView(setupCard, cardMargin());
+        }
+        page.addView(buildAppInfoCard(), cardMargin());
     }
 
     private View buildSetupCardIfNeeded() {
@@ -586,9 +571,8 @@ title.setText((int) (onboardingStep == 0 ? R.string.autostart_title
         dev.setPadding(0, dp(7), 0, 0);
         card.addView(dev);
         TextView note = UiKit.muted(this, getString(R.string.about_note), 10.8f);
-        note.setPadding(0, dp(6), 0, dp(9));
+        note.setPadding(0, dp(6), 0, dp(3));
         card.addView(note);
-
         return card;
     }
 
@@ -620,7 +604,7 @@ title.setText((int) (onboardingStep == 0 ? R.string.autostart_title
         try {
             Intent request = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
             request.setData(Uri.parse("package:" + getPackageName()));
-            startActivity(request); // Android always asks the USER for consent.
+            startActivity(request);
         } catch (Throwable ignored) {
             try {
                 startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
@@ -632,9 +616,6 @@ title.setText((int) (onboardingStep == 0 ? R.string.autostart_title
     }
 
     private void openAutostartSettings() {
-        // Open only the dedicated HyperOS Autostart manager. Do NOT fall back to
-        // PermissionsEditorActivity: that is the long "Other permissions" screen
-        // with unrelated toggles the app does not need.
         Intent action = new Intent("miui.intent.action.OP_AUTO_START");
         action.setPackage("com.miui.securitycenter");
 
