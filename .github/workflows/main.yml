@@ -44,28 +44,35 @@ jobs:
     - name: Build Release APK
       run: ./gradlew assembleRelease -PAPK_VERSION_CODE=${{ env.VERSION_CODE }} -PAPK_VERSION_NAME=${{ env.VERSION_NAME }}
 
-    # Bước ký chữ ký số sử dụng Secrets đã lưu trên GitHub
-    - name: Sign APK
-      uses: r3der/zip-release-signing@v1
-      with:
-        directory: 'app/build/outputs/apk/release'
-        signingKeyBase64: ${{ secrets.SIGNING_KEY_BASE64 }}
-        alias: ${{ secrets.KEY_ALIAS }}
-        keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-        keyPassword: ${{ secrets.KEY_PASSWORD }}
+    - name: Sign APK with apksigner
       env:
-        BUILD_TOOLS_VERSION: '34.0.0'
-
-    - name: Rename Signed APK
+        SIGNING_KEY_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
-        cd app/build/outputs/apk/release
-        # Đổi tên file sau khi ký xong cho dễ nhận diện phiên bản
-        for f in *-unsigned-signed.apk; do
-          if [ -f "$f" ]; then mv "$f" "GmsProtect-v${{ env.VERSION_NAME }}.apk"; fi
-        done
-        for f in *-signed.apk; do
-          if [ -f "$f" ]; then mv "$f" "GmsProtect-v${{ env.VERSION_NAME }}.apk"; fi
-        done
+        # Giải mã keystore từ Base64
+        echo "$SIGNING_KEY_BASE64" | base64 --decode > keystore.jks
+        
+        # Tìm đường dẫn apksigner trong Android SDK
+        BUILD_TOOLS_DIR=$(ls -d $ANDROID_SDK_ROOT/build-tools/* | tail -n 1)
+        APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
+        
+        # Tìm file APK vừa build
+        APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" ! -name "*-signed.apk")
+        
+        # Ký chữ ký số cho APK
+        $APKSIGNER sign --ks keystore.jks \
+          --ks-key-alias "$KEY_ALIAS" \
+          --ks-pass pass:"$KEYSTORE_PASSWORD" \
+          --key-pass pass:"$KEY_PASSWORD" \
+          "$APK_PATH"
+          
+        # Đổi tên file sau khi ký xong
+        mv "$APK_PATH" app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk
+        
+        # Dọn dẹp tệp keystore tạm
+        rm keystore.jks
 
     - name: Upload APK artifact (Dự phòng)
       uses: actions/upload-artifact@v4
@@ -78,7 +85,7 @@ jobs:
       with:
         tag_name: latest
         name: "GmsProtect v${{ env.VERSION_NAME }}"
-        body: "Bản cập nhật tự động mới nhất v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số hoàn chỉnh."
+        body: "Bản cập nhật tự động mới nhất v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
         files: |
           app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk
       env:
