@@ -44,6 +44,29 @@ jobs:
     - name: Build Release APK
       run: ./gradlew assembleRelease -PAPK_VERSION_CODE=${{ env.VERSION_CODE }} -PAPK_VERSION_NAME=${{ env.VERSION_NAME }}
 
+    # Bước ký chữ ký số sử dụng Secrets đã lưu trên GitHub
+    - name: Sign APK
+      uses: r3der/zip-release-signing@v1
+      with:
+        directory: 'app/build/outputs/apk/release'
+        signingKeyBase64: ${{ secrets.SIGNING_KEY_BASE64 }}
+        alias: ${{ secrets.KEY_ALIAS }}
+        keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+        keyPassword: ${{ secrets.KEY_PASSWORD }}
+      env:
+        BUILD_TOOLS_VERSION: '34.0.0'
+
+    - name: Rename Signed APK
+      run: |
+        cd app/build/outputs/apk/release
+        # Đổi tên file sau khi ký xong cho dễ nhận diện phiên bản
+        for f in *-unsigned-signed.apk; do
+          if [ -f "$f" ]; then mv "$f" "GmsProtect-v${{ env.VERSION_NAME }}.apk"; fi
+        done
+        for f in *-signed.apk; do
+          if [ -f "$f" ]; then mv "$f" "GmsProtect-v${{ env.VERSION_NAME }}.apk"; fi
+        done
+
     - name: Upload APK artifact (Dự phòng)
       uses: actions/upload-artifact@v4
       with:
@@ -55,8 +78,8 @@ jobs:
       with:
         tag_name: latest
         name: "GmsProtect v${{ env.VERSION_NAME }}"
-        body: "Bản cập nhật tự động mới nhất v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }}) được build từ GitHub Actions."
+        body: "Bản cập nhật tự động mới nhất v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số hoàn chỉnh."
         files: |
-          app/build/outputs/apk/release/*.apk
+          app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
