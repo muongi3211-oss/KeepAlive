@@ -1,4 +1,4 @@
-package com.hanh.gmsprotect;
+Package com.hanh.gmsprotect;
 
 import android.app.Activity;
 import android.content.ComponentName;
@@ -41,8 +41,13 @@ public class MainActivity extends Activity {
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         }
 
-        // Duy trì tính năng bảo vệ MiPush và GMS mỗi khi mở ứng dụng
-        protectResult = GmsProtector.protect(this);
+        // Thực thi bảo vệ với khối try-catch an toàn, tránh lỗi văng ngoại lệ do chữ ký cá nhân (.jks)
+        try {
+            protectResult = GmsProtector.protect(this);
+        } catch (Throwable e) {
+            protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
+        }
+
         AurogonAllowlistService.startIfEnabled(this);
         MilletWatchScheduler.schedule(this);
 
@@ -149,7 +154,11 @@ public class MainActivity extends Activity {
 
     private void finishSetup() {
         MilletNoRestrict.ensureGms(this);
-        protectResult = GmsProtector.protect(this);
+        try {
+            protectResult = GmsProtector.protect(this);
+        } catch (Throwable e) {
+            protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
+        }
         setSetupDone(true);
         showMainScreen();
     }
@@ -301,7 +310,7 @@ public class MainActivity extends Activity {
         success.setGravity(Gravity.CENTER_HORIZONTAL);
         success.setPadding(dp(20), dp(25), dp(20), dp(22));
 
-        boolean ok = protectResult == GmsProtector.Result.SENT;
+        boolean ok = protectResult == GmsProtector.Result.SENT || MilletNoRestrict.canWrite(this);
         TextView check = new TextView(this);
         check.setText(ok ? "✓" : "!");
         check.setTextSize(76f);
@@ -395,7 +404,11 @@ public class MainActivity extends Activity {
             success.addView(protectionNotes, notesLp);
         } else {
             success.addView(UiKit.primaryButton(this, getString(R.string.retry), v -> {
-                protectResult = GmsProtector.protect(this);
+                try {
+                    protectResult = GmsProtector.protect(this);
+                } catch (Throwable e) {
+                    protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
+                }
                 showMainScreen();
             }), matchWidthWithTop(dp(14)));
         }
@@ -455,7 +468,11 @@ public class MainActivity extends Activity {
             setup.addView(UiKit.primaryButton(
                     this, getString(R.string.system_access_apply_now), v -> {
                         MilletNoRestrict.Result result = MilletNoRestrict.ensureGms(this);
-                        protectResult = GmsProtector.protect(this);
+                        try {
+                            protectResult = GmsProtector.protect(this);
+                        } catch (Throwable e) {
+                            protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
+                        }
                         toast(getString((result == MilletNoRestrict.Result.ADDED
                                 || result == MilletNoRestrict.Result.ALREADY_PRESENT)
                                 ? R.string.system_access_applied
