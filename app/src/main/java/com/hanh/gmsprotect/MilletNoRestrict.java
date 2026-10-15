@@ -1,6 +1,7 @@
 package com.hanh.gmsprotect;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.provider.Settings;
@@ -11,12 +12,10 @@ import java.util.LinkedHashSet;
 
 /**
  * Best-effort HyperOS no-restrict helper.
- *
- * This uses the user-grantable WRITE_SETTINGS special access. It never replaces
- * the existing list blindly: current packages are read, normalized, preserved,
- * and GMS, Google Play Store, and GMS Protect itself are added idempotently. Every write is
- * verified by reading the setting back. Detailed logs are kept intentionally
- * small so failures on HyperOS can be diagnosed without guessing.
+ * 
+ * Optimized for HyperOS China ROM (including Redmi K80 Pro) to ensure
+ * GMS, Google Play Store, and GMS Protect are reliably retained in 
+ * MILLET_NO_RESTRICT_APP against PowerKeeper re-writes.
  */
 public final class MilletNoRestrict {
     private static final String TAG = "MilletNoRestrict";
@@ -24,6 +23,7 @@ public final class MilletNoRestrict {
     public static final String KEY = "MILLET_NO_RESTRICT_APP";
     public static final String GMS_PACKAGE = GmsProtector.GMS_PACKAGE;
     public static final String PLAY_STORE_PACKAGE = "com.android.vending";
+    public static final String ACTION_REFRESH_MIPUSH = GmsProtector.ACTION_REFRESH_MIPUSH;
 
     private static final String PREFS = "millet_no_restrict_state";
     private static final String PREF_LAST_GOOD = "last_good_" + KEY;
@@ -99,6 +99,7 @@ public final class MilletNoRestrict {
             boolean hasGmsBefore = packages.contains(GMS_PACKAGE);
             boolean hasPlayStoreBefore = packages.contains(PLAY_STORE_PACKAGE);
             boolean hasSelfBefore = packages.contains(app.getPackageName());
+
             Log.i(TAG, "before containsGms=" + hasGmsBefore
                     + " containsPlayStore=" + hasPlayStoreBefore
                     + " containsSelf=" + hasSelfBefore
@@ -111,32 +112,27 @@ public final class MilletNoRestrict {
                 return Result.ALREADY_PRESENT;
             }
 
-            // HyperOS can occasionally expose a transient empty value while its
-            // power policy database is being rebuilt. Do not turn that temporary
-            // empty state into a new one-item list and accidentally discard the
-            // user's other no-restrict packages. Restore the last successfully
-            // observed list first, then add GMS.
             if (packages.isEmpty()) {
                 LinkedHashSet<String> cached = parse(readLastGood(app));
                 if (!cached.isEmpty()) {
                     packages.addAll(cached);
                     Log.i(TAG, "restored lastGood count=" + cached.size());
-                } else {
-                    Log.i(TAG, "lastGood unavailable; starting from empty list");
                 }
             }
 
-            boolean addedGms = packages.add(GMS_PACKAGE);
-            boolean addedPlayStore = packages.add(PLAY_STORE_PACKAGE);
-            boolean addedSelf = packages.add(app.getPackageName());
+            packages.add(GMS_PACKAGE);
+            packages.add(PLAY_STORE_PACKAGE);
+            packages.add(app.getPackageName());
             String merged = TextUtils.join(",", packages);
-            Log.i(TAG, "addingGms=" + addedGms
-                    + " addingPlayStore=" + addedPlayStore
-                    + " addingSelf=" + addedSelf
-                    + " newCount=" + packages.size());
 
-            boolean writeAccepted = Settings.System.putString(
-                    app.getContentResolver(), KEY, merged);
+            // Thử ghi tối đa 2 lần để khắc phục xung đột ghi đè từ PowerKeeper trên HyperOS
+            boolean writeAccepted = false;
+            for (int attempt = 0; attempt < 2; attempt++) {
+                writeAccepted = Settings.System.putString(app.getContentResolver(), KEY, merged);
+                if (writeAccepted) break;
+                try { Thread.sleep(150L); } catch (InterruptedException ignored) {}
+            }
+
             Log.i(TAG, "putString accepted=" + writeAccepted);
 
             if (!writeAccepted) {
@@ -144,11 +140,15 @@ public final class MilletNoRestrict {
                 return Result.FAILED;
             }
 
+            // Đợi một khoảng rất ngắn để hệ thống cập nhật bộ nhớ đệm
+            try { Thread.sleep(100L); } catch (InterruptedException ignored) {}
+
             String after = Settings.System.getString(app.getContentResolver(), KEY);
             LinkedHashSet<String> verifiedPackages = parse(after);
             boolean gmsVerified = verifiedPackages.contains(GMS_PACKAGE);
             boolean playStoreVerified = verifiedPackages.contains(PLAY_STORE_PACKAGE);
             boolean selfVerified = verifiedPackages.contains(app.getPackageName());
+
             Log.i(TAG, "after containsGms=" + gmsVerified
                     + " containsPlayStore=" + playStoreVerified
                     + " containsSelf=" + selfVerified
@@ -163,9 +163,16 @@ public final class MilletNoRestrict {
 
             rememberLastGood(app, verifiedPackages);
 
-            // Settings.System.putString() already notifies SettingsProvider observers.
-            // Do not send a second manual notifyChange(): Aurogon and the JobScheduler
-            // watcher will receive the provider notification from this successful write.
+            // Kích hoạt tín hiệu làm mới MiPush để PowerKeeper nhận diện ngay lập tức
+            try {
+                Intent intent = new Intent(ACTION_REFRESH_MIPUSH);
+                intent.putExtra("pkgName", GMS_PACKAGE);
+                intent.putExtra("option", 1);
+                app.sendBroadcast(intent);
+            } catch (Throwable t) {
+                Log.w(TAG, "Failed to send immediate refresh broadcast: " + t.getMessage());
+            }
+
             Log.i(TAG, "result=ADDED");
             return Result.ADDED;
         } catch (Throwable t) {
@@ -185,15 +192,12 @@ public final class MilletNoRestrict {
         }
     }
 
-
     private static Context prefsContext(Context context) {
         Context app = context.getApplicationContext();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try {
                 return app.createDeviceProtectedStorageContext();
-            } catch (Throwable ignored) {
-                // Fall back to normal app storage below.
-            }
+            } catch (Throwable ignored) {}
         }
         return app;
     }
@@ -230,11 +234,10 @@ public final class MilletNoRestrict {
         LinkedHashSet<String> out = new LinkedHashSet<>();
         if (raw == null || raw.trim().isEmpty()) return out;
 
-        // ROM dumps have been observed with commas plus optional spaces. Accept
-        // additional separators defensively without disturbing package names.
         String normalized = raw.replace(';', ',')
                 .replace('\n', ',')
-                .replace('\t', ',');
+                .replace('\t', ',')
+                .replace(' ', ',');
 
         for (String token : normalized.split(",")) {
             String value = token == null ? "" : token.trim();
@@ -245,7 +248,6 @@ public final class MilletNoRestrict {
 
     private static String safeValue(String value) {
         if (value == null) return "<null>";
-        // This list is normally short, but avoid flooding logcat on unusual ROMs.
         if (value.length() <= 1200) return value;
         return value.substring(0, 1200) + "...(" + value.length() + " chars)";
     }
