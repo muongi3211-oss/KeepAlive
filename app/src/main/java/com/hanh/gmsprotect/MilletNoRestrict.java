@@ -1,7 +1,6 @@
 package com.hanh.gmsprotect;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.provider.Settings;
@@ -12,10 +11,6 @@ import java.util.LinkedHashSet;
 
 /**
  * Best-effort HyperOS no-restrict helper.
- * 
- * Optimized for HyperOS China ROM (including Redmi K80 Pro) to ensure
- * GMS, Google Play Store, and GMS Protect are reliably retained in 
- * MILLET_NO_RESTRICT_APP against PowerKeeper re-writes.
  */
 public final class MilletNoRestrict {
     private static final String TAG = "MilletNoRestrict";
@@ -23,7 +18,6 @@ public final class MilletNoRestrict {
     public static final String KEY = "MILLET_NO_RESTRICT_APP";
     public static final String GMS_PACKAGE = GmsProtector.GMS_PACKAGE;
     public static final String PLAY_STORE_PACKAGE = "com.android.vending";
-    public static final String ACTION_REFRESH_MIPUSH = GmsProtector.ACTION_REFRESH_MIPUSH;
 
     private static final String PREFS = "millet_no_restrict_state";
     private static final String PREF_LAST_GOOD = "last_good_" + KEY;
@@ -96,15 +90,16 @@ public final class MilletNoRestrict {
         try {
             String before = Settings.System.getString(app.getContentResolver(), KEY);
             LinkedHashSet<String> packages = parse(before);
+            String selfPkg = app.getPackageName();
+
             boolean hasGmsBefore = packages.contains(GMS_PACKAGE);
             boolean hasPlayStoreBefore = packages.contains(PLAY_STORE_PACKAGE);
-            boolean hasSelfBefore = packages.contains(app.getPackageName());
+            boolean hasSelfBefore = packages.contains(selfPkg);
 
             Log.i(TAG, "before containsGms=" + hasGmsBefore
                     + " containsPlayStore=" + hasPlayStoreBefore
                     + " containsSelf=" + hasSelfBefore
-                    + " count=" + packages.size()
-                    + " value=" + safeValue(before));
+                    + " count=" + packages.size());
 
             if (hasGmsBefore && hasPlayStoreBefore && hasSelfBefore) {
                 rememberLastGood(app, packages);
@@ -112,67 +107,54 @@ public final class MilletNoRestrict {
                 return Result.ALREADY_PRESENT;
             }
 
+            // Khôi phục từ Cache nếu danh sách hiện tại rỗng
             if (packages.isEmpty()) {
                 LinkedHashSet<String> cached = parse(readLastGood(app));
                 if (!cached.isEmpty()) {
                     packages.addAll(cached);
-                    Log.i(TAG, "restored lastGood count=" + cached.size());
                 }
             }
 
+            // Ép thêm đủ cả 3 package quan trọng
             packages.add(GMS_PACKAGE);
             packages.add(PLAY_STORE_PACKAGE);
-            packages.add(app.getPackageName());
+            packages.add(selfPkg);
+
             String merged = TextUtils.join(",", packages);
 
-            // Thử ghi tối đa 2 lần để khắc phục xung đột ghi đè từ PowerKeeper trên HyperOS
-            boolean writeAccepted = false;
-            for (int attempt = 0; attempt < 2; attempt++) {
-                writeAccepted = Settings.System.putString(app.getContentResolver(), KEY, merged);
-                if (writeAccepted) break;
-                try { Thread.sleep(150L); } catch (InterruptedException ignored) {}
-            }
-
-            Log.i(TAG, "putString accepted=" + writeAccepted);
+            boolean writeAccepted = Settings.System.putString(
+                    app.getContentResolver(), KEY, merged);
 
             if (!writeAccepted) {
                 Log.w(TAG, "result=FAILED reason=putString_false");
                 return Result.FAILED;
             }
 
-            // Đợi một khoảng rất ngắn để hệ thống cập nhật bộ nhớ đệm
-            try { Thread.sleep(100L); } catch (InterruptedException ignored) {}
-
+            // Đọc lại để kiểm tra
             String after = Settings.System.getString(app.getContentResolver(), KEY);
             LinkedHashSet<String> verifiedPackages = parse(after);
+
             boolean gmsVerified = verifiedPackages.contains(GMS_PACKAGE);
             boolean playStoreVerified = verifiedPackages.contains(PLAY_STORE_PACKAGE);
-            boolean selfVerified = verifiedPackages.contains(app.getPackageName());
-
-            Log.i(TAG, "after containsGms=" + gmsVerified
-                    + " containsPlayStore=" + playStoreVerified
-                    + " containsSelf=" + selfVerified
-                    + " value=" + safeValue(after));
+            boolean selfVerified = verifiedPackages.contains(selfPkg);
 
             if (!gmsVerified || !playStoreVerified || !selfVerified) {
-                Log.w(TAG, "result=VERIFY_FAILED gms=" + gmsVerified
-                        + " playStore=" + playStoreVerified
-                        + " self=" + selfVerified);
-                return Result.VERIFY_FAILED;
+                Log.w(TAG, "Lần kiểm tra đầu thất bại, thực hiện thử lại ghi đè...");
+                // Thử lại lần thứ hai với danh sách tối giản nếu kiểm tra lần 1 thất bại
+                Settings.System.putString(app.getContentResolver(), KEY, merged);
+                String retryAfter = Settings.System.getString(app.getContentResolver(), KEY);
+                LinkedHashSet<String> retryVerified = parse(retryAfter);
+
+                if (!retryVerified.contains(GMS_PACKAGE) || 
+                    !retryVerified.contains(PLAY_STORE_PACKAGE) || 
+                    !retryVerified.contains(selfPkg)) {
+                    return Result.VERIFY_FAILED;
+                }
+                rememberLastGood(app, retryVerified);
+                return Result.ADDED;
             }
 
             rememberLastGood(app, verifiedPackages);
-
-            // Kích hoạt tín hiệu làm mới MiPush để PowerKeeper nhận diện ngay lập tức
-            try {
-                Intent intent = new Intent(ACTION_REFRESH_MIPUSH);
-                intent.putExtra("pkgName", GMS_PACKAGE);
-                intent.putExtra("option", 1);
-                app.sendBroadcast(intent);
-            } catch (Throwable t) {
-                Log.w(TAG, "Failed to send immediate refresh broadcast: " + t.getMessage());
-            }
-
             Log.i(TAG, "result=ADDED");
             return Result.ADDED;
         } catch (Throwable t) {
@@ -236,8 +218,7 @@ public final class MilletNoRestrict {
 
         String normalized = raw.replace(';', ',')
                 .replace('\n', ',')
-                .replace('\t', ',')
-                .replace(' ', ',');
+                .replace('\t', ',');
 
         for (String token : normalized.split(",")) {
             String value = token == null ? "" : token.trim();
