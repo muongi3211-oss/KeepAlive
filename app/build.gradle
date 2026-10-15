@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace 'com.kinh.protect'
+    namespace 'com.kinh.gmsprotect'
     compileSdk 34
 
     defaultConfig {
