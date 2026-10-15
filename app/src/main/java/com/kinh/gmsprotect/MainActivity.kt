@@ -2,6 +2,8 @@ package com.kinh.gmsprotect
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -253,7 +255,7 @@ class MainActivity : Activity() {
         page.addView(card, LinearLayout.LayoutParams(-1, -2))
     }
 
-    private void showMainScreen() {
+    private fun showMainScreen() {
         val root = shell()
         val scroll = ScrollView(this).apply { isFillViewport = true }
         val page = LinearLayout(this).apply {
