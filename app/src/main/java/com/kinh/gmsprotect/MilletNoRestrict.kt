@@ -24,6 +24,10 @@ object MilletNoRestrict {
         false
     }
 
+    fun containsGms(context: Context): Boolean = containsPackage(context, GMS_PACKAGE)
+
+    fun containsPlayStore(context: Context): Boolean = containsPackage(context, PLAY_STORE_PACKAGE)
+
     fun ensureGms(context: Context): Boolean {
         val app = context.applicationContext
         if (!canWrite(app)) return false
