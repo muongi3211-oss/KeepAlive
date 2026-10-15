@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
+import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -38,6 +39,34 @@ object UiKit {
         }
     }
 
+    fun verticalGradient(): GradientDrawable {
+        return GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(PRIMARY_DARK, PRIMARY)
+        )
+    }
+
+    fun applyTopSystemInset(view: View) {
+        val dpTop = dp(view.context, 12)
+        view.setPadding(view.paddingLeft, view.paddingTop + dpTop, view.paddingRight, view.paddingBottom)
+    }
+
+    fun applyBottomSystemInset(view: View) {
+        val dpBottom = dp(view.context, 12)
+        view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, view.paddingBottom + dpBottom)
+    }
+
+    fun pill(context: Context, text: String, bgColor: Int, textColor: Int): TextView {
+        return TextView(context).apply {
+            this.text = text
+            textSize = 12f
+            setTextColor(textColor)
+            setTypeface(typeface, Typeface.BOLD)
+            setPadding(dp(context, 12), dp(context, 6), dp(context, 12), dp(context, 6))
+            background = rounded(bgColor, 50, context)
+        }
+    }
+
     fun muted(context: Context, text: String, size: Float): TextView {
         return TextView(context).apply {
             this.text = text
@@ -46,7 +75,7 @@ object UiKit {
         }
     }
 
-    fun primaryButton(context: Context, text: String, action: android.view.View.OnClickListener): Button {
+    fun primaryButton(context: Context, text: String, action: View.OnClickListener): Button {
         return Button(context).apply {
             this.text = text
             isAllCaps = false
@@ -58,7 +87,7 @@ object UiKit {
         }
     }
 
-    fun secondaryButton(context: Context, text: String, action: android.view.View.OnClickListener): Button {
+    fun secondaryButton(context: Context, text: String, action: View.OnClickListener): Button {
         return Button(context).apply {
             this.text = text
             isAllCaps = false
