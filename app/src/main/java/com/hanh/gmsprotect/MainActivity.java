@@ -1,6 +1,10 @@
 package com.hanh.gmsprotect;
 
+import android.app.gmsprotect.R;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -20,17 +24,29 @@ import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ImageView;
 
 public class MainActivity extends Activity {
     private static final String PREFS = "setup_v1";
     private static final String KEY_SETUP_DONE = "setup_done";
     private static final String KEY_BATTERY_USER_CONFIRMED = "battery_user_confirmed_v1";
+    private static final String KEY_DONATE_START_MS = "donate_start_ms";
+    private static final String KEY_DONATE_LAUNCH_COUNT = "donate_launch_count";
+    private static final String KEY_DONATE_LAST_PROMPT_MS = "donate_last_prompt_ms";
+    private static final String KEY_DONATE_PROMPT_COUNT = "donate_prompt_count";
+
+    private static final long DAY_MS = 24L * 60L * 60L * 1000L;
+    private static final long DONATE_FIRST_DELAY_MS = 7L * DAY_MS;
+    private static final long DONATE_REPEAT_DELAY_MS = 30L * DAY_MS;
+    private static final int DONATE_MIN_LAUNCHES = 3;
+    private static final int DONATE_MAX_AUTO_PROMPTS = 3;
 
     private GmsProtector.Result protectResult = GmsProtector.Result.FAILED;
     private int onboardingStep = 0;
     private boolean waitingAutostartSettingsReturn = false;
     private boolean waitingWriteSettingsReturn = false;
     private boolean waitingBatterySettingsReturn = false;
+    private boolean donatePromptCheckedThisSession = false;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -41,22 +57,25 @@ public class MainActivity extends Activity {
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         }
 
-        // Thực thi bảo vệ với khối try-catch an toàn, tránh lỗi văng ngoại lệ do chữ ký cá nhân (.jks)
-        try {
-            protectResult = GmsProtector.protect(this);
-        } catch (Throwable e) {
-            protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
-        }
-
+        // User requirement: refresh MiPush protection every time the app is opened.
+        protectResult = GmsProtector.protect(this);
+        // If the optional Aurogon background switch was already enabled, make
+        // sure its monitor service is alive after a process restart.
         AurogonAllowlistService.startIfEnabled(this);
+
+        // Ask JobScheduler/system_server to watch the exact MILLET Settings.System
+        // URI. The process does not need to stay alive; the job repairs GMS/Play
+        // Store only when PowerKeeper later removes either entry.
         MilletWatchScheduler.schedule(this);
 
         if (isSetupDone()) {
+            recordReturningLaunchForDonate();
             showMainScreen();
         } else {
             continueSetupFlow();
         }
     }
+
 
     @Override
     protected void onResume() {
@@ -64,18 +83,22 @@ public class MainActivity extends Activity {
 
         if (waitingAutostartSettingsReturn) {
             waitingAutostartSettingsReturn = false;
+            // HyperOS may update the AppOp a moment after the settings screen closes.
             checkAutostartAfterReturn(0);
             return;
         }
 
         if (waitingWriteSettingsReturn) {
             waitingWriteSettingsReturn = false;
+            // HyperOS can apply WRITE_SETTINGS a fraction after this Activity resumes.
             checkWriteSettingsAfterReturn(0);
             return;
         }
 
         if (waitingBatterySettingsReturn) {
             waitingBatterySettingsReturn = false;
+            // Read Android's observable battery-exemption flags again. Xiaomi's
+            // private PowerKeeper mode is not exposed via a public read API.
             if (isSetupDone()) showMainScreen();
             else showOnboarding(2);
         }
@@ -117,6 +140,8 @@ public class MainActivity extends Activity {
         }
 
         if (state == XiaomiSetupState.AutostartState.UNKNOWN) {
+            // Some HyperOS versions hide the vendor AppOp from third-party apps.
+            // Stay on this step and expose a manual confirmation fallback.
             showOnboarding(0);
             return;
         }
@@ -154,11 +179,7 @@ public class MainActivity extends Activity {
 
     private void finishSetup() {
         MilletNoRestrict.ensureGms(this);
-        try {
-            protectResult = GmsProtector.protect(this);
-        } catch (Throwable e) {
-            protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
-        }
+        protectResult = GmsProtector.protect(this);
         setSetupDone(true);
         showMainScreen();
     }
@@ -167,14 +188,27 @@ public class MainActivity extends Activity {
         return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(KEY_SETUP_DONE, false);
     }
 
+    /** This flag records the USER'S confirmation, not a claim that Xiaomi's
+     * private PowerKeeper database could be read or changed silently. */
     private boolean isBatteryUserConfirmed() {
         return getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getBoolean(KEY_BATTERY_USER_CONFIRMED, false);
     }
 
     private void setSetupDone(boolean done) {
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                .putBoolean(KEY_SETUP_DONE, done).apply();
+        android.content.SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        android.content.SharedPreferences.Editor editor = prefs.edit().putBoolean(KEY_SETUP_DONE, done);
+        if (done && prefs.getLong(KEY_DONATE_START_MS, 0L) == 0L) {
+            editor.putLong(KEY_DONATE_START_MS, System.currentTimeMillis());
+            editor.putInt(KEY_DONATE_LAUNCH_COUNT, Math.max(1, prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0)));
+        }
+        editor.apply();
+    }
+
+    private void recordReturningLaunchForDonate() {
+        android.content.SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        int launches = prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0);
+        prefs.edit().putInt(KEY_DONATE_LAUNCH_COUNT, launches + 1).apply();
     }
 
     private View buildHeader() {
@@ -270,6 +304,9 @@ public class MainActivity extends Activity {
             card.addView(UiKit.primaryButton(this, getString(R.string.system_access_button), v ->
                     openWriteSettingsAccess()), matchWidth());
         } else {
+            // Native HyperOS mode requires a real user choice. Public Android
+            // DeviceIdle exemption is useful telemetry, but is NOT the same as
+            // Xiaomi's PowerKeeper "noRestrict" database row.
             boolean ignoringDoze = BatterySetupState.isIgnoringBatteryOptimizations(this);
             int dozeText = ignoringDoze ? R.string.battery_doze_granted : R.string.battery_doze_missing;
             TextView doze = UiKit.muted(this, getString(dozeText), 12f);
@@ -279,11 +316,15 @@ public class MainActivity extends Activity {
             warning.setGravity(Gravity.CENTER);
             card.addView(warning, matchWidthWithBottom(dp(14)));
 
+            // Keep a single battery button: open the Android exemption request,
+            // which is the action known to work on the target device.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !ignoringDoze) {
                 card.addView(UiKit.primaryButton(this, getString(R.string.battery_button),
                         v -> requestAndroidBatteryExemption()), matchWidthWithBottom(dp(9)));
             }
             card.addView(UiKit.secondaryButton(this, getString(R.string.battery_continue), v -> {
+                // User confirms having selected Xiaomi No restrictions manually.
+                // Never mislabel this as a vendor-verified permission.
                 getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                         .putBoolean(KEY_BATTERY_USER_CONFIRMED, true).apply();
                 continueSetupFlow();
@@ -310,7 +351,7 @@ public class MainActivity extends Activity {
         success.setGravity(Gravity.CENTER_HORIZONTAL);
         success.setPadding(dp(20), dp(25), dp(20), dp(22));
 
-        boolean ok = protectResult == GmsProtector.Result.SENT || MilletNoRestrict.canWrite(this);
+        boolean ok = protectResult == GmsProtector.Result.SENT;
         TextView check = new TextView(this);
         check.setText(ok ? "✓" : "!");
         check.setTextSize(76f);
@@ -404,17 +445,15 @@ public class MainActivity extends Activity {
             success.addView(protectionNotes, notesLp);
         } else {
             success.addView(UiKit.primaryButton(this, getString(R.string.retry), v -> {
-                try {
-                    protectResult = GmsProtector.protect(this);
-                } catch (Throwable e) {
-                    protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
-                }
+                protectResult = GmsProtector.protect(this);
                 showMainScreen();
             }), matchWidthWithTop(dp(14)));
         }
         page.addView(success, cardMargin());
 
+        // Keep the top bar clean. Compatibility check lives below Donate.
         page.addView(buildAdvancedCard(), cardMargin());
+        page.addView(buildDonateCard(), cardMargin());
         page.addView(buildCompatibilityCard(), cardMargin());
 
         View setupCard = buildSetupCardIfNeeded();
@@ -422,6 +461,10 @@ public class MainActivity extends Activity {
             page.addView(setupCard, cardMargin());
         }
         page.addView(buildAppInfoCard(), cardMargin());
+
+        // Setup actions are shown only when something is actually missing.
+        // Do not stack permission dialogs over the main screen.
+        page.post(this::maybeShowDonatePrompt);
     }
 
     private View buildSetupCardIfNeeded() {
@@ -468,11 +511,7 @@ public class MainActivity extends Activity {
             setup.addView(UiKit.primaryButton(
                     this, getString(R.string.system_access_apply_now), v -> {
                         MilletNoRestrict.Result result = MilletNoRestrict.ensureGms(this);
-                        try {
-                            protectResult = GmsProtector.protect(this);
-                        } catch (Throwable e) {
-                            protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
-                        }
+                        protectResult = GmsProtector.protect(this);
                         toast(getString((result == MilletNoRestrict.Result.ADDED
                                 || result == MilletNoRestrict.Result.ALREADY_PRESENT)
                                 ? R.string.system_access_applied
@@ -489,6 +528,40 @@ public class MainActivity extends Activity {
                     v -> showOnboarding(2)), matchWidthWithBottom(dp(9)));
         }
         return setup;
+    }
+
+    private void maybeShowDonatePrompt() {
+        if (donatePromptCheckedThisSession || !isSetupDone() || isFinishing()) return;
+        donatePromptCheckedThisSession = true;
+
+        android.content.SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        long now = System.currentTimeMillis();
+        long start = prefs.getLong(KEY_DONATE_START_MS, 0L);
+        int launches = prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0);
+        long lastPrompt = prefs.getLong(KEY_DONATE_LAST_PROMPT_MS, 0L);
+        int promptCount = prefs.getInt(KEY_DONATE_PROMPT_COUNT, 0);
+
+        if (start <= 0L) {
+            prefs.edit().putLong(KEY_DONATE_START_MS, now).apply();
+            return;
+        }
+        if (now - start < DONATE_FIRST_DELAY_MS) return;
+        if (launches < DONATE_MIN_LAUNCHES) return;
+        if (promptCount >= DONATE_MAX_AUTO_PROMPTS) return;
+        if (lastPrompt > 0L && now - lastPrompt < DONATE_REPEAT_DELAY_MS) return;
+
+        long days = Math.max(7L, (now - start) / DAY_MS);
+        prefs.edit()
+                .putLong(KEY_DONATE_LAST_PROMPT_MS, now)
+                .putInt(KEY_DONATE_PROMPT_COUNT, promptCount + 1)
+                .apply();
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.donate_reminder_title)
+                .setMessage(getString(R.string.donate_reminder_message, days))
+                .setPositiveButton(R.string.donate_button, (dialog, which) -> showDonateDialog())
+                .setNegativeButton(R.string.donate_later, null)
+                .show();
     }
 
     private View buildCompatibilityCard() {
@@ -509,6 +582,34 @@ public class MainActivity extends Activity {
                 startActivity(new Intent(this, CompatibilityActivity.class))), matchWidth());
         return card;
     }
+
+    private View buildDonateCard() {
+        LinearLayout card = UiKit.card(this);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        TextView title = new TextView(this);
+        title.setText(R.string.donate_title);
+        title.setTextSize(15f);
+        title.setTextColor(UiKit.TEXT);
+        title.setTypeface(title.getTypeface(), Typeface.BOLD);
+        title.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_donate_heart, 0, 0, 0);
+        title.setCompoundDrawablePadding(dp(5));
+        texts.addView(title);
+        TextView desc = UiKit.muted(this, getString(R.string.donate_desc), 11f);
+        desc.setPadding(0, dp(4), dp(8), 0);
+        texts.addView(desc);
+
+        row.addView(texts, new LinearLayout.LayoutParams(0, -2, 1f));
+        row.addView(UiKit.secondaryButton(this, getString(R.string.donate_button), v -> showDonateDialog()),
+                new LinearLayout.LayoutParams(dp(90), dp(46)));
+        card.addView(row);
+        return card;
+    }
+
 
     private View buildAdvancedCard() {
         LinearLayout card = UiKit.card(this);
@@ -588,9 +689,103 @@ public class MainActivity extends Activity {
         dev.setPadding(0, dp(7), 0, 0);
         card.addView(dev);
         TextView note = UiKit.muted(this, getString(R.string.about_note), 10.8f);
-        note.setPadding(0, dp(6), 0, dp(3));
+        note.setPadding(0, dp(6), 0, dp(9));
         card.addView(note);
+
+        Button fb = UiKit.secondaryButton(this, getString(R.string.facebook), v -> openFacebookProfile());
+        fb.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_facebook, 0, 0, 0);
+        fb.setCompoundDrawablePadding(dp(7));
+        card.addView(fb, matchWidth());
         return card;
+    }
+
+    private void showDonateDialog() {
+        final String usdtEvm = "0x4cC35bE54c358146E7b71E58f965532193848FDd";
+        final String usdtTrc20 = "TD8fkqHy5cGQU3tFf7Qi7AeeqrAWi6e9Rm";
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setGravity(Gravity.CENTER_HORIZONTAL);
+        content.setPadding(dp(22), dp(10), dp(22), dp(12));
+
+        TextView thanks = new TextView(this);
+        thanks.setText(R.string.donate_thanks);
+        thanks.setTextSize(14f);
+        thanks.setTextColor(UiKit.TEXT);
+        thanks.setGravity(Gravity.CENTER);
+        content.addView(thanks, matchWidthWithBottom(dp(14)));
+
+        ImageView qr = new ImageView(this);
+        qr.setImageResource(R.drawable.donate_qr);
+        qr.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        qr.setAdjustViewBounds(true);
+        qr.setBackground(UiKit.rounded(Color.WHITE, 16, this));
+        qr.setPadding(dp(10), dp(10), dp(10), dp(10));
+        content.addView(qr, new LinearLayout.LayoutParams(dp(240), dp(240)));
+
+        TextView hint = UiKit.muted(this, getString(R.string.donate_qr_hint), 12f);
+        hint.setGravity(Gravity.CENTER);
+        hint.setPadding(0, dp(12), 0, dp(12));
+        content.addView(hint, matchWidth());
+
+        TextView cryptoTitle = new TextView(this);
+        cryptoTitle.setText(R.string.donate_usdt);
+        cryptoTitle.setTextSize(13f);
+        cryptoTitle.setTextColor(UiKit.TEXT);
+        cryptoTitle.setTypeface(cryptoTitle.getTypeface(), Typeface.BOLD);
+        content.addView(cryptoTitle, matchWidth());
+        content.addView(buildCryptoAddressRow("USDT - EVM", usdtEvm), matchWidthWithTop(dp(8)));
+        content.addView(buildCryptoAddressRow("USDT - TRC20", usdtTrc20), matchWidthWithTop(dp(8)));
+
+        TextView warning = UiKit.muted(this, getString(R.string.donate_network_warning), 10.5f);
+        warning.setPadding(0, dp(9), 0, 0);
+        content.addView(warning, matchWidth());
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.donate_dialog_title)
+                .setView(scroll)
+                .setPositiveButton(R.string.close, null)
+                .show();
+    }
+
+    private View buildCryptoAddressRow(String network, String address) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(11), dp(9), dp(9), dp(9));
+        box.setBackground(UiKit.rounded(0xFFF8F7FF, 12, this, UiKit.BORDER, 1));
+
+        TextView label = new TextView(this);
+        label.setText(network);
+        label.setTextSize(11.5f);
+        label.setTextColor(UiKit.TEXT);
+        label.setTypeface(label.getTypeface(), Typeface.BOLD);
+        box.addView(label, matchWidth());
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(5), 0, 0);
+
+        TextView value = new TextView(this);
+        value.setText(address);
+        value.setTextSize(10.5f);
+        value.setTextColor(UiKit.MUTED);
+        value.setTextIsSelectable(true);
+        value.setTypeface(Typeface.MONOSPACE);
+        row.addView(value, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        Button copy = UiKit.secondaryButton(this, getString(R.string.copy), v -> {
+            ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText(network, address));
+            toast(getString(R.string.copied_address, network));
+        });
+        LinearLayout.LayoutParams copyLp = new LinearLayout.LayoutParams(dp(82), dp(42));
+        copyLp.leftMargin = dp(8);
+        row.addView(copy, copyLp);
+        box.addView(row, matchWidth());
+        return box;
     }
 
     private void openWriteSettingsAccess() {
@@ -621,7 +816,7 @@ public class MainActivity extends Activity {
         try {
             Intent request = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
             request.setData(Uri.parse("package:" + getPackageName()));
-            startActivity(request);
+            startActivity(request); // Android always asks the USER for consent.
         } catch (Throwable ignored) {
             try {
                 startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
@@ -633,6 +828,9 @@ public class MainActivity extends Activity {
     }
 
     private void openAutostartSettings() {
+        // Open only the dedicated HyperOS Autostart manager. Do NOT fall back to
+        // PermissionsEditorActivity: that is the long "Other permissions" screen
+        // with unrelated toggles the app does not need.
         Intent action = new Intent("miui.intent.action.OP_AUTO_START");
         action.setPackage("com.miui.securitycenter");
 
@@ -668,6 +866,14 @@ public class MainActivity extends Activity {
             toast(hint);
         } catch (Throwable ignored) {
             try { startActivity(new Intent(Settings.ACTION_SETTINGS)); } catch (Throwable ignoredAgain) {}
+        }
+    }
+
+    private void openFacebookProfile() {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.facebook.com/mrhankytb")));
+        } catch (Throwable t) {
+            toast(getString(R.string.facebook_failed));
         }
     }
 
