@@ -2,7 +2,6 @@ package com.hanh.gmsprotect;
 
 import android.app.Activity;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -14,7 +13,6 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
@@ -41,14 +39,13 @@ public class MainActivity extends Activity {
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         }
 
-        // Thực thi bảo vệ với khối try-catch an toàn, tránh lỗi văng ngoại lệ do chữ ký cá nhân (.jks)
-        try {
-            protectResult = GmsProtector.protect(this);
-        } catch (Throwable e) {
-            protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
-        }
-
+        // Refresh MiPush protection every time the app is opened
+        protectResult = GmsProtector.protect(this);
+        
+        // Ensure Aurogon background monitor service is alive if enabled
         AurogonAllowlistService.startIfEnabled(this);
+
+        // Schedule JobScheduler to watch MILLET Settings.System URI
         MilletWatchScheduler.schedule(this);
 
         if (isSetupDone()) {
@@ -154,11 +151,7 @@ public class MainActivity extends Activity {
 
     private void finishSetup() {
         MilletNoRestrict.ensureGms(this);
-        try {
-            protectResult = GmsProtector.protect(this);
-        } catch (Throwable e) {
-            protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
-        }
+        protectResult = GmsProtector.protect(this);
         setSetupDone(true);
         showMainScreen();
     }
@@ -173,8 +166,7 @@ public class MainActivity extends Activity {
     }
 
     private void setSetupDone(boolean done) {
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                .putBoolean(KEY_SETUP_DONE, done).apply();
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(KEY_SETUP_DONE, done).apply();
     }
 
     private View buildHeader() {
@@ -310,7 +302,7 @@ public class MainActivity extends Activity {
         success.setGravity(Gravity.CENTER_HORIZONTAL);
         success.setPadding(dp(20), dp(25), dp(20), dp(22));
 
-        boolean ok = protectResult == GmsProtector.Result.SENT || MilletNoRestrict.canWrite(this);
+        boolean ok = protectResult == GmsProtector.Result.SENT;
         TextView check = new TextView(this);
         check.setText(ok ? "✓" : "!");
         check.setTextSize(76f);
@@ -404,11 +396,7 @@ public class MainActivity extends Activity {
             success.addView(protectionNotes, notesLp);
         } else {
             success.addView(UiKit.primaryButton(this, getString(R.string.retry), v -> {
-                try {
-                    protectResult = GmsProtector.protect(this);
-                } catch (Throwable e) {
-                    protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
-                }
+                protectResult = GmsProtector.protect(this);
                 showMainScreen();
             }), matchWidthWithTop(dp(14)));
         }
@@ -421,7 +409,6 @@ public class MainActivity extends Activity {
         if (setupCard != null) {
             page.addView(setupCard, cardMargin());
         }
-        page.addView(buildAppInfoCard(), cardMargin());
     }
 
     private View buildSetupCardIfNeeded() {
@@ -468,11 +455,7 @@ public class MainActivity extends Activity {
             setup.addView(UiKit.primaryButton(
                     this, getString(R.string.system_access_apply_now), v -> {
                         MilletNoRestrict.Result result = MilletNoRestrict.ensureGms(this);
-                        try {
-                            protectResult = GmsProtector.protect(this);
-                        } catch (Throwable e) {
-                            protectResult = MilletNoRestrict.canWrite(this) ? GmsProtector.Result.SENT : GmsProtector.Result.FAILED;
-                        }
+                        protectResult = GmsProtector.protect(this);
                         toast(getString((result == MilletNoRestrict.Result.ADDED
                                 || result == MilletNoRestrict.Result.ALREADY_PRESENT)
                                 ? R.string.system_access_applied
@@ -575,24 +558,6 @@ public class MainActivity extends Activity {
         return card;
     }
 
-    private View buildAppInfoCard() {
-        LinearLayout card = UiKit.card(this);
-        TextView title = new TextView(this);
-        title.setText(R.string.app_info);
-        title.setTextSize(15f);
-        title.setTextColor(UiKit.TEXT);
-        title.setTypeface(title.getTypeface(), Typeface.BOLD);
-        card.addView(title);
-
-        TextView dev = UiKit.muted(this, getString(R.string.developer), 12f);
-        dev.setPadding(0, dp(7), 0, 0);
-        card.addView(dev);
-        TextView note = UiKit.muted(this, getString(R.string.about_note), 10.8f);
-        note.setPadding(0, dp(6), 0, dp(3));
-        card.addView(note);
-        return card;
-    }
-
     private void openWriteSettingsAccess() {
         waitingWriteSettingsReturn = true;
         try {
@@ -600,8 +565,7 @@ public class MainActivity extends Activity {
             intent.setData(Uri.parse("package:" + getPackageName()));
             startActivity(intent);
             return;
-        } catch (Throwable ignored) {
-        }
+        } catch (Throwable ignored) {}
 
         try {
             startActivity(new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS));
