@@ -13,7 +13,6 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
-import android.widget.LinearLayout.LayoutParams
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
@@ -176,7 +175,7 @@ class MainActivity : Activity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(UiKit.BG)
-            addView(buildHeader(), LayoutParams(-1, -2))
+            addView(buildHeader(), LinearLayout.LayoutParams(-1, -2))
         }
     }
 
@@ -191,12 +190,12 @@ class MainActivity : Activity() {
             UiKit.applyBottomSystemInset(this)
         }
         scroll.addView(page, ScrollView.LayoutParams(-1, -2))
-        root.addView(scroll, LayoutParams(-1, 0, 1f))
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
 
         page.addView(UiKit.muted(this, getString(R.string.step_format, onboardingStep + 1, 3), 12f).apply {
             gravity = Gravity.CENTER
-        }, LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
 
         val card = UiKit.card(this)
         card.addView(TextView(this).apply {
@@ -204,7 +203,7 @@ class MainActivity : Activity() {
             textSize = 46f
             setTextColor(UiKit.PRIMARY)
             text = if (onboardingStep == 0) "↻" else if (onboardingStep == 1) "⚙" else "☼"
-        }, LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
 
         card.addView(TextView(this).apply {
             gravity = Gravity.CENTER
@@ -212,48 +211,48 @@ class MainActivity : Activity() {
             setTextColor(UiKit.TEXT)
             setTypeface(typeface, Typeface.BOLD)
             text = getString(if (onboardingStep == 0) R.string.autostart_title else if (onboardingStep == 1) R.string.system_access_title else R.string.battery_title)
-        }, LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
+        }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
 
         card.addView(UiKit.muted(this, getString(if (onboardingStep == 0) R.string.autostart_body_auto else if (onboardingStep == 1) R.string.system_access_message_auto else R.string.battery_body), 13f).apply {
             gravity = Gravity.CENTER
-        }, LayoutParams(-1, -2).apply { bottomMargin = dp(20) })
+        }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(20) })
 
         if (onboardingStep == 0) {
             card.addView(UiKit.primaryButton(this, getString(R.string.autostart_button)) {
                 waitingAutostartSettingsReturn = true
                 openAutostartSettings()
-            }, LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
+            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
 
             if (XiaomiSetupState.getAutostartState(this) == XiaomiSetupState.AutostartState.UNKNOWN) {
                 card.addView(UiKit.secondaryButton(this, getString(R.string.autostart_manual_continue)) {
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                         .putBoolean("autostart_manual_confirmed", true).apply()
                     continueSetupFlow()
-                }, LayoutParams(-1, -2))
+                }, LinearLayout.LayoutParams(-1, -2))
             }
         } else if (onboardingStep == 1) {
             card.addView(UiKit.primaryButton(this, getString(R.string.system_access_button)) {
                 openWriteSettingsAccess()
-            }, LayoutParams(-1, -2))
+            }, LinearLayout.LayoutParams(-1, -2))
         } else {
             val ignoringDoze = BatterySetupState.isIgnoringBatteryOptimizations(this)
             card.addView(UiKit.muted(this, getString(if (ignoringDoze) R.string.battery_doze_granted else R.string.battery_doze_missing), 12f).apply {
                 gravity = Gravity.CENTER
-            }, LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !ignoringDoze) {
                 card.addView(UiKit.primaryButton(this, getString(R.string.battery_button)) {
                     requestAndroidBatteryExemption()
-                }, LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
+                }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
             }
             card.addView(UiKit.secondaryButton(this, getString(R.string.battery_continue)) {
                 getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .putBoolean(KEY_BATTERY_USER_CONFIRMED, true).apply()
                 continueSetupFlow()
-            }, LayoutParams(-1, -2))
+            }, LinearLayout.LayoutParams(-1, -2))
         }
 
-        page.addView(card, LayoutParams(-1, -2))
+        page.addView(card, LinearLayout.LayoutParams(-1, -2))
     }
 
     private fun showMainScreen() {
@@ -265,7 +264,7 @@ class MainActivity : Activity() {
             UiKit.applyBottomSystemInset(this)
         }
         scroll.addView(page, ScrollView.LayoutParams(-1, -2))
-        root.addView(scroll, LayoutParams(-1, 0, 1f))
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
 
         val success = UiKit.card(this).apply {
@@ -280,9 +279,9 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(if (ok) UiKit.SUCCESS else UiKit.ERROR)
-        }, LayoutParams(-1, -2))
+        }, LinearLayout.LayoutParams(-1, -2))
 
-        success.addView(UiKit.pill(this, getString(if (ok) R.string.status_protected else R.string.status_failed), if (ok) UiKit.SUCCESS_SOFT else UiKit.ERROR_SOFT, if (ok) UiKit.SUCCESS else UiKit.ERROR), LayoutParams(-2, -2).apply {
+        success.addView(UiKit.pill(this, getString(if (ok) R.string.status_protected else R.string.status_failed), if (ok) UiKit.SUCCESS_SOFT else UiKit.ERROR_SOFT, if (ok) UiKit.SUCCESS else UiKit.ERROR), LinearLayout.LayoutParams(-2, -2).apply {
             gravity = Gravity.CENTER_HORIZONTAL
             bottomMargin = dp(12)
         })
@@ -293,17 +292,17 @@ class MainActivity : Activity() {
             setTextColor(UiKit.TEXT)
             setTypeface(typeface, Typeface.BOLD)
             gravity = Gravity.CENTER
-        }, LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
+        }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
 
         if (ok) {
             success.addView(UiKit.muted(this, getString(R.string.success_body), 13f).apply {
                 gravity = Gravity.CENTER
-            }, LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
+            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
         } else {
             success.addView(UiKit.primaryButton(this, getString(R.string.retry)) {
                 protectResult = GmsProtector.protect(this)
                 showMainScreen()
-            }, LayoutParams(-1, -2).apply { topMargin = dp(14) })
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
         }
         page.addView(success, cardMargin())
 
@@ -337,28 +336,28 @@ class MainActivity : Activity() {
                 textSize = 15f
                 setTextColor(UiKit.TEXT)
                 setTypeface(typeface, Typeface.BOLD)
-            }, LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
 
             if (autostartMissing) {
-                addView(UiKit.muted(context, getString(R.string.autostart_setup_missing), 11.5f), LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+                addView(UiKit.muted(context, getString(R.string.autostart_setup_missing), 11.5f), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
                 addView(UiKit.primaryButton(context, getString(R.string.autostart_button)) {
                     waitingAutostartSettingsReturn = true
                     openAutostartSettings()
-                }, LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
+                }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
             }
 
             if (writeMissing) {
-                addView(UiKit.muted(context, getString(R.string.system_access_setup_line), 11.5f), LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+                addView(UiKit.muted(context, getString(R.string.system_access_setup_line), 11.5f), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
                 addView(UiKit.primaryButton(context, getString(R.string.system_access_button)) {
                     openWriteSettingsAccess()
-                }, LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
+                }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
             } else if (milletMissing) {
                 addView(UiKit.primaryButton(context, getString(R.string.system_access_apply_now)) {
                     MilletNoRestrict.ensureGms(context)
                     protectResult = GmsProtector.protect(context)
                     toast(getString(R.string.system_access_applied))
                     showMainScreen()
-                }, LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
+                }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
             }
         }
     }
@@ -370,13 +369,13 @@ class MainActivity : Activity() {
                 textSize = 15f
                 setTextColor(UiKit.TEXT)
                 setTypeface(typeface, Typeface.BOLD)
-            }, LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
 
-            addView(UiKit.muted(context, getString(R.string.compat_card_desc), 11f), LayoutParams(-1, -2).apply { bottomMargin = dp(11) })
+            addView(UiKit.muted(context, getString(R.string.compat_card_desc), 11f), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(11) })
 
             addView(UiKit.secondaryButton(context, getString(R.string.compat_open)) {
                 startActivity(Intent(context, CompatibilityActivity::class.java))
-            }, LayoutParams(-1, -2))
+            }, LinearLayout.LayoutParams(-1, -2))
         }
     }
 
@@ -387,7 +386,7 @@ class MainActivity : Activity() {
                 textSize = 15f
                 setTextColor(UiKit.TEXT)
                 setTypeface(typeface, Typeface.BOLD)
-            }, LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
 
             val row = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -404,7 +403,7 @@ class MainActivity : Activity() {
                 })
                 addView(UiKit.muted(context, getString(R.string.aurogon_allowlist_desc), 11f))
             }
-            row.addView(texts, LayoutParams(0, -2, 1f))
+            row.addView(texts, LinearLayout.LayoutParams(0, -2, 1f))
 
             val toggle = Switch(context).apply {
                 isChecked = AurogonAllowlistService.isEnabled(context)
@@ -413,8 +412,8 @@ class MainActivity : Activity() {
                     toast(getString(if (isChecked) R.string.aurogon_allowlist_enabled else R.string.aurogon_allowlist_disabled))
                 }
             }
-            row.addView(toggle, LayoutParams(-2, -2))
-            addView(row, LayoutParams(-1, -2))
+            row.addView(toggle, LinearLayout.LayoutParams(-2, -2))
+            addView(row, LinearLayout.LayoutParams(-1, -2))
         }
     }
 
@@ -480,7 +479,7 @@ class MainActivity : Activity() {
 
     private fun dp(value: Int): Int = UiKit.dp(this, value)
 
-    private fun cardMargin(): LayoutParams {
-        return LayoutParams(-1, -2).apply { bottomMargin = dp(14) }
+    private fun cardMargin(): LinearLayout.LayoutParams {
+        return LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(14) }
     }
 }
