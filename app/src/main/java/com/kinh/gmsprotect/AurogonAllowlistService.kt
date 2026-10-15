@@ -75,14 +75,14 @@ class AurogonAllowlistService : Service() {
             Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.aurogon_notification_title))
                 .setContentText(getString(R.string.aurogon_notification_text))
-                .setSmallIcon(android.R.drawable.ic_menu_protect)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .build()
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
                 .setContentTitle(getString(R.string.aurogon_notification_title))
                 .setContentText(getString(R.string.aurogon_notification_text))
-                .setSmallIcon(android.R.drawable.ic_menu_protect)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .build()
         }
     }
