@@ -1,18 +1,17 @@
-name: Build and Release GMS Protect
+name: Build GmsProtect APK
 
 on:
   push:
     branches: [ "main", "master" ]
-  workflow_dispatch:
+  pull_request:
+    branches: [ "main", "master" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Cấp quyền ghi để tạo Release tự động
 
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Set up JDK 17
@@ -21,29 +20,17 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Set up Gradle
+    - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build Release APK
+      run: ./gradlew assembleRelease
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
       with:
-        gradle-version: '8.5'
-
-    - name: Decode Keystore
-      run: |
-        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/my-release-key.jks
-
-    - name: Build Release APK with Gradle
-      env:
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: gradle assembleRelease --stacktrace
-
-    # Tự động tạo hoặc cập nhật bản Release mang tên "latest" kèm file APK đã ký số riêng
-    - name: Upload to GitHub Releases
-      uses: ncipollo/release-action@v1
-      with:
-        artifacts: "app/build/outputs/apk/release/app-release.apk"
-        tag: "latest"
-        name: "GMS Protect Auto Update"
-        allowUpdates: true
-        replacesArtifacts: true
-        body: "Bản cập nhật tự động mới nhất được ký bằng chứng chỉ cá nhân (Keystore) tương thích hoàn toàn với HyperOS."
+        name: app-release-apk
+        path: app/build/outputs/apk/release/app-release-unsigned.apk
