@@ -1,4 +1,4 @@
-Package com.hanh.gmsprotect;
+package com.hanh.gmsprotect;
 
 import android.content.Context;
 import android.content.Intent;
