@@ -1,4 +1,4 @@
-package com.kinh.protect
+package com.kinh.gmsprotect
 
 import android.app.*
 import android.content.BroadcastReceiver
