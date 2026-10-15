@@ -12,6 +12,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
@@ -189,7 +190,7 @@ class MainActivity : Activity() {
             setPadding(dp(18), dp(22), dp(18), dp(28))
             UiKit.applyBottomSystemInset(this)
         }
-        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(page, ViewGroup.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
 
@@ -263,7 +264,7 @@ class MainActivity : Activity() {
             setPadding(dp(16), dp(18), dp(16), dp(28))
             UiKit.applyBottomSystemInset(this)
         }
-        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(page, ViewGroup.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
 
