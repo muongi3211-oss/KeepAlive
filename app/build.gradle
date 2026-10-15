@@ -11,8 +11,10 @@ android {
         applicationId "com.kinh.gmsprotect"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        
+        // Tự động nhận phiên bản từ GitHub Actions hoặc dùng giá trị mặc định nếu build local
+        versionCode project.hasProperty('APK_VERSION_CODE') ? project.property('APK_VERSION_CODE').toInteger() : 1
+        versionName project.hasProperty('APK_VERSION_NAME') ? project.property('APK_VERSION_NAME') : "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
