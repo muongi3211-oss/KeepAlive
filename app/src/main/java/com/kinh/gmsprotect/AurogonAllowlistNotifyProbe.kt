@@ -1,4 +1,4 @@
-package com.kinh.protect
+package com.kinh.gmsprotect
 
 import android.content.Context
 import android.net.Uri
