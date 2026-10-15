@@ -1,5 +1,6 @@
 package com.hanh.gmsprotect;
 
+import com.hanh.gmsprotect.R;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ClipData;
