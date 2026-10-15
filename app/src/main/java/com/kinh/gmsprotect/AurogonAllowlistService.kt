@@ -53,9 +53,7 @@ class AurogonAllowlistService : Service() {
             createNotificationChannel()
             val notification = createNotification()
             startForeground(NOTIF_ID, notification)
-        } catch (_: Throwable) {
-            // Bỏ qua lỗi khởi chạy nền nếu hệ thống hạn chế
-        }
+        } catch (_: Throwable) {}
         return START_STICKY
     }
 
