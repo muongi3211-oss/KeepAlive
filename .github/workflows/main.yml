@@ -1,4 +1,4 @@
-name: Build and Release FCM Guard
+name: Build and Release GMS Protect
 
 on:
   push:
@@ -21,29 +21,29 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Cache Android Keystore
-      uses: actions/cache@v4
-      with:
-        path: ~/.android
-        key: android-debug-keystore-fixed
-        restore-keys: |
-          android-debug-keystore-
-
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: '8.5'
 
-    - name: Build Debug APK with Gradle
-      run: gradle assembleDebug
+    - name: Decode Keystore
+      run: |
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/my-release-key.jks
 
-    # Tự động tạo hoặc cập nhật bản Release mang tên "latest" kèm file APK
+    - name: Build Release APK with Gradle
+      env:
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: gradle assembleRelease --stacktrace
+
+    # Tự động tạo hoặc cập nhật bản Release mang tên "latest" kèm file APK đã ký số riêng
     - name: Upload to GitHub Releases
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "app/build/outputs/apk/debug/app-debug.apk"
+        artifacts: "app/build/outputs/apk/release/app-release.apk"
         tag: "latest"
-        name: "FCM Guard Auto Update"
+        name: "GMS Protect Auto Update"
         allowUpdates: true
         replacesArtifacts: true
-        body: "Bản cập nhật tự động mới nhất từ GitHub Actions."
+        body: "Bản cập nhật tự động mới nhất được ký bằng chứng chỉ cá nhân (Keystore) tương thích hoàn toàn với HyperOS."
