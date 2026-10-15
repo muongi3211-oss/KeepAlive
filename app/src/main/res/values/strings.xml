@@ -58,7 +58,7 @@
     <string name="compat_check_hyperos_failed">Kiểm tra HyperOS thất bại</string>
 
     <!-- Setup & Autostart -->
-    <string name="step_format">Bước %1$d / %2$d</string>
+    <string name="step_format" formatted="false">Bước %1$d / %2$d</string>
     <string name="autostart_title">Khởi động tự động</string>
     <string name="autostart_body_auto">Bật quyền tự khởi động trong Security Center.</string>
     <string name="autostart_button">Mở cài đặt Autostart</string>
@@ -94,10 +94,7 @@
     <string name="compat_card_desc">Xem chi tiết trạng thái tương thích.</string>
     <string name="compat_open">Mở trình kiểm tra</string>
     
-    <!-- Donate & Advanced -->
-    <string name="donate_title">Ủng hộ tác giả</string>
-    <string name="donate_desc">Cảm ơn bạn đã sử dụng ứng dụng.</string>
-    <string name="donate_button">Ủng hộ</string>
+    <!-- Advanced -->
     <string name="setup">Cài đặt thiết lập</string>
     <string name="autostart_setup_missing">Thiếu quyền khởi động tự động.</string>
     <string name="system_access_setup_line">Thiếu quyền truy cập hệ thống.</string>
@@ -109,16 +106,6 @@
     <string name="app_info">Thông tin ứng dụng</string>
     <string name="developer">Phát triển bởi Hanh / Kinh</string>
     <string name="about_note">Ứng dụng bảo vệ tiến trình nền.</string>
-    <string name="facebook">Facebook</string>
-    <string name="donate_reminder_title">Nhắc nhở ủng hộ</string>
-    <string name="donate_reminder_message">Bạn đã dùng ứng dụng được %d ngày.</string>
-    <string name="donate_thanks">Xin chân thành cảm ơn!</string>
-    <string name="donate_qr_hint">Quét mã QR để ủng hộ.</string>
-    <string name="donate_usdt">Địa chỉ ví USDT</string>
-    <string name="donate_network_warning">Lưu ý kiểm tra đúng mạng.</string>
-    <string name="close">Đóng</string>
-    <string name="copy">Sao chép</string>
-    <string name="copied_address">Đã sao chép địa chỉ %s</string>
     <string name="autostart_not_enabled">Chưa bật tự khởi động.</string>
     <string name="system_access_not_granted">Chưa cấp quyền hệ thống.</string>
     <string name="advanced">Nâng cao</string>
@@ -130,6 +117,5 @@
     <string name="aurogon_allowlist_timing">Thời gian: 40s / 2m / 10m.</string>
     <string name="battery_request_unavailable">Không khả dụng.</string>
     <string name="settings_hint_autostart">Vui lòng bật trong Cài đặt.</string>
-    <string name="facebook_failed">Không mở được liên kết Facebook.</string>
     <string name="donate_later">Để sau</string>
 </resources>
