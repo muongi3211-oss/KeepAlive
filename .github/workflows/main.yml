@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Bắt buộc để GitHub Actions có quyền tạo và cập nhật Release
+      contents: write  # Cấp quyền để GitHub Actions tự động tạo và cập nhật Release
 
     steps:
     - name: Checkout repository
@@ -27,8 +27,19 @@ jobs:
       with:
         gradle-version: '8.5'
 
+    - name: Set up Dynamic Version
+      run: |
+        # Dùng số lần chạy GitHub Actions làm versionCode (tăng dần tự động)
+        VERSION_CODE=${{ github.run_number }}
+        # Tự động tạo versionName dạng 1.0.[Số_lần_chạy]
+        VERSION_NAME="1.0.$VERSION_CODE"
+        
+        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+        echo "Building version: $VERSION_NAME (Code: $VERSION_CODE)"
+
     - name: Build Release APK
-      run: ./gradlew assembleRelease
+      run: ./gradlew assembleRelease -PAPK_VERSION_CODE=${{ env.VERSION_CODE }} -PAPK_VERSION_NAME=${{ env.VERSION_NAME }}
 
     - name: Upload APK artifact (Dự phòng)
       uses: actions/upload-artifact@v4
@@ -40,10 +51,9 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: latest
-        name: "GmsProtect Auto Update"
-        body: "Bản cập nhật tự động mới nhất được build từ GitHub Actions."
+        name: "GmsProtect v${{ env.VERSION_NAME }}"
+        body: "Bản cập nhật tự động mới nhất v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }}) được build từ GitHub Actions."
         files: |
-          app/build/outputs/apk/release/app-release.apk
-          app/build/outputs/apk/release/app-release-unsigned.apk
+          app/build/outputs/apk/release/*.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
