@@ -40,7 +40,9 @@ class MainActivity : Activity() {
 
         protectResult = GmsProtector.protect(this)
         AurogonAllowlistService.startIfEnabled(this)
-        MilletWatchScheduler.schedule(this)
+        
+        // Đã sửa lại đúng tên lớp JobService để tránh lỗi biên dịch
+        MilletWatchJobService.schedule(this)
 
         if (isSetupDone()) {
             showMainScreen()
