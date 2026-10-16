@@ -31,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var txtPowerKeeperStatus: TextView
     private lateinit var txtBatteryStatus: TextView
     private lateinit var txtWriteSettingsStatus: TextView
+    private lateinit var txtSystemPropStatus: TextView // TextView theo dõi lệnh can thiệp hệ thống sâu
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,7 +66,6 @@ class MainActivity : AppCompatActivity() {
     // ==========================================
     private fun isPowerKeeperPresent(): Boolean {
         return try {
-            // Kiểm tra thông qua nhà sản xuất Xiaomi/Redmi/POCO hoặc qua ServiceManager ẩn
             val manufacturer = Build.MANUFACTURER ?: ""
             val brand = Build.BRAND ?: ""
             val board = Build.BOARD ?: ""
@@ -77,7 +77,6 @@ class MainActivity : AppCompatActivity() {
                                      board.contains("qcom", ignoreCase = true) ||
                                      board.contains("mtk", ignoreCase = true)
 
-            // Thử gọi Reflection kiểm tra service millet / powerkeeper
             val serviceManager = Class.forName("android.os.ServiceManager")
             val getService = serviceManager.getMethod("getService", String::class.java)
             val binderPower = getService.invoke(null, "powerkeeper")
@@ -85,7 +84,6 @@ class MainActivity : AppCompatActivity() {
 
             isXiaomiOrHyperOS || binderPower != null || binderMillet != null
         } catch (e: Exception) {
-            // Fallback: Nếu đang chạy trên thiết bị Xiaomi/Redmi thì luôn trả về true để tương thích tuyệt đối
             val brand = Build.BRAND ?: ""
             brand.contains("Xiaomi", ignoreCase = true) || brand.contains("Redmi", ignoreCase = true)
         }
@@ -155,6 +153,20 @@ class MainActivity : AppCompatActivity() {
                     txtWriteSettingsStatus.text = "CHƯA BẬT"
                     txtWriteSettingsStatus.setTextColor(Color.parseColor("#856404"))
                     (txtWriteSettingsStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
+                }
+            }
+
+            // Cập nhật trạng thái phản hồi từ lệnh can thiệp hệ thống sâu
+            if (::txtSystemPropStatus.isInitialized) {
+                val propStatusText = MilletHelper.systemPropStatus
+                val isAccepted = MilletHelper.isPropAccepted
+                txtSystemPropStatus.text = propStatusText
+                if (isAccepted) {
+                    txtSystemPropStatus.setTextColor(Color.parseColor("#155724"))
+                    (txtSystemPropStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
+                } else {
+                    txtSystemPropStatus.setTextColor(Color.parseColor("#856404"))
+                    (txtSystemPropStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
                 }
             }
         } catch (e: Exception) {
@@ -475,6 +487,10 @@ class MainActivity : AppCompatActivity() {
         val isBattery = isIgnoringBatteryOptimizations()
         txtBatteryStatus = createBadge(if (isBattery) "ĐÃ XÁC MINH" else "CHƯA BẬT", if (isBattery) "#D4EDDA" else "#FFF3CD", if (isBattery) "#155724" else "#856404")
         hkCard.addView(createCustomRow("Miễn tối ưu pin Android", txtBatteryStatus))
+
+        // Thêm dòng theo dõi lệnh can thiệp SystemProperties sâu vào giao diện kiểm tra
+        txtSystemPropStatus = createBadge(MilletHelper.systemPropStatus, if (MilletHelper.isPropAccepted) "#D4EDDA" else "#FFF3CD", if (MilletHelper.isPropAccepted) "#155724" else "#856404")
+        hkCard.addView(createCustomRow("Ghi cờ SystemProperties", txtSystemPropStatus))
 
         hkCard.addView(createCheckRow("Google Play services", "ĐÃ ÁP DỤNG", "#E2F0D9", "#385723"))
         hkCard.addView(createCheckRow("CH Play", "ĐÃ ÁP DỤNG", "#E2F0D9", "#385723"))
