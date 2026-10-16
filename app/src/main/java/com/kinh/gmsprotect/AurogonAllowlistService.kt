@@ -27,32 +27,51 @@ class AurogonAllowlistService : Service() {
             if (enabled) {
                 startIfEnabled(context)
             } else {
-                val intent = Intent(context, AurogonAllowlistService::class.java)
-                context.stopService(intent)
+                stop(context)
             }
         }
 
         fun startIfEnabled(context: Context) {
-            if (isEnabled(context)) {
-                try {
-                    val intent = Intent(context, AurogonAllowlistService::class.java)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        context.startForegroundService(intent)
-                    } else {
-                        context.startService(intent)
-                    }
-                } catch (_: Throwable) {}
+            if (!isEnabled(context)) return
+            try {
+                val intent = Intent(context, AurogonAllowlistService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (_: Throwable) {
+                // Bắt ngoại lệ nếu hệ thống Android 14+ chặn startForegroundService
             }
+        }
+
+        fun stop(context: Context) {
+            try {
+                val intent = Intent(context, AurogonAllowlistService::class.java)
+                context.stopService(intent)
+            } catch (_: Throwable) {}
         }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onCreate() {
+        super.onCreate()
+        // Gọi startForeground ngay trong onCreate() để tránh bị Android 14+ kill vì trễ thời gian
         try {
             createNotificationChannel()
             val notification = createNotification()
             startForeground(NOTIF_ID, notification)
+        } catch (_: Throwable) {
+            // Nếu bị chặn quyền Notification hoặc ForegroundService, tự ngắt service an toàn
+            stopSelf()
+        }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        try {
+            // Tự động duy trì và làm mới danh sách Millet mỗi khi Service được kích hoạt
+            MilletNoRestrict.ensureGms(this)
         } catch (_: Throwable) {}
         return START_STICKY
     }
@@ -61,12 +80,12 @@ class AurogonAllowlistService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = getString(R.string.aurogon_notification_channel)
             val descriptionText = getString(R.string.aurogon_notification_channel_desc)
-            val importance = NotificationManager.IMPORTANCE_LOW
+            val importance = NotificationManager.IMPORTANCE_MIN // Dùng IMPORTANCE_MIN để thông báo giữ im lặng, không làm phiền
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
             }
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notificationManager?.createNotificationChannel(channel)
         }
     }
 
@@ -76,6 +95,7 @@ class AurogonAllowlistService : Service() {
                 .setContentTitle(getString(R.string.aurogon_notification_title))
                 .setContentText(getString(R.string.aurogon_notification_text))
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setOngoing(true)
                 .build()
         } else {
             @Suppress("DEPRECATION")
@@ -83,6 +103,7 @@ class AurogonAllowlistService : Service() {
                 .setContentTitle(getString(R.string.aurogon_notification_title))
                 .setContentText(getString(R.string.aurogon_notification_text))
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setOngoing(true)
                 .build()
         }
     }
