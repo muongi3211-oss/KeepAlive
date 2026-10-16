@@ -68,7 +68,7 @@ class CompatibilityActivity : Activity() {
 
         page.addView(statusCard, cardMargin())
 
-        // Thay ScrollView.LayoutParams bằng ViewGroup.LayoutParams để tránh lỗi Unresolved reference
+        // Đã sửa thành ViewGroup.LayoutParams để khắc phục triệt để lỗi biên dịch
         scroll.addView(page, ViewGroup.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
