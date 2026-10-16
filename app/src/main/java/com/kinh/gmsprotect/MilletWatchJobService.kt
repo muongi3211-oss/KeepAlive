@@ -6,48 +6,47 @@ import android.app.job.JobScheduler
 import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
-import android.util.Log
+import android.os.Build
 
 class MilletWatchJobService : JobService() {
+    companion object {
+        private const val JOB_ID = 2026102
+
+        fun schedule(context: Context) {
+            try {
+                val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler ?: return
+                val component = ComponentName(context, MilletWatchJobService::class.java)
+                
+                val builder = JobInfo.Builder(JOB_ID, component).apply {
+                    setPeriodic(15 * 60 * 1000L) // Chu kỳ định kỳ 15 phút chuẩn
+                    setPersisted(true)           // Tự động khôi phục sau khi reboot máy
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        setRequiresBatteryNotLow(false)
+                        setRequiresCharging(false)
+                    }
+                }
+
+                scheduler.schedule(builder.build())
+            } catch (_: Throwable) {}
+        }
+    }
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        Log.d("MilletWatchJobService", "Thực thi kiểm tra và kích hoạt lại Millet...")
+        try {
+            // Ép ghi lại GMS và Play Store vào bảng Millet System ngay lập tức
+            MilletNoRestrict.ensureGms(applicationContext)
+            
+            // Kích hoạt dịch vụ nền Aurogon Allowlist nếu đang bật
+            AurogonAllowlistService.startIfEnabled(applicationContext)
+        } catch (_: Throwable) {}
         
-        // Chạy lại cờ bảo vệ
-        MilletManager.applyMilletProtection(applicationContext)
-
-        // Hoàn thành Job
         jobFinished(params, false)
         return true
     }
 
     override fun onStopJob(params: JobParameters?): Boolean {
-        // Trả về true để hệ thống tự động lập lịch lại nếu Job bị ngắt đột ngột
+        // Lên lịch chạy lại ngay lập tức nếu bị hệ thống ngắt giữa chừng
+        schedule(applicationContext)
         return true
-    }
-
-    companion object {
-        private const val JOB_ID = 10086
-
-        /**
-         * Lập lịch chạy định kỳ JobService mỗi 15 phút
-         */
-        fun scheduleJob(context: Context) {
-            val componentName = ComponentName(context, MilletWatchJobService::class.java)
-            val builder = JobInfo.Builder(JOB_ID, componentName)
-                .setPeriodic(15 * 60 * 1000L) // Chạy lặp lại mỗi 15 phút
-                .setPersisted(true) // Duy trì sau khi khởi động lại máy
-                .setRequiresCharging(false)
-                .setRequiresDeviceIdle(false)
-
-            val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-            val resultCode = jobScheduler.schedule(builder.build())
-
-            if (resultCode == JobScheduler.RESULT_SUCCESS) {
-                Log.i("MilletWatchJobService", "Đã lập lịch MilletWatchJobService thành công!")
-            } else {
-                Log.e("MilletWatchJobService", "Lập lịch MilletWatchJobService thất bại!")
-            }
-        }
     }
 }
