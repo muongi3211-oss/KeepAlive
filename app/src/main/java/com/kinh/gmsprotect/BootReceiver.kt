@@ -7,8 +7,11 @@ import android.os.Build
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            // 1. Áp dụng bảo vệ Millet ngay khi boot
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED || 
+            intent.action == Intent.ACTION_LOCKED_BOOT_COMPLETED) {
+            
+            // 1. Áp dụng bảo vệ Millet ngay khi boot 
+            // (Đổi thành MainActivity.applyMilletProtection nếu bạn để hàm này trong MainActivity)
             MilletManager.applyMilletProtection(context)
 
             // 2. Kích hoạt JobScheduler chạy định kỳ ngầm
