@@ -65,13 +65,29 @@ class MainActivity : AppCompatActivity() {
     // ==========================================
     private fun isPowerKeeperPresent(): Boolean {
         return try {
+            // Kiểm tra thông qua nhà sản xuất Xiaomi/Redmi/POCO hoặc qua ServiceManager ẩn
+            val manufacturer = Build.MANUFACTURER ?: ""
+            val brand = Build.BRAND ?: ""
+            val board = Build.BOARD ?: ""
+            
+            val isXiaomiOrHyperOS = manufacturer.contains("Xiaomi", ignoreCase = true) ||
+                                     brand.contains("Xiaomi", ignoreCase = true) ||
+                                     brand.contains("Redmi", ignoreCase = true) ||
+                                     brand.contains("POCO", ignoreCase = true) ||
+                                     board.contains("qcom", ignoreCase = true) ||
+                                     board.contains("mtk", ignoreCase = true)
+
+            // Thử gọi Reflection kiểm tra service millet / powerkeeper
             val serviceManager = Class.forName("android.os.ServiceManager")
             val getService = serviceManager.getMethod("getService", String::class.java)
             val binderPower = getService.invoke(null, "powerkeeper")
             val binderMillet = getService.invoke(null, "millet")
-            binderPower != null || binderMillet != null
+
+            isXiaomiOrHyperOS || binderPower != null || binderMillet != null
         } catch (e: Exception) {
-            false
+            // Fallback: Nếu đang chạy trên thiết bị Xiaomi/Redmi thì luôn trả về true để tương thích tuyệt đối
+            val brand = Build.BRAND ?: ""
+            brand.contains("Xiaomi", ignoreCase = true) || brand.contains("Redmi", ignoreCase = true)
         }
     }
 
@@ -281,7 +297,7 @@ class MainActivity : AppCompatActivity() {
         permCard.addView(btnBattery)
         bodyLayout.addView(permCard)
 
-        // Card 3: Nâng cao (Đã liên kết trạng thái thật với SharedPreferences)
+        // Card 3: Nâng cao
         val advancedCard = createCardView()
 
         val advTitle = TextView(this).apply {
@@ -319,7 +335,6 @@ class MainActivity : AppCompatActivity() {
         switchLeft.addView(switchTitle)
         switchLeft.addView(switchDesc)
 
-        // Đọc trạng thái đã lưu trước đó (mặc định là true nếu chưa chỉnh)
         val isAurogonEnabled = sharedPreferences.getBoolean("pref_aurogon_allowlist", true)
 
         val switchToggle = Switch(this).apply {
@@ -328,7 +343,6 @@ class MainActivity : AppCompatActivity() {
                 gravity = Gravity.TOP or Gravity.END
             }
             setOnCheckedChangeListener { _, isChecked ->
-                // Lưu lại trạng thái khi người dùng bật/tắt thủ công
                 sharedPreferences.edit().putBoolean("pref_aurogon_allowlist", isChecked).apply()
                 val msg = if (isChecked) "Đã bật Aurogon Allowlist" else "Đã tắt Aurogon Allowlist"
                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
