@@ -6,50 +6,42 @@ import android.app.job.JobScheduler
 import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
-import android.provider.Settings
-import android.util.Log
+import android.os.PersistableBundle
 
 class MilletWatchJobService : JobService() {
-    override fun onStartJob(params: JobParameters?): Boolean {
-        try {
-            val hasGms = MilletNoRestrict.containsPackage(this, MilletNoRestrict.GMS_PACKAGE)
-            val hasSelf = MilletNoRestrict.containsPackage(this, packageName)
-
-            if (!hasGms || !hasSelf) {
-                MilletNoRestrict.ensureGms(this)
-                Log.i("MilletWatch", "Auto-repaired missing package in background")
-            }
-        } catch (e: Throwable) {
-            Log.e("MilletWatch", "Job execution error", e)
-        }
-        
-        // Lập lịch lại watcher
-        schedule(applicationContext)
-        return false
-    }
-
-    override fun onStopJob(params: JobParameters?): Boolean = false
-
     companion object {
-        private const val JOB_ID = 0x47534D57
+        private const val JOB_ID = 202610
 
         fun schedule(context: Context) {
-            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.N) return
             try {
-                val app = context.applicationContext
-                val scheduler = app.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler ?: return
-                val uri = Settings.System.getUriFor(MilletNoRestrict.KEY)
+                val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler ?: return
+                val component = ComponentName(context, MilletWatchJobService::class.java)
+                
+                val builder = JobInfo.Builder(JOB_ID, component).apply {
+                    setPeriodic(15 * 60 * 1000L) // Chạy định kỳ mỗi 15 phút
+                    setPersisted(true)           // Tự động khôi phục sau khi khởi động lại máy
+                    setRequiresDeviceIdle(false)
+                    setRequiresCharging(false)
+                }
 
-                val job = JobInfo.Builder(JOB_ID, ComponentName(app, MilletWatchJobService::class.java))
-                    .addTriggerContentUri(JobInfo.TriggerContentUri(uri, 0))
-                    .setTriggerContentUpdateDelay(1000L)
-                    .setTriggerContentMaxDelay(5000L)
-                    .build()
-
-                scheduler.schedule(job)
-            } catch (e: Throwable) {
-                Log.w("MilletWatch", "Schedule failed: ${e.message}")
-            }
+                scheduler.schedule(builder.build())
+            } catch (_: Throwable) {}
         }
+    }
+
+    override fun onStartJob(params: JobParameters?): Boolean {
+        try {
+            MilletNoRestrict.ensureGms(applicationContext)
+            AurogonAllowlistService.startIfEnabled(applicationContext)
+        } catch (_: Throwable) {}
+        
+        jobFinished(params, false)
+        return true
+    }
+
+    override fun onStopJob(params: JobParameters?): Boolean {
+        // Lên lịch chạy lại nếu bị dừng đột ngột
+        schedule(applicationContext)
+        return true
     }
 }
