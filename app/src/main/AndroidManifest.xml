@@ -1,22 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Quyền chạy ngầm, tự khởi động & quản lý hệ thống -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <uses-permission android:name="android.permission.DUMP" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    
-    <!-- Quyền thay đổi cài đặt hệ thống (giải quyết triệt để lỗi khóa mờ công tắc) -->
-    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
-    
-    <!-- Các quyền hỗ trợ phụ trợ mạng và trạng thái -->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -24,9 +14,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+        android:theme="@style/Theme.GMSProtect">
 
-        <!-- Màn hình chính -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -36,31 +25,32 @@
             </intent-filter>
         </activity>
 
-        <!-- Khai báo JobService giám sát ngầm định kỳ -->
+        <activity
+            android:name=".CompatibilityActivity"
+            android:exported="false" />
+
+        <service
+            android:name=".AurogonAllowlistService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+
         <service
             android:name=".MilletWatchJobService"
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="true" />
 
-        <!-- Khai báo Foreground Service của bạn -->
-        <service
-            android:name=".MyForegroundService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="specialUse" />
-
-        <!-- Bộ nhận khởi động cùng hệ thống (BootReceiver) -->
         <receiver
             android:name=".BootReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.USER_UNLOCKED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.SCREEN_ON" />
             </intent-filter>
         </receiver>
 
     </application>
-
 </manifest>
