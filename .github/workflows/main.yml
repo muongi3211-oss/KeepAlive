@@ -80,6 +80,15 @@ jobs:
         name: app-release-apk
         path: app/build/outputs/apk/release/*.apk
 
+    - name: Delete old latest release and tag
+      uses: dev-drprasad/delete-tag-and-release@v0.2.1
+      with:
+        delete_release: true
+        tag_name: latest
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
+
     - name: Publish to GitHub Releases
       uses: softprops/action-gh-release@v2
       with:
