@@ -76,7 +76,35 @@ class AurogonAllowlistService : Service() {
         return START_STICKY
     }
 
-### Các điểm mấu chốt được đảm bảo trong đoạn code này:
-* **Kiểm tra trạng thái bật/tắt (`isEnabled`)**: Mặc định là `false` khi mới mở app lần đầu, giúp ngăn chặn việc gọi Foreground Service đột ngột gây văng ứng dụng.
-* **Đăng ký `startForeground()` ngay tại `onCreate()`**: Đáp ứng thời gian phản hồi nghiêm ngặt của Android 14+, tránh lỗi Timeout.
-* **Mức độ ưu tiên thông báo `IMPORTANCE_MIN`**: Giúp thông báo chạy chìm hoàn toàn ở thanh trạng thái mà không phát ra âm thanh hay làm phiền người dùng.
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = getString(R.string.aurogon_notification_channel)
+            val descriptionText = getString(R.string.aurogon_notification_channel_desc)
+            val importance = NotificationManager.IMPORTANCE_MIN
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notificationManager?.createNotificationChannel(channel)
+        }
+    }
+
+    private fun createNotification(): Notification {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle(getString(R.string.aurogon_notification_title))
+                .setContentText(getString(R.string.aurogon_notification_text))
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setOngoing(true)
+                .build()
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+                .setContentTitle(getString(R.string.aurogon_notification_title))
+                .setContentText(getString(R.string.aurogon_notification_text))
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setOngoing(true)
+                .build()
+        }
+    }
+}
