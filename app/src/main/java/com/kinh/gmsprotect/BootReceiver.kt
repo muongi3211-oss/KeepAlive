@@ -5,24 +5,19 @@ import android.content.Context
 import android.content.Intent
 
 class BootReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context?, intent: Intent?) {
-        val ctx = context ?: return
+    override fun onReceive(context: Context, intent: Intent?) {
         val action = intent?.action
-
         if (action == Intent.ACTION_BOOT_COMPLETED ||
             action == Intent.ACTION_LOCKED_BOOT_COMPLETED ||
             action == Intent.ACTION_USER_UNLOCKED ||
-            action == Intent.ACTION_MY_PACKAGE_REPLACED
+            action == Intent.ACTION_MY_PACKAGE_REPLACED ||
+            action == Intent.ACTION_SCREEN_ON
         ) {
-            val pendingResult = goAsync()
             try {
-                AurogonAllowlistService.startIfEnabled(ctx)
-                GmsProtector.protect(ctx)
-                MilletWatchJobService.schedule(ctx)
-            } catch (_: Throwable) {
-            } finally {
-                pendingResult.finish()
-            }
+                MilletNoRestrict.ensureGms(context)
+                AurogonAllowlistService.startIfEnabled(context)
+                MilletWatchJobService.schedule(context)
+            } catch (_: Throwable) {}
         }
     }
 }
