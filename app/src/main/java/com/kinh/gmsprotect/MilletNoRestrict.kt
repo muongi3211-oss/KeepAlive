@@ -2,7 +2,6 @@ package com.kinh.gmsprotect
 
 import android.content.Context
 import android.provider.Settings
-import android.text.TextUtils
 import android.util.Log
 
 object MilletNoRestrict {
@@ -34,23 +33,24 @@ object MilletNoRestrict {
         try {
             val resolver = app.contentResolver
             val raw = Settings.System.getString(resolver, KEY) ?: ""
-            val packages = parsePackages(raw).toMutableSet()
+            val currentList = parsePackages(raw).toMutableList()
 
-            val addedGms = packages.add(GMS_PACKAGE)
-            val addedPlayStore = packages.add(PLAY_STORE_PACKAGE)
-            val addedSelf = packages.add(app.packageName)
+            // Thêm các gói bắt buộc nếu chưa có
+            if (!currentList.contains(GMS_PACKAGE)) currentList.add(GMS_PACKAGE)
+            if (!currentList.contains(PLAY_STORE_PACKAGE)) currentList.add(PLAY_STORE_PACKAGE)
+            if (!currentList.contains(app.packageName)) currentList.add(app.packageName)
 
-            // Luôn ghi đè và ép cập nhật để xóa cache cũ của hệ thống MIUI/HyperOS
-            val merged = TextUtils.join(",", packages)
-            val success = Settings.System.putString(resolver, KEY, merged)
+            // Nối chuỗi bằng dấu phẩy chuẩn
+            val newListStr = currentList.joinToString(",")
 
-            // Gửi một broadcast nội bộ hoặc kích hoạt lại service để ép hệ thống reload cache
-            AurogonAllowlistService.startIfEnabled(app)
+            // Ép ghi trực tiếp vào Settings.System
+            val isWritten = Settings.System.putString(resolver, KEY, newListStr)
 
+            // Đọc lại để xác nhận kết quả ghi
             val verifiedRaw = Settings.System.getString(resolver, KEY) ?: ""
-            val verifiedPackages = parsePackages(verifiedRaw)
+            val verifiedList = parsePackages(verifiedRaw)
 
-            return success && verifiedPackages.contains(GMS_PACKAGE) && verifiedPackages.contains(app.packageName)
+            return isWritten && verifiedList.contains(GMS_PACKAGE)
         } catch (e: Throwable) {
             Log.e(TAG, "ensureGms failed", e)
             return false
@@ -59,8 +59,7 @@ object MilletNoRestrict {
 
     private fun parsePackages(raw: String): Set<String> {
         if (raw.isBlank()) return emptySet()
-        return raw.replace(';', ',').replace('\n', ',').replace('\t', ',')
-            .split(",")
+        return raw.split(",")
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .toSet()
