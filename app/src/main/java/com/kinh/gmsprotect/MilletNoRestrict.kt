@@ -18,14 +18,13 @@ object MilletNoRestrict {
     }
 
     fun containsPackage(context: Context, pkg: String): Boolean = try {
-        val raw = Settings.System.getString(context.applicationContext.contentResolver, KEY)
+        val raw = Settings.System.getString(context.applicationContext.contentResolver, KEY) ?: ""
         parsePackages(raw).contains(pkg)
     } catch (e: Throwable) {
         false
     }
 
     fun containsGms(context: Context): Boolean = containsPackage(context, GMS_PACKAGE)
-
     fun containsPlayStore(context: Context): Boolean = containsPackage(context, PLAY_STORE_PACKAGE)
 
     fun ensureGms(context: Context): Boolean {
@@ -41,13 +40,13 @@ object MilletNoRestrict {
             val addedPlayStore = packages.add(PLAY_STORE_PACKAGE)
             val addedSelf = packages.add(app.packageName)
 
-            if (!addedGms && !addedPlayStore && !addedSelf && packages.contains(GMS_PACKAGE)) {
-                return true
-            }
-
+            // Luôn ghi đè và ép cập nhật để xóa cache cũ của hệ thống MIUI/HyperOS
             val merged = TextUtils.join(",", packages)
             val success = Settings.System.putString(resolver, KEY, merged)
-            
+
+            // Gửi một broadcast nội bộ hoặc kích hoạt lại service để ép hệ thống reload cache
+            AurogonAllowlistService.startIfEnabled(app)
+
             val verifiedRaw = Settings.System.getString(resolver, KEY) ?: ""
             val verifiedPackages = parsePackages(verifiedRaw)
 
