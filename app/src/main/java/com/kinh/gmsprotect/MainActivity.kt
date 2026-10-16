@@ -1,9 +1,11 @@
 package com.kinh.gmsprotect
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
@@ -14,6 +16,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
@@ -22,11 +25,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mainScrollView: ScrollView
     private lateinit var compatibilityScrollView: ScrollView
 
-    // Các TextView hiển thị trạng thái động để có thể cập nhật khi onResume
-    private lateinit var txtMainStatusBadge: TextView
+    // Các TextView hiển thị trạng thái động
     private lateinit var txtPowerKeeperStatus: TextView
     private lateinit var txtBatteryStatus: TextView
-    private lateinit var txtMilletStatus: TextView
+    private lateinit var txtWriteSettingsStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,11 +83,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun canWriteSettings(): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Settings.System.canWrite(this)
+            } else {
+                true
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     private fun updateRealtimeStatus() {
         val hasPowerKeeper = isPowerKeeperPresent()
         val isBatteryExempted = isIgnoringBatteryOptimizations()
+        val hasWritePermission = canWriteSettings()
 
-        // Cập nhật trạng thái cho màn hình tương thích nếu các view đã được khởi tạo
         try {
             if (::txtPowerKeeperStatus.isInitialized) {
                 if (hasPowerKeeper) {
@@ -108,6 +122,18 @@ class MainActivity : AppCompatActivity() {
                     txtBatteryStatus.text = "CHƯA BẬT"
                     txtBatteryStatus.setTextColor(Color.parseColor("#856404"))
                     (txtBatteryStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
+                }
+            }
+
+            if (::txtWriteSettingsStatus.isInitialized) {
+                if (hasWritePermission) {
+                    txtWriteSettingsStatus.text = "ĐÃ CẤP"
+                    txtWriteSettingsStatus.setTextColor(Color.parseColor("#155724"))
+                    (txtWriteSettingsStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
+                } else {
+                    txtWriteSettingsStatus.text = "CHƯA BẬT"
+                    txtWriteSettingsStatus.setTextColor(Color.parseColor("#856404"))
+                    (txtWriteSettingsStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
                 }
             }
         } catch (e: Exception) {
@@ -157,7 +183,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(35, 30, 35, 40)
         }
 
-        // Card 1: Trạng thái
+        // Card 1: Trạng thái bảo vệ
         val statusCard = createCardView().apply {
             gravity = Gravity.CENTER_HORIZONTAL
         }
@@ -202,7 +228,55 @@ class MainActivity : AppCompatActivity() {
         statusCard.addView(badgeListLayout)
         bodyLayout.addView(statusCard)
 
-        // Card 2: Nâng cao
+        // Card 2: Cấp quyền hệ thống quan trọng (Bổ sung nút mở cài đặt WRITE_SETTINGS & Battery)
+        val permCard = createCardView()
+        permCard.addView(TextView(this).apply {
+            text = "Cài đặt & Quyền hệ thống"
+            textSize = 18f
+            setTextColor(Color.parseColor("#212529"))
+            setTypeface(null, Typeface.BOLD)
+            setPadding(0, 0, 0, 10)
+        })
+
+        permCard.addView(TextView(this).apply {
+            text = "Cấp quyền thay đổi cài đặt và bỏ qua tối ưu pin để đảm bảo ứng dụng không bị hệ thống bóp ngầm."
+            textSize = 13f
+            setTextColor(Color.parseColor("#6C757D"))
+            setPadding(0, 0, 0, 15)
+        })
+
+        val btnWriteSettings = Button(this).apply {
+            text = "Cấp quyền thay đổi cài đặt hệ thống"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            background = createRoundedDrawable("#383B8E", 20f)
+            setPadding(0, 20, 0, 20)
+            setOnClickListener {
+                openWriteSettingsAccess()
+            }
+        }
+        permCard.addView(btnWriteSettings)
+
+        val btnBattery = Button(this).apply {
+            text = "Yêu cầu bỏ qua tối ưu hóa pin"
+            isAllCaps = false
+            setTextColor(Color.parseColor("#383B8E"))
+            textSize = 14f
+            background = createRoundedDrawable("#E8E9F5", 20f)
+            setPadding(0, 20, 0, 20)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 12, 0, 0) }
+            setOnClickListener {
+                requestBatteryOptimization()
+            }
+        }
+        permCard.addView(btnBattery)
+        bodyLayout.addView(permCard)
+
+        // Card 3: Nâng cao
         val advancedCard = createCardView()
 
         val advTitle = TextView(this).apply {
@@ -254,7 +328,7 @@ class MainActivity : AppCompatActivity() {
         advancedCard.addView(switchLayout)
         bodyLayout.addView(advancedCard)
 
-        // Card 3: Kiểm tra tương thích
+        // Card 4: Kiểm tra tương thích
         val checkCard = createCardView()
 
         val checkTitle = TextView(this).apply {
@@ -354,26 +428,24 @@ class MainActivity : AppCompatActivity() {
         // HyperOS / PowerKeeper Card (Dynamic Status)
         val hkCard = createCardView()
         hkCard.addView(TextView(this).apply {
-            text = "Trạng thái Hệ thống & Dịch vụ"
+            text = "Trạng thái Hệ thống & Quyền"
             textSize = 17f
             setTextColor(Color.parseColor("#212529"))
             setTypeface(null, Typeface.BOLD)
             setPadding(0, 0, 0, 15)
         })
 
-        // Tạo các dòng kiểm tra động
-        val initialPowerKeeperText = if (isPowerKeeperPresent()) "ĐÃ PHÁT HIỆN" else "KHÔNG PHÁT HIỆN"
-        val initialPowerKeeperColor = if (isPowerKeeperPresent()) "#155724" else "#721C24"
-        val initialPowerKeeperBg = if (isPowerKeeperPresent()) "#D4EDDA" else "#F8D7DA"
-        
-        txtPowerKeeperStatus = createBadge(initialPowerKeeperText, initialPowerKeeperBg, initialPowerKeeperColor)
+        // Khởi tạo các nhãn trạng thái động thực tế
+        val hasPK = isPowerKeeperPresent()
+        txtPowerKeeperStatus = createBadge(if (hasPK) "ĐÃ PHÁT HIỆN" else "KHÔNG PHÁT HIỆN", if (hasPK) "#D4EDDA" else "#F8D7DA", if (hasPK) "#155724" else "#721C24")
         hkCard.addView(createCustomRow("PowerKeeper / Millet Service", txtPowerKeeperStatus))
 
-        val initialBatteryText = if (isIgnoringBatteryOptimizations()) "ĐÃ XÁC MINH" else "CHƯA BẬT"
-        val initialBatteryColor = if (isIgnoringBatteryOptimizations()) "#155724" else "#856404"
-        val initialBatteryBg = if (isIgnoringBatteryOptimizations()) "#D4EDDA" else "#FFF3CD"
+        val hasWrite = canWriteSettings()
+        txtWriteSettingsStatus = createBadge(if (hasWrite) "ĐÃ CẤP" else "CHƯA BẬT", if (hasWrite) "#D4EDDA" else "#FFF3CD", if (hasWrite) "#155724" else "#856404")
+        hkCard.addView(createCustomRow("Quyền thay đổi cài đặt", txtWriteSettingsStatus))
 
-        txtBatteryStatus = createBadge(initialBatteryText, initialBatteryBg, initialBatteryColor)
+        val isBattery = isIgnoringBatteryOptimizations()
+        txtBatteryStatus = createBadge(if (isBattery) "ĐÃ XÁC MINH" else "CHƯA BẬT", if (isBattery) "#D4EDDA" else "#FFF3CD", if (isBattery) "#155724" else "#856404")
         hkCard.addView(createCustomRow("Miễn tối ưu pin Android", txtBatteryStatus))
 
         hkCard.addView(createCheckRow("Google Play services", "ĐÃ ÁP DỤNG", "#E2F0D9", "#385723"))
@@ -400,6 +472,37 @@ class MainActivity : AppCompatActivity() {
         mainLayout.addView(bodyLayout)
         rootScroll.addView(mainLayout)
         return rootScroll
+    }
+
+    // ==========================================
+    // CÁC HÀM XỬ LÝ MỞ CÀI ĐẶT QUYỀN HỆ THỐNG
+    // ==========================================
+    private fun openWriteSettingsAccess() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Không thể mở cài đặt hệ thống", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun requestBatteryOptimization() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } else {
+                Toast.makeText(this, "Thiết bị không hỗ trợ tính năng này", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Không thể mở cài đặt pin: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun createCardView(): LinearLayout {
