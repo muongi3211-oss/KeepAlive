@@ -6,7 +6,6 @@ import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.LinearLayout
-import android.widget.LinearLayout.LayoutParams
 import android.widget.ScrollView
 import android.widget.TextView
 
@@ -41,10 +40,10 @@ class CompatibilityActivity : Activity() {
             textSize = 15f
             setTextColor(UiKit.TEXT)
             setTypeface(typeface, Typeface.BOLD)
-        }, LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+        }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
 
         val deviceText = UiKit.muted(this, "${Build.MANUFACTURER} ${Build.MODEL} • Android ${Build.VERSION.RELEASE}", 11.5f)
-        summary.addView(deviceText, LayoutParams(-1, -2))
+        summary.addView(deviceText, LinearLayout.LayoutParams(-1, -2))
         page.addView(summary, cardMargin())
 
         // Card trạng thái bảo vệ GMS & Play Store
@@ -54,7 +53,7 @@ class CompatibilityActivity : Activity() {
             textSize = 15f
             setTextColor(UiKit.TEXT)
             setTypeface(typeface, Typeface.BOLD)
-        }, LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
+        }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
 
         val canWrite = MilletNoRestrict.canWrite(this)
         val gmsOk = MilletNoRestrict.containsGms(this)
@@ -69,7 +68,7 @@ class CompatibilityActivity : Activity() {
         page.addView(statusCard, cardMargin())
 
         scroll.addView(page, ScrollView.LayoutParams(ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT))
-        root.addView(scroll, LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
     }
 
@@ -83,20 +82,20 @@ class CompatibilityActivity : Activity() {
                 text = label
                 textSize = 13.5f
                 setTextColor(UiKit.TEXT)
-            }, LayoutParams(0, -2, 1f))
+            }, LinearLayout.LayoutParams(0, -2, 1f))
 
             addView(TextView(context).apply {
                 text = if (ok) "✓ Đã áp dụng" else "✗ Chưa có"
                 textSize = 13.5f
                 setTextColor(if (ok) UiKit.SUCCESS else UiKit.ERROR)
                 setTypeface(typeface, Typeface.BOLD)
-            }, LayoutParams(-2, -2))
+            }, LinearLayout.LayoutParams(-2, -2))
         }
     }
 
     private fun dp(value: Int): Int = UiKit.dp(this, value)
 
-    private fun cardMargin(): LayoutParams {
-        return LayoutParams(-1, -2).apply { bottomMargin = dp(14) }
+    private fun cardMargin(): LinearLayout.LayoutParams {
+        return LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(14) }
     }
 }
