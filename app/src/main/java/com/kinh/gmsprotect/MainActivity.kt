@@ -1,26 +1,16 @@
 package com.kinh.gmsprotect
 
-import android.app.job.JobInfo
-import android.app.job.JobScheduler
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
-import android.util.Log
 import android.view.Gravity
-import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
@@ -32,25 +22,22 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Tự động ẩn ActionBar mặc định để dùng Header tím custom
+        // Ẩn ActionBar mặc định để dùng Header custom
         supportActionBar?.hide()
 
-        // Khởi tạo 2 giao diện (Màn hình chính & Màn hình kiểm tra tương thích)
+        // Khởi tạo giao diện
         mainScrollView = createMainScreen()
         compatibilityScrollView = createCompatibilityScreen()
 
-        // Mặc định hiển thị Màn hình chính
+        // Hiển thị màn hình chính
         setContentView(mainScrollView)
 
-        // Thực thi cốt lõi chạy ngầm Millet & JobScheduler
-        applyMilletProtection(this)
-        scheduleMilletJob(this)
-        startProtectionService(this)
+        // Thực thi cốt lõi qua MilletHelper
+        MilletHelper.applyMilletProtection(this)
+        MilletHelper.scheduleMilletJob(this)
+        MilletHelper.startProtectionService(this)
     }
 
-    // ==========================================
-    // 1. DỰNG MÀN HÌNH CHÍNH (MAIN SCREEN)
-    // ==========================================
     private fun createMainScreen(): ScrollView {
         val rootScroll = ScrollView(this).apply {
             setBackgroundColor(Color.parseColor("#F4F5F9"))
@@ -60,7 +47,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
         }
 
-        // Header Màu Tím
+        // Header Tím
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#383B8E"))
@@ -85,13 +72,12 @@ class MainActivity : AppCompatActivity() {
         header.addView(appSubTitle)
         mainLayout.addView(header)
 
-        // Nội dung dạng Card
         val bodyLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(35, 30, 35, 40)
         }
 
-        // --- CARD 1: TRẠNG THÁI BẢO VỆ THÀNH CÔNG ---
+        // Card 1: Trạng thái
         val statusCard = createCardView().apply {
             gravity = Gravity.CENTER_HORIZONTAL
         }
@@ -137,7 +123,7 @@ class MainActivity : AppCompatActivity() {
         statusCard.addView(badgeListLayout)
         bodyLayout.addView(statusCard)
 
-        // --- CARD 2: NÂNG CAO (AUROGON ALLOWLIST) ---
+        // Card 2: Nâng cao
         val advancedCard = createCardView()
 
         val advTitle = TextView(this).apply {
@@ -166,7 +152,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val switchDesc = TextView(this).apply {
-            text = "Lớp bảo vệ bổ sung cho HyperOS China. Khi bật, GMS Protect chạy nền nhẹ để khôi phục Google Play services vào Aurogon Allowlist sau khi hệ thống thay đổi chính sách lúc tắt màn.\n\nNhịp nền: 40 giây sau khi tắt màn -> phút thứ 2 -> mỗi 10 phút khi màn vẫn tắt.\n\nMiễn tối ưu pin Android: ĐÃ XÁC MINH"
+            text = "Lớp bảo vệ bổ sung cho HyperOS China. Khi bật, GMS Protect chạy nền nhẹ để khôi phục Google Play services vào Aurogon Allowlist sau khi hệ thống thay đổi chính sách lúc tắt màn.\n\nMiễn tối ưu pin Android: ĐÃ XÁC MINH"
             textSize = 12f
             setTextColor(Color.parseColor("#6C757D"))
             setPadding(0, 8, 10, 0)
@@ -189,7 +175,7 @@ class MainActivity : AppCompatActivity() {
         advancedCard.addView(switchLayout)
         bodyLayout.addView(advancedCard)
 
-        // --- CARD 3: KIỂM TRA TƯƠNG THÍCH ---
+        // Card 3: Kiểm tra tương thích
         val checkCard = createCardView()
 
         val checkTitle = TextView(this).apply {
@@ -229,9 +215,6 @@ class MainActivity : AppCompatActivity() {
         return rootScroll
     }
 
-    // ==========================================
-    // 2. DỰNG MÀN HÌNH KIỂM TRA TƯƠNG THÍCH
-    // ==========================================
     private fun createCompatibilityScreen(): ScrollView {
         val rootScroll = ScrollView(this).apply {
             setBackgroundColor(Color.parseColor("#F4F5F9"))
@@ -241,7 +224,6 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
         }
 
-        // Header Màu Tím cho trang Tương thích
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#383B8E"))
@@ -271,7 +253,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(35, 30, 35, 40)
         }
 
-        // Card Thống kê Thiết bị
+        // Device Info Card
         val devCard = createCardView()
         val devInfo = TextView(this).apply {
             text = "${Build.MANUFACTURER.capitalize()} ${Build.MODEL}  •  Android ${Build.VERSION.RELEASE}"
@@ -282,19 +264,12 @@ class MainActivity : AppCompatActivity() {
         val devBadge = createBadge("TƯƠNG THÍCH ĐẦY ĐỦ", "#E2F0D9", "#385723").apply {
             setPadding(20, 8, 20, 8)
         }
-        val devDesc = TextView(this).apply {
-            text = "Kết quả kết hợp trạng thái hiện tại với bằng chứng thực tế được lưu khi Android/HyperOS thật sự gọi dậy GMS Protect sau khi danh sách MILLET thay đổi."
-            textSize = 12f
-            setTextColor(Color.parseColor("#6C757D"))
-            setPadding(0, 15, 0, 0)
-        }
 
         devCard.addView(devInfo)
         devCard.addView(devBadge)
-        devCard.addView(devDesc)
         bodyLayout.addView(devCard)
 
-        // Card Danh sách Kiểm tra HyperOS / PowerKeeper
+        // HyperOS / PowerKeeper Card
         val hkCard = createCardView()
         hkCard.addView(TextView(this).apply {
             text = "HyperOS / PowerKeeper"
@@ -310,34 +285,9 @@ class MainActivity : AppCompatActivity() {
         hkCard.addView(createCheckRow("CH Play", "ĐÃ ÁP DỤNG", "#E2F0D9", "#385723"))
         hkCard.addView(createCheckRow("GMS Protect Không hạn chế", "ĐÃ XÁC MINH", "#E2F0D9", "#385723"))
         hkCard.addView(createCheckRow("Miễn tối ưu pin Android", "ĐÃ XÁC MINH", "#E2F0D9", "#385723"))
-        hkCard.addView(createCheckRow("Bảo vệ nền HyperOS", "ĐÃ GỬI YÊU CẦU", "#E2F0D9", "#385723"))
-
-        hkCard.addView(TextView(this).apply {
-            text = "Mục này chỉ xác nhận GMS Protect đã gửi yêu cầu bảo vệ tới cơ chế nền của HyperOS. Ứng dụng không thể đọc ngược danh sách nội bộ để khẳng định trạng thái đã được áp dụng."
-            textSize = 11f
-            setTextColor(Color.parseColor("#8C96A0"))
-            setPadding(0, 15, 0, 0)
-        })
         bodyLayout.addView(hkCard)
 
-        // Card Tự phục hồi
-        val autoCard = createCardView()
-        autoCard.addView(TextView(this).apply {
-            text = "Tự phục hồi"
-            textSize = 17f
-            setTextColor(Color.parseColor("#212529"))
-            setTypeface(null, Typeface.BOLD)
-            setPadding(0, 0, 0, 15)
-        })
-
-        autoCard.addView(createCheckRow("Theo dõi thay đổi hệ thống", "ĐÃ ĐĂNG KÝ", "#E2F0D9", "#385723"))
-        autoCard.addView(createCheckRow("Hệ thống gọi dậy ứng dụng", "ĐÃ XÁC MINH", "#E2F0D9", "#385723"))
-        autoCard.addView(createCheckRow("Tự khôi phục GMS", "ĐÃ XÁC MINH", "#E2F0D9", "#385723"))
-        autoCard.addView(createCheckRow("Lần xác minh gần nhất", "16/10/26 15:54", "#F8F9FA", "#6C757D"))
-
-        bodyLayout.addView(autoCard)
-
-        // Nút quay lại Màn hình chính
+        // Back Button
         val btnBack = Button(this).apply {
             text = "Quay lại Màn hình chính"
             isAllCaps = false
@@ -357,9 +307,6 @@ class MainActivity : AppCompatActivity() {
         return rootScroll
     }
 
-    // ==========================================
-    // 3. CÁC HÀM TẠO WIDGET GIAO DIỆN PHỤ TRỢ
-    // ==========================================
     private fun createCardView(): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -433,10 +380,4 @@ class MainActivity : AppCompatActivity() {
             super.onBackPressed()
         }
     }
-
-    // ==========================================
-    // 4. CỐT LÕI BẢO VỆ MILLET & JOBSCHEDULER
-    // ==========================================
-    companion object {
-        private const val TAG = "GMSProtect"
-        private const val JOB_
+}
