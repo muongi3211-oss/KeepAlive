@@ -33,14 +33,14 @@
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="true" />
 
-        <!-- Khai báo Foreground Service của bạn (thay tên class nếu khác) -->
+            <!-- Khai báo Foreground Service -->
         <service
             android:name=".MyForegroundService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="specialUse" />
 
-        <!-- Bộ nhận khởi động cùng hệ thống (BootReceiver) -->
+        <!-- Bộ nhận khởi động cùng hệ thống -->
         <receiver
             android:name=".BootReceiver"
             android:enabled="true"
