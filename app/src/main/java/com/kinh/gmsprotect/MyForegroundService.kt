@@ -27,7 +27,7 @@ class MyForegroundService : Service() {
         startForeground(NOTIFICATION_ID, notification)
 
         // Đảm bảo cờ Millet được kích hoạt lại khi service chạy
-        MainActivity.applyMilletProtection(applicationContext)
+        MilletHelper.applyMilletProtection(applicationContext)
 
         // START_STICKY giúp service tự động khởi động lại nếu bị hệ thống kill
         return START_STICKY
