@@ -2,6 +2,7 @@ package com.kinh.gmsprotect
 
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -24,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private var isCompatibilityScreen = false
     private lateinit var mainScrollView: ScrollView
     private lateinit var compatibilityScrollView: ScrollView
+    private lateinit var sharedPreferences: SharedPreferences
 
     // Các TextView hiển thị trạng thái động
     private lateinit var txtPowerKeeperStatus: TextView
@@ -32,6 +34,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Khởi tạo SharedPreferences để lưu trạng thái bật/tắt nâng cao
+        sharedPreferences = getSharedPreferences("GMSProtectPrefs", Context.MODE_PRIVATE)
 
         // Ẩn ActionBar mặc định để dùng Header custom
         supportActionBar?.hide()
@@ -228,7 +233,7 @@ class MainActivity : AppCompatActivity() {
         statusCard.addView(badgeListLayout)
         bodyLayout.addView(statusCard)
 
-        // Card 2: Cấp quyền hệ thống quan trọng (Bổ sung nút mở cài đặt WRITE_SETTINGS & Battery)
+        // Card 2: Cấp quyền hệ thống quan trọng
         val permCard = createCardView()
         permCard.addView(TextView(this).apply {
             text = "Cài đặt & Quyền hệ thống"
@@ -276,7 +281,7 @@ class MainActivity : AppCompatActivity() {
         permCard.addView(btnBattery)
         bodyLayout.addView(permCard)
 
-        // Card 3: Nâng cao
+        // Card 3: Nâng cao (Đã liên kết trạng thái thật với SharedPreferences)
         val advancedCard = createCardView()
 
         val advTitle = TextView(this).apply {
@@ -314,10 +319,19 @@ class MainActivity : AppCompatActivity() {
         switchLeft.addView(switchTitle)
         switchLeft.addView(switchDesc)
 
+        // Đọc trạng thái đã lưu trước đó (mặc định là true nếu chưa chỉnh)
+        val isAurogonEnabled = sharedPreferences.getBoolean("pref_aurogon_allowlist", true)
+
         val switchToggle = Switch(this).apply {
-            isChecked = true
+            isChecked = isAurogonEnabled
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.2f).apply {
                 gravity = Gravity.TOP or Gravity.END
+            }
+            setOnCheckedChangeListener { _, isChecked ->
+                // Lưu lại trạng thái khi người dùng bật/tắt thủ công
+                sharedPreferences.edit().putBoolean("pref_aurogon_allowlist", isChecked).apply()
+                val msg = if (isChecked) "Đã bật Aurogon Allowlist" else "Đã tắt Aurogon Allowlist"
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
             }
         }
 
