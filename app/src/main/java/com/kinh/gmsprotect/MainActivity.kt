@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.util.TypedValue
 import android.widget.Button
 import android.widget.LinearLayout
@@ -147,7 +148,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun openAutostartSettings() {
         try {
-            // Intent đặc trưng để mở trang quản lý tự khởi động của Xiaomi / HyperOS / MIUI
             val intent = Intent().apply {
                 component = ComponentName(
                     "com.miui.securitycenter",
@@ -157,7 +157,6 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         } catch (e: Exception) {
             try {
-                // Fallback nếu máy không đúng package MIUI Security
                 val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                     data = Uri.parse("package:$packageName")
                 }
@@ -173,9 +172,6 @@ class MainActivity : AppCompatActivity() {
         private const val JOB_ID = 10086
         private const val MILLET_NO_RESTRICT_APP = "MILLET_NO_RESTRICT_APP"
 
-        /**
-         * Gọi API ẩn Millet của HyperOS/MIUI thông qua Reflection
-         */
         fun applyMilletProtection(context: Context) {
             try {
                 val serviceManager = Class.forName("android.os.ServiceManager")
@@ -198,14 +194,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        /**
-         * Đăng ký JobScheduler chạy định kỳ mỗi 15 phút
-         */
         fun scheduleMilletJob(context: Context) {
             val componentName = ComponentName(context, MilletWatchJobService::class.java)
             val builder = JobInfo.Builder(JOB_ID, componentName)
-                .setPeriodic(15 * 60 * 1000L) // 15 phút lập lịch 1 lần
-                .setPersisted(true)           // Tự khôi phục sau khi khởi động lại máy
+                .setPeriodic(15 * 60 * 1000L)
+                .setPersisted(true)
                 .setRequiresCharging(false)
                 .setRequiresDeviceIdle(false)
 
@@ -219,9 +212,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        /**
-         * Khởi chạy Foreground Service
-         */
         fun startProtectionService(context: Context) {
             try {
                 val serviceIntent = Intent(context, MyForegroundService::class.java)
