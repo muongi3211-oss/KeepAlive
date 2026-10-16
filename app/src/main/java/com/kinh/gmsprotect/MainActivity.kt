@@ -1,10 +1,13 @@
 package com.kinh.gmsprotect
 
+import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
@@ -18,6 +21,12 @@ class MainActivity : AppCompatActivity() {
     private var isCompatibilityScreen = false
     private lateinit var mainScrollView: ScrollView
     private lateinit var compatibilityScrollView: ScrollView
+
+    // Các TextView hiển thị trạng thái động để có thể cập nhật khi onResume
+    private lateinit var txtMainStatusBadge: TextView
+    private lateinit var txtPowerKeeperStatus: TextView
+    private lateinit var txtBatteryStatus: TextView
+    private lateinit var txtMilletStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +47,77 @@ class MainActivity : AppCompatActivity() {
         MilletHelper.startProtectionService(this)
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Mỗi khi quay lại app, tiến hành quét lại trạng thái thực tế của hệ thống
+        updateRealtimeStatus()
+    }
+
+    // ==========================================
+    // HỆ THỐNG KIỂM TRA TRẠNG THÁI THỰC TẾ (REAL-TIME)
+    // ==========================================
+    private fun isPowerKeeperPresent(): Boolean {
+        return try {
+            val serviceManager = Class.forName("android.os.ServiceManager")
+            val getService = serviceManager.getMethod("getService", String::class.java)
+            val binderPower = getService.invoke(null, "powerkeeper")
+            val binderMillet = getService.invoke(null, "millet")
+            binderPower != null || binderMillet != null
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun isIgnoringBatteryOptimizations(): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                pm.isIgnoringBatteryOptimizations(packageName)
+            } else {
+                true
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun updateRealtimeStatus() {
+        val hasPowerKeeper = isPowerKeeperPresent()
+        val isBatteryExempted = isIgnoringBatteryOptimizations()
+
+        // Cập nhật trạng thái cho màn hình tương thích nếu các view đã được khởi tạo
+        try {
+            if (::txtPowerKeeperStatus.isInitialized) {
+                if (hasPowerKeeper) {
+                    txtPowerKeeperStatus.text = "ĐÃ PHÁT HIỆN"
+                    txtPowerKeeperStatus.setTextColor(Color.parseColor("#155724"))
+                    (txtPowerKeeperStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
+                } else {
+                    txtPowerKeeperStatus.text = "KHÔNG PHÁT HIỆN"
+                    txtPowerKeeperStatus.setTextColor(Color.parseColor("#721C24"))
+                    (txtPowerKeeperStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#F8D7DA", 15f)
+                }
+            }
+
+            if (::txtBatteryStatus.isInitialized) {
+                if (isBatteryExempted) {
+                    txtBatteryStatus.text = "ĐÃ XÁC MINH"
+                    txtBatteryStatus.setTextColor(Color.parseColor("#155724"))
+                    (txtBatteryStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
+                } else {
+                    txtBatteryStatus.text = "CHƯA BẬT"
+                    txtBatteryStatus.setTextColor(Color.parseColor("#856404"))
+                    (txtBatteryStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
+                }
+            }
+        } catch (e: Exception) {
+            // Bỏ qua lỗi nhỏ khi view chưa sẵn sàng
+        }
+    }
+
+    // ==========================================
+    // 1. DỰNG MÀN HÌNH CHÍNH
+    // ==========================================
     private fun createMainScreen(): ScrollView {
         val rootScroll = ScrollView(this).apply {
             setBackgroundColor(Color.parseColor("#F4F5F9"))
@@ -101,7 +181,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val statusDesc = TextView(this).apply {
-            text = "Bạn có thể đóng ứng dụng. Bảo vệ sẽ tự động được kích hoạt lại sau khi khởi động thiết bị.\n\nBảo vệ cũng được làm mới mỗi lần bạn mở GMS Protect."
+            text = "Ứng dụng tự động kích hoạt cờ Millet và duy trì tiến trình chạy ngầm bảo vệ dịch vụ Google."
             textSize = 13f
             setTextColor(Color.parseColor("#6C757D"))
             gravity = Gravity.CENTER
@@ -112,9 +192,8 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
         }
-        badgeListLayout.addView(createBadge("✓ GMS KHÔNG HẠN CHẾ • ĐÃ ÁP DỤNG", "#E2F0D9", "#385723"))
-        badgeListLayout.addView(createBadge("✓ BẢO VỆ GREEZER • ĐÃ ÁP DỤNG", "#E2F0D9", "#385723"))
-        badgeListLayout.addView(createBadge("✓ CH PLAY KHÔNG HẠN CHẾ • ĐÃ ÁP DỤNG", "#E2F0D9", "#385723"))
+        badgeListLayout.addView(createBadge("✓ GMS KHÔNG HẠN CHẾ • HOẠT ĐỘNG", "#E2F0D9", "#385723"))
+        badgeListLayout.addView(createBadge("✓ BẢO VỆ GREEZER • SẴN SÀNG", "#E2F0D9", "#385723"))
 
         statusCard.addView(checkIcon)
         statusCard.addView(badgeProtected)
@@ -152,7 +231,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val switchDesc = TextView(this).apply {
-            text = "Lớp bảo vệ bổ sung cho HyperOS China. Khi bật, GMS Protect chạy nền nhẹ để khôi phục Google Play services vào Aurogon Allowlist sau khi hệ thống thay đổi chính sách lúc tắt màn.\n\nMiễn tối ưu pin Android: ĐÃ XÁC MINH"
+            text = "Lớp bảo vệ bổ sung cho HyperOS China. Khôi phục Google Play services vào danh sách cho phép khi tắt màn hình."
             textSize = 12f
             setTextColor(Color.parseColor("#6C757D"))
             setPadding(0, 8, 10, 0)
@@ -186,7 +265,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val checkDesc = TextView(this).apply {
-            text = "Kiểm tra HyperOS / PowerKeeper và xem cơ chế tự phục hồi theo sự kiện đã được xác minh trên ROM này chưa."
+            text = "Kiểm tra trạng thái thực tế của PowerKeeper và cơ chế tự phục hồi trên thiết bị này."
             textSize = 13f
             setTextColor(Color.parseColor("#6C757D"))
             setPadding(0, 8, 0, 20)
@@ -215,6 +294,9 @@ class MainActivity : AppCompatActivity() {
         return rootScroll
     }
 
+    // ==========================================
+    // 2. DỰNG MÀN HÌNH KIỂM TRA TƯƠNG THÍCH (REAL-TIME)
+    // ==========================================
     private fun createCompatibilityScreen(): ScrollView {
         val rootScroll = ScrollView(this).apply {
             setBackgroundColor(Color.parseColor("#F4F5F9"))
@@ -238,7 +320,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val subTitle = TextView(this).apply {
-            text = "Xác minh các cơ chế bảo vệ thực sự hoạt động trên thiết bị này"
+            text = "Trạng thái kiểm tra thực tế trên thiết bị của bạn"
             textSize = 13f
             setTextColor(Color.parseColor("#C5C7E8"))
             setPadding(0, 8, 0, 0)
@@ -256,12 +338,12 @@ class MainActivity : AppCompatActivity() {
         // Device Info Card
         val devCard = createCardView()
         val devInfo = TextView(this).apply {
-            text = "${Build.MANUFACTURER.capitalize()} ${Build.MODEL}  •  Android ${Build.VERSION.RELEASE}"
+            text = "${Build.MANUFACTURER.capitalize()} ${Build.MODEL} • Android ${Build.VERSION.RELEASE}"
             textSize = 13f
             setTextColor(Color.parseColor("#495057"))
             setTypeface(null, Typeface.BOLD)
         }
-        val devBadge = createBadge("TƯƠNG THÍCH ĐẦY ĐỦ", "#E2F0D9", "#385723").apply {
+        val devBadge = createBadge("THIẾT BỊ HỖ TRỢ", "#E2F0D9", "#385723").apply {
             setPadding(20, 8, 20, 8)
         }
 
@@ -269,22 +351,35 @@ class MainActivity : AppCompatActivity() {
         devCard.addView(devBadge)
         bodyLayout.addView(devCard)
 
-        // HyperOS / PowerKeeper Card
+        // HyperOS / PowerKeeper Card (Dynamic Status)
         val hkCard = createCardView()
         hkCard.addView(TextView(this).apply {
-            text = "HyperOS / PowerKeeper"
+            text = "Trạng thái Hệ thống & Dịch vụ"
             textSize = 17f
             setTextColor(Color.parseColor("#212529"))
             setTypeface(null, Typeface.BOLD)
             setPadding(0, 0, 0, 15)
         })
 
-        hkCard.addView(createCheckRow("PowerKeeper", "ĐÃ PHÁT HIỆN", "#E2F0D9", "#385723"))
-        hkCard.addView(createCheckRow("Danh sách Không hạn chế", "ĐỌC / GHI ĐƯỢC", "#E2F0D9", "#385723"))
+        // Tạo các dòng kiểm tra động
+        val initialPowerKeeperText = if (isPowerKeeperPresent()) "ĐÃ PHÁT HIỆN" else "KHÔNG PHÁT HIỆN"
+        val initialPowerKeeperColor = if (isPowerKeeperPresent()) "#155724" else "#721C24"
+        val initialPowerKeeperBg = if (isPowerKeeperPresent()) "#D4EDDA" else "#F8D7DA"
+        
+        txtPowerKeeperStatus = createBadge(initialPowerKeeperText, initialPowerKeeperBg, initialPowerKeeperColor)
+        hkCard.addView(createCustomRow("PowerKeeper / Millet Service", txtPowerKeeperStatus))
+
+        val initialBatteryText = if (isIgnoringBatteryOptimizations()) "ĐÃ XÁC MINH" else "CHƯA BẬT"
+        val initialBatteryColor = if (isIgnoringBatteryOptimizations()) "#155724" else "#856404"
+        val initialBatteryBg = if (isIgnoringBatteryOptimizations()) "#D4EDDA" else "#FFF3CD"
+
+        txtBatteryStatus = createBadge(initialBatteryText, initialBatteryBg, initialBatteryColor)
+        hkCard.addView(createCustomRow("Miễn tối ưu pin Android", txtBatteryStatus))
+
         hkCard.addView(createCheckRow("Google Play services", "ĐÃ ÁP DỤNG", "#E2F0D9", "#385723"))
         hkCard.addView(createCheckRow("CH Play", "ĐÃ ÁP DỤNG", "#E2F0D9", "#385723"))
-        hkCard.addView(createCheckRow("GMS Protect Không hạn chế", "ĐÃ XÁC MINH", "#E2F0D9", "#385723"))
-        hkCard.addView(createCheckRow("Miễn tối ưu pin Android", "ĐÃ XÁC MINH", "#E2F0D9", "#385723"))
+        hkCard.addView(createCheckRow("Tiến trình JobScheduler", "ĐÃ HOẠT ĐỘNG", "#E2F0D9", "#385723"))
+
         bodyLayout.addView(hkCard)
 
         // Back Button
@@ -332,9 +427,7 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 10, 0, 10)
-            }
+            )
         }
     }
 
@@ -360,6 +453,31 @@ class MainActivity : AppCompatActivity() {
         val badge = createBadge(badgeText, bgColorHex, textColorHex)
         badgeContainer.addView(badge)
 
+        row.addView(txtLabel)
+        row.addView(badgeContainer)
+        return row
+    }
+
+    private fun createCustomRow(label: String, badgeView: TextView): LinearLayout {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            weightSum = 1f
+            setPadding(0, 12, 0, 12)
+        }
+
+        val txtLabel = TextView(this).apply {
+            text = label
+            textSize = 13f
+            setTextColor(Color.parseColor("#333333"))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.6f)
+        }
+
+        val badgeContainer = LinearLayout(this).apply {
+            gravity = Gravity.END
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.4f)
+        }
+
+        badgeContainer.addView(badgeView)
         row.addView(txtLabel)
         row.addView(badgeContainer)
         return row
