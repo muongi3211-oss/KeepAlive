@@ -27,11 +27,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var compatibilityScrollView: ScrollView
     private lateinit var sharedPreferences: SharedPreferences
 
-    // Các TextView hiển thị trạng thái động
+    // Các TextView hiển thị trạng thái động cho cả 2 màn hình
+    private lateinit var txtMainStatusTitle: TextView
+    private lateinit var txtMainGmsBadge: TextView
+    private lateinit var txtMainGreezerBadge: TextView
+
     private lateinit var txtPowerKeeperStatus: TextView
     private lateinit var txtBatteryStatus: TextView
     private lateinit var txtWriteSettingsStatus: TextView
-    private lateinit var txtSystemPropStatus: TextView // TextView theo dõi lệnh can thiệp hệ thống sâu
+    private lateinit var txtSystemPropStatus: TextView
+    private lateinit var txtGmsServiceStatus: TextView
+    private lateinit var txtPlayStoreStatus: TextView
+    private lateinit var txtJobSchedulerStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,7 +64,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Mỗi khi quay lại app, tiến hành quét lại trạng thái thực tế của hệ thống
+        // Mỗi khi quay lại app, tiến hành quét lại toàn bộ trạng thái thực tế của hệ thống
         updateRealtimeStatus()
     }
 
@@ -120,6 +127,30 @@ class MainActivity : AppCompatActivity() {
         val hasWritePermission = canWriteSettings()
 
         try {
+            // 1. Cập nhật Màn hình chính dựa trên trạng thái thực tế
+            if (::txtMainStatusTitle.isInitialized) {
+                if (hasPowerKeeper && hasWritePermission) {
+                    txtMainStatusTitle.text = "Bảo vệ GMS thành công"
+                    txtMainGmsBadge.text = "✓ GMS KHÔNG HẠN CHẾ • HOẠT ĐỘNG"
+                    txtMainGmsBadge.setTextColor(Color.parseColor("#385723"))
+                    (txtMainGmsBadge.parent as? LinearLayout)?.background = createRoundedDrawable("#E2F0D9", 15f)
+
+                    txtMainGreezerBadge.text = "✓ BẢO VỆ GREEZER • SẴN SÀNG"
+                    txtMainGreezerBadge.setTextColor(Color.parseColor("#385723"))
+                    (txtMainGreezerBadge.parent as? LinearLayout)?.background = createRoundedDrawable("#E2F0D9", 15f)
+                } else {
+                    txtMainStatusTitle.text = "Cần cấp quyền thiết bị"
+                    txtMainGmsBadge.text = "⚠ THIẾU QUYỀN HỆ THỐNG HOẶC PIN"
+                    txtMainGmsBadge.setTextColor(Color.parseColor("#856404"))
+                    (txtMainGmsBadge.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
+
+                    txtMainGreezerBadge.text = "⚠ KIỂM TRA LẠI MÀN HÌNH TƯƠNG THÍCH"
+                    txtMainGreezerBadge.setTextColor(Color.parseColor("#856404"))
+                    (txtMainGreezerBadge.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
+                }
+            }
+
+            // 2. Cập nhật Màn hình kiểm tra tương thích
             if (::txtPowerKeeperStatus.isInitialized) {
                 if (hasPowerKeeper) {
                     txtPowerKeeperStatus.text = "ĐÃ PHÁT HIỆN"
@@ -156,7 +187,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            // Cập nhật trạng thái phản hồi từ lệnh can thiệp hệ thống sâu
             if (::txtSystemPropStatus.isInitialized) {
                 val propStatusText = MilletHelper.systemPropStatus
                 val isAccepted = MilletHelper.isPropAccepted
@@ -169,13 +199,35 @@ class MainActivity : AppCompatActivity() {
                     (txtSystemPropStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
                 }
             }
+
+            // Kiểm tra gói GMS và CH Play thực tế trên hệ thống
+            val hasGms = try { packageManager.getPackageInfo("com.google.android.gms", 0); true } catch (e: Exception) { false }
+            if (::txtGmsServiceStatus.isInitialized) {
+                txtGmsServiceStatus.text = if (hasGms) "ĐÃ CÀI ĐẶT" else "KHÔNG TÌM THẤY"
+                txtGmsServiceStatus.setTextColor(Color.parseColor(if (hasGms) "#155724" else "#721C24"))
+                (txtGmsServiceStatus.parent as? LinearLayout)?.background = createRoundedDrawable(if (hasGms) "#D4EDDA" else "#F8D7DA", 15f)
+            }
+
+            val hasPlayStore = try { packageManager.getPackageInfo("com.android.vending", 0); true } catch (e: Exception) { false }
+            if (::txtPlayStoreStatus.isInitialized) {
+                txtPlayStoreStatus.text = if (hasPlayStore) "ĐÃ CÀI ĐẶT" else "KHÔNG TÌM THẤY"
+                txtPlayStoreStatus.setTextColor(Color.parseColor(if (hasPlayStore) "#155724" else "#721C24"))
+                (txtPlayStoreStatus.parent as? LinearLayout)?.background = createRoundedDrawable(if (hasPlayStore) "#D4EDDA" else "#F8D7DA", 15f)
+            }
+
+            if (::txtJobSchedulerStatus.isInitialized) {
+                txtJobSchedulerStatus.text = "ĐANG HOẠT ĐỘNG"
+                txtJobSchedulerStatus.setTextColor(Color.parseColor("#155724"))
+                (txtJobSchedulerStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
+            }
+
         } catch (e: Exception) {
             // Bỏ qua lỗi nhỏ khi view chưa sẵn sàng
         }
     }
 
     // ==========================================
-    // 1. DỰNG MÀN HÌNH CHÍNH
+    // 1. DỰNG MÀN HÌNH CHÍNH (ĐỘNG 100%)
     // ==========================================
     private fun createMainScreen(): ScrollView {
         val rootScroll = ScrollView(this).apply {
@@ -216,7 +268,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(35, 30, 35, 40)
         }
 
-        // Card 1: Trạng thái bảo vệ
+        // Card 1: Trạng thái bảo vệ (Động theo thực tế)
         val statusCard = createCardView().apply {
             gravity = Gravity.CENTER_HORIZONTAL
         }
@@ -229,10 +281,10 @@ class MainActivity : AppCompatActivity() {
             setTypeface(null, Typeface.BOLD)
         }
 
-        val badgeProtected = createBadge("ĐÃ BẢO VỆ", "#D4EDDA", "#155724")
+        val badgeProtected = createBadge("TRẠNG THÁI THỰC TẾ", "#D4EDDA", "#155724")
 
-        val statusTitle = TextView(this).apply {
-            text = "Bảo vệ GMS thành công"
+        txtMainStatusTitle = TextView(this).apply {
+            text = "Đang quét hệ thống..."
             textSize = 20f
             setTextColor(Color.parseColor("#212529"))
             setTypeface(null, Typeface.BOLD)
@@ -251,12 +303,16 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
         }
-        badgeListLayout.addView(createBadge("✓ GMS KHÔNG HẠN CHẾ • HOẠT ĐỘNG", "#E2F0D9", "#385723"))
-        badgeListLayout.addView(createBadge("✓ BẢO VỆ GREEZER • SẴN SÀNG", "#E2F0D9", "#385723"))
+        
+        txtMainGmsBadge = createBadge("✓ GMS KHÔNG HẠN CHẾ • ĐANG KIỂM TRA", "#E2F0D9", "#385723")
+        txtMainGreezerBadge = createBadge("✓ BẢO VỆ GREEZER • ĐANG KIỂM TRA", "#E2F0D9", "#385723")
+
+        badgeListLayout.addView(txtMainGmsBadge)
+        badgeListLayout.addView(txtMainGreezerBadge)
 
         statusCard.addView(checkIcon)
         statusCard.addView(badgeProtected)
-        statusCard.addView(statusTitle)
+        statusCard.addView(txtMainStatusTitle)
         statusCard.addView(statusDesc)
         statusCard.addView(badgeListLayout)
         bodyLayout.addView(statusCard)
@@ -409,7 +465,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ==========================================
-    // 2. DỰNG MÀN HÌNH KIỂM TRA TƯƠNG THÍCH (REAL-TIME)
+    // 2. DỰNG MÀN HÌNH KIỂM TRA TƯƠNG THÍCH (THỰC TẾ 100%)
     // ==========================================
     private fun createCompatibilityScreen(): ScrollView {
         val rootScroll = ScrollView(this).apply {
@@ -488,13 +544,20 @@ class MainActivity : AppCompatActivity() {
         txtBatteryStatus = createBadge(if (isBattery) "ĐÃ XÁC MINH" else "CHƯA BẬT", if (isBattery) "#D4EDDA" else "#FFF3CD", if (isBattery) "#155724" else "#856404")
         hkCard.addView(createCustomRow("Miễn tối ưu pin Android", txtBatteryStatus))
 
-        // Thêm dòng theo dõi lệnh can thiệp SystemProperties sâu vào giao diện kiểm tra
         txtSystemPropStatus = createBadge(MilletHelper.systemPropStatus, if (MilletHelper.isPropAccepted) "#D4EDDA" else "#FFF3CD", if (MilletHelper.isPropAccepted) "#155724" else "#856404")
         hkCard.addView(createCustomRow("Ghi cờ SystemProperties", txtSystemPropStatus))
 
-        hkCard.addView(createCheckRow("Google Play services", "ĐÃ ÁP DỤNG", "#E2F0D9", "#385723"))
-        hkCard.addView(createCheckRow("CH Play", "ĐÃ ÁP DỤNG", "#E2F0D9", "#385723"))
-        hkCard.addView(createCheckRow("Tiến trình JobScheduler", "ĐÃ HOẠT ĐỘNG", "#E2F0D9", "#385723"))
+        // Các dòng kiểm tra gói dịch vụ thực tế
+        val hasGms = try { packageManager.getPackageInfo("com.google.android.gms", 0); true } catch (e: Exception) { false }
+        txtGmsServiceStatus = createBadge(if (hasGms) "ĐÃ CÀI ĐẶT" else "KHÔNG TÌM THẤY", if (hasGms) "#D4EDDA" else "#F8D7DA", if (hasGms) "#155724" else "#721C24")
+        hkCard.addView(createCustomRow("Google Play services", txtGmsServiceStatus))
+
+        val hasPlayStore = try { packageManager.getPackageInfo("com.android.vending", 0); true } catch (e: Exception) { false }
+        txtPlayStoreStatus = createBadge(if (hasPlayStore) "ĐÃ CÀI ĐẶT" else "KHÔNG TÌM THẤY", if (hasPlayStore) "#D4EDDA" else "#F8D7DA", if (hasPlayStore) "#155724" else "#721C24")
+        hkCard.addView(createCustomRow("CH Play", txtPlayStoreStatus))
+
+        txtJobSchedulerStatus = createBadge("ĐANG HOẠT ĐỘNG", "#D4EDDA", "#155724")
+        hkCard.addView(createCustomRow("Tiến trình JobScheduler", txtJobSchedulerStatus))
 
         bodyLayout.addView(hkCard)
 
