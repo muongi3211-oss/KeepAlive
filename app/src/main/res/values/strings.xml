@@ -58,7 +58,7 @@
     <string name="compat_check_hyperos_failed">Kiểm tra HyperOS thất bại</string>
 
     <!-- Setup & Autostart -->
-    <string name="step_format" formatted="false">Bước %1$d / %2$d</string>
+    <string name="step_format">Bước %1$d / %2$d</string>
     <string name="autostart_title">Khởi động tự động</string>
     <string name="autostart_body_auto">Bật quyền tự khởi động trong Security Center.</string>
     <string name="autostart_button">Mở cài đặt Autostart</string>
