@@ -6,47 +6,31 @@ import android.provider.Settings
 object MilletNoRestrict {
     private const val KEY = "millet_no_restrict_app"
 
-    fun ensureGms(context: Context): Boolean {
-        return applyProtection(context)
-    }
-
     fun applyProtection(context: Context): Boolean {
         try {
-            val resolver = context.contentResolver
-            val current = Settings.System.getString(resolver, KEY) ?: ""
-            val list = current.split(",")
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-                .toMutableSet()
-
             val targetPackages = listOf(
                 "com.google.android.gms",
                 "com.android.vending",
                 context.packageName
-            )
+            ).joinToString(",")
 
-            var modified = false
-            for (pkg in targetPackages) {
-                if (!list.contains(pkg)) {
-                    list.add(pkg)
-                    modified = true
-                }
+            // Thử ghi bằng Settings.System chuẩn
+            if (Settings.System.canWrite(context)) {
+                Settings.System.putString(context.contentResolver, KEY, targetPackages)
             }
 
-            if (modified || current.isEmpty()) {
-                val updated = list.joinToString(",")
-                
-                // 1. Ghi qua API hệ thống chuẩn
+            // Fallback ép ghi bằng lệnh Shell (Hữu ích trên Android 15/16 khi Settings.System bị hạn chế)
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "settings put system $KEY \"$targetPackages\""))
+                process.waitFor()
+            } catch (_: Throwable) {
+                // Nếu không có root, thử qua tiến trình sh thông thường
                 try {
-                    Settings.System.putString(resolver, KEY, updated)
-                } catch (_: Throwable) {}
-
-                // 2. Ghi ép qua Shell để vượt qua lớp chặn trên Android 15/16 (HyperOS)
-                try {
-                    val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", "settings put system $KEY \"$updated\""))
+                    val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", "settings put system $KEY \"$targetPackages\""))
                     process.waitFor()
                 } catch (_: Throwable) {}
             }
+
             return true
         } catch (e: Throwable) {
             return false
