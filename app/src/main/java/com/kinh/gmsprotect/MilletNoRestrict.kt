@@ -6,7 +6,6 @@ import android.provider.Settings
 object MilletNoRestrict {
     private const val KEY = "millet_no_restrict_app"
 
-    // Khôi phục hàm ensureGms để các lớp khác gọi không bị lỗi Unresolved reference
     fun ensureGms(context: Context): Boolean {
         return applyProtection(context)
     }
@@ -27,7 +26,6 @@ object MilletNoRestrict {
             )
 
             var modified = false
-            // Sửa lỗi cú pháp: Thêm dấu ngoặc tròn () cho vòng lặp trong Kotlin
             for (pkg in targetPackages) {
                 if (!list.contains(pkg)) {
                     list.add(pkg)
@@ -37,7 +35,17 @@ object MilletNoRestrict {
 
             if (modified || current.isEmpty()) {
                 val updated = list.joinToString(",")
-                Settings.System.putString(resolver, KEY, updated)
+                
+                // 1. Ghi qua API hệ thống chuẩn
+                try {
+                    Settings.System.putString(resolver, KEY, updated)
+                } catch (_: Throwable) {}
+
+                // 2. Ghi ép qua Shell để vượt qua lớp chặn trên Android 15/16 (HyperOS)
+                try {
+                    val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", "settings put system $KEY \"$updated\""))
+                    process.waitFor()
+                } catch (_: Throwable) {}
             }
             return true
         } catch (e: Throwable) {
