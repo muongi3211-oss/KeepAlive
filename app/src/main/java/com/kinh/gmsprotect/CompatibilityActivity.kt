@@ -8,7 +8,6 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
-import android.provider.Settings
 import android.view.Gravity
 import android.view.Window
 import android.widget.Button
@@ -75,7 +74,7 @@ class CompatibilityActivity : Activity() {
     private fun canWriteSettings(): Boolean {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                Settings.System.canWrite(this)
+                android.provider.Settings.System.canWrite(this)
             } else {
                 true
             }
@@ -291,8 +290,6 @@ class CompatibilityActivity : Activity() {
             layoutParams = LinearLayout.LayoutParams(-2, -2)
         }
     }
-
-    txtJobSchedulerStatus = createBadge("ĐANG HOẠT ĐỘNG", "#D4EDDA", "#155724") // handled in update
 
     private fun createCustomRow(label: String, badgeView: TextView): LinearLayout {
         val row = LinearLayout(this).apply {
