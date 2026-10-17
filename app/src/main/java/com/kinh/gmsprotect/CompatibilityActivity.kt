@@ -89,15 +89,17 @@ class CompatibilityActivity : Activity() {
         val hasWrite = canWriteSettings()
         val isBattery = isIgnoringBatteryOptimizations()
         
-        // Nếu đã cấp quyền hệ thống, thực thi ghi danh sách trắng ngay lập tức
+        // Nếu đã cấp quyền hệ thống, thử thực hiện ghi thực tế vào hệ thống
         if (hasWrite) {
-            try { MilletHelper.applyMilletProtection(this) } catch (_: Throwable) {}
+            try { 
+                MilletNoRestrict.applyProtection(this) 
+            } catch (_: Throwable) {}
         }
 
-        // Đọc trạng thái từ Allowlist thực tế
-        val hasGmsAllow = try { MilletNoRestrict.containsGms(this) } catch (_: Throwable) { false }
-        val hasPlayAllow = try { MilletNoRestrict.containsPlayStore(this) } catch (_: Throwable) { false }
-        val hasSelfAllow = try { MilletNoRestrict.containsSelf(this) } catch (_: Throwable) { false }
+        // Đọc hoàn toàn khách quan trạng thái thực tế từ hệ thống
+        val hasGmsAllow = MilletNoRestrict.containsGms(this)
+        val hasPlayAllow = MilletNoRestrict.containsPlayStore(this)
+        val hasSelfAllow = MilletNoRestrict.containsSelf(this)
 
         val hasGms = try { packageManager.getPackageInfo("com.google.android.gms", 0); true } catch (e: Exception) { false }
         val hasPlayStore = try { packageManager.getPackageInfo("com.android.vending", 0); true } catch (e: Exception) { false }
@@ -122,9 +124,9 @@ class CompatibilityActivity : Activity() {
             }
 
             if (::txtSystemPropStatus.isInitialized) {
-                txtSystemPropStatus.text = "ĐÃ ÁP DỤNG"
-                txtSystemPropStatus.setTextColor(Color.parseColor("#155724"))
-                (txtSystemPropStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
+                txtSystemPropStatus.text = if (hasWrite) "ĐÃ ÁP DỤNG" else "CHỜ CẤP QUYỀN"
+                txtSystemPropStatus.setTextColor(Color.parseColor(if (hasWrite) "#155724" else "#856404"))
+                (txtSystemPropStatus.parent as? LinearLayout)?.background = createRoundedDrawable(if (hasWrite) "#D4EDDA" else "#FFF3CD", 15f)
             }
 
             if (::txtGmsAllowlistStatus.isInitialized) {
