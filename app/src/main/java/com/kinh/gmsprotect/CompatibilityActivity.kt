@@ -1,103 +1,50 @@
 package com.kinh.gmsprotect
 
-import android.app.Activity
-import android.graphics.Typeface
-import android.os.Build
 import android.os.Bundle
-import android.view.Gravity
-import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.ScrollView
+import android.widget.Button
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 
-class CompatibilityActivity : Activity() {
+class CompatibilityActivity : AppCompatActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = UiKit.PRIMARY_DARK
-        window.navigationBarColor = UiKit.SURFACE
-        render()
-    }
+        
+        // Ẩn ActionBar mặc định nếu có
+        supportActionBar?.hide()
 
-    private fun render() {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(UiKit.BG)
+        // Tạo giao diện kiểm tra tương thích đơn giản, an toàn
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(40, 60, 40, 40)
         }
 
-        val scroll = ScrollView(this).apply {
-            isFillViewport = true
+        val title = TextView(this).apply {
+            text = "Kiểm tra tương thích HyperOS"
+            textSize = 20f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setPadding(0, 0, 0, 20)
         }
 
-        val page = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(18), dp(16), dp(28))
-            UiKit.applyBottomSystemInset(this)
+        val statusText = TextView(this).apply {
+            val gms = if (MilletNoRestrict.containsGms(this@CompatibilityActivity)) "✓ Đã áp dụng" else "✗ Chưa áp dụng"
+            val play = if (MilletNoRestrict.containsPlayStore(this@CompatibilityActivity)) "✓ Đã áp dụng" else "✗ Chưa áp dụng"
+            val self = if (MilletNoRestrict.containsSelf(this@CompatibilityActivity)) "✓ Đã áp dụng" else "✗ Chưa áp dụng"
+            
+            text = "Trạng thái danh sách trắng Millet:\n\n• Google Services: $gms\n• CH Play: $play\n• GMS Protect: $self"
+            textSize = 14f
+            setLineSpacing(0f, 1.3f)
         }
 
-        // Card thông tin thiết bị
-        val summary = UiKit.card(this)
-        summary.addView(TextView(this).apply {
-            text = getString(R.string.compat_title)
-            textSize = 15f
-            setTextColor(UiKit.TEXT)
-            setTypeface(typeface, Typeface.BOLD)
-        }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
-
-        val deviceText = UiKit.muted(this, "${Build.MANUFACTURER} ${Build.MODEL} • Android ${Build.VERSION.RELEASE}", 11.5f)
-        summary.addView(deviceText, LinearLayout.LayoutParams(-1, -2))
-        page.addView(summary, cardMargin())
-
-        // Card trạng thái bảo vệ GMS & Play Store
-        val statusCard = UiKit.card(this)
-        statusCard.addView(TextView(this).apply {
-            text = "Trạng thái danh sách bảo vệ"
-            textSize = 15f
-            setTextColor(UiKit.TEXT)
-            setTypeface(typeface, Typeface.BOLD)
-        }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
-
-        val canWrite = MilletNoRestrict.canWrite(this)
-        val gmsOk = MilletNoRestrict.containsGms(this)
-        val playStoreOk = MilletNoRestrict.containsPlayStore(this)
-        val selfOk = MilletNoRestrict.containsPackage(this, packageName)
-
-        statusCard.addView(buildStatusRow("Ghi quyền hệ thống", canWrite))
-        statusCard.addView(buildStatusRow("Google Play Services (GMS)", gmsOk))
-        statusCard.addView(buildStatusRow("Google Play Store", playStoreOk))
-        statusCard.addView(buildStatusRow("Gói ứng dụng hiện tại", selfOk))
-
-        page.addView(statusCard, cardMargin())
-
-        // Đã sửa thành ViewGroup.LayoutParams để khắc phục triệt để lỗi biên dịch
-        scroll.addView(page, ViewGroup.LayoutParams(-1, -2))
-        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        setContentView(root)
-    }
-
-    private fun buildStatusRow(label: String, ok: Boolean): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(6), 0, dp(6))
-
-            addView(TextView(context).apply {
-                text = label
-                textSize = 13.5f
-                setTextColor(UiKit.TEXT)
-            }, LinearLayout.LayoutParams(0, -2, 1f))
-
-            addView(TextView(context).apply {
-                text = if (ok) "✓ Đã áp dụng" else "✗ Chưa có"
-                textSize = 13.5f
-                setTextColor(if (ok) UiKit.SUCCESS else UiKit.ERROR)
-                setTypeface(typeface, Typeface.BOLD)
-            }, LinearLayout.LayoutParams(-2, -2))
+        val btnBack = Button(this).apply {
+            text = "Quay lại"
+            setOnClickListener { finish() }
         }
-    }
 
-    private fun dp(value: Int): Int = UiKit.dp(this, value)
+        layout.addView(title)
+        layout.addView(statusText)
+        layout.addView(btnBack)
 
-    private fun cardMargin(): LinearLayout.LayoutParams {
-        return LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(14) }
+        setContentView(layout)
     }
 }
