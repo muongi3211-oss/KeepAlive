@@ -1,7 +1,12 @@
 package com.kinh.gmsprotect
 
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.view.Gravity
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 
@@ -9,35 +14,45 @@ class CompatibilityActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // Ẩn ActionBar mặc định nếu có
         supportActionBar?.hide()
 
-        // Tạo giao diện kiểm tra tương thích đơn giản, an toàn
-        val layout = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             setPadding(40, 60, 40, 40)
+            setBackgroundColor(Color.parseColor("#F4F5F9"))
         }
 
         val title = TextView(this).apply {
             text = "Kiểm tra tương thích HyperOS"
             textSize = 20f
-            setTypeface(null, android.graphics.Typeface.BOLD)
+            setTypeface(null, Typeface.BOLD)
             setPadding(0, 0, 0, 20)
+            setTextColor(Color.parseColor("#212529"))
         }
 
+        val gmsStatus = if (MilletNoRestrict.containsGms(this)) "✓ Đã áp dụng" else "✗ Chưa áp dụng"
+        val playStatus = if (MilletNoRestrict.containsPlayStore(this)) "✓ Đã áp dụng" else "✗ Chưa áp dụng"
+        val selfStatus = if (MilletNoRestrict.containsSelf(this)) "✓ Đã áp dụng" else "✗ Chưa áp dụng"
+
         val statusText = TextView(this).apply {
-            val gms = if (MilletNoRestrict.containsGms(this@CompatibilityActivity)) "✓ Đã áp dụng" else "✗ Chưa áp dụng"
-            val play = if (MilletNoRestrict.containsPlayStore(this@CompatibilityActivity)) "✓ Đã áp dụng" else "✗ Chưa áp dụng"
-            val self = if (MilletNoRestrict.containsSelf(this@CompatibilityActivity)) "✓ Đã áp dụng" else "✗ Chưa áp dụng"
-            
-            text = "Trạng thái danh sách trắng Millet:\n\n• Google Services: $gms\n• CH Play: $play\n• GMS Protect: $self"
+            text = "Trạng thái danh sách trắng Millet:\n\n• Google Play Services: $gmsStatus\n• CH Play: $playStatus\n• GMS Protect: $selfStatus"
             textSize = 14f
             setLineSpacing(0f, 1.3f)
+            setTextColor(Color.parseColor("#495057"))
         }
 
         val btnBack = Button(this).apply {
             text = "Quay lại"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#383B8E"))
+                cornerRadius = 20f
+            }
+            setPadding(0, 25, 0, 25)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
+                topMargin = 40
+            }
             setOnClickListener { finish() }
         }
 
