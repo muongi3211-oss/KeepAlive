@@ -6,10 +6,13 @@ import android.provider.Settings
 object MilletNoRestrict {
     private const val KEY = "millet_no_restrict_app"
 
-    // Hàm thực hiện ghi danh sách vào hệ thống (chỉ chạy khi có yêu cầu áp dụng)
+    // Khôi phục hàm ensureGms để các lớp khác gọi không bị lỗi Unresolved reference
+    fun ensureGms(context: Context): Boolean {
+        return applyProtection(context)
+    }
+
     fun applyProtection(context: Context): Boolean {
         try {
-            if (!Settings.System.canWrite(context)) return false
             val resolver = context.contentResolver
             val current = Settings.System.getString(resolver, KEY) ?: ""
             val list = current.split(",")
@@ -24,7 +27,8 @@ object MilletNoRestrict {
             )
 
             var modified = false
-            for pkg in targetPackages {
+            // Sửa lỗi cú pháp: Thêm dấu ngoặc tròn () cho vòng lặp trong Kotlin
+            for (pkg in targetPackages) {
                 if (!list.contains(pkg)) {
                     list.add(pkg)
                     modified = true
@@ -41,7 +45,6 @@ object MilletNoRestrict {
         }
     }
 
-    // Hàm CHỈ ĐỌC trạng thái thực tế hiện tại của hệ thống (True/False khách quan)
     private fun getActualSystemList(context: Context): List<String> {
         return try {
             val resolver = context.contentResolver
