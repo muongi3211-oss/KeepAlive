@@ -4,7 +4,7 @@ import android.content.Context
 import android.provider.Settings
 
 object MilletNoRestrict {
-    private const val MILLET_NO_RESTRICT_APP = "millet_no_restrict_app"
+    const val KEY = "millet_no_restrict_app"
 
     fun canWrite(context: Context): Boolean {
         return Settings.System.canWrite(context)
@@ -14,19 +14,17 @@ object MilletNoRestrict {
         if (!canWrite(context)) return false
         try {
             val resolver = context.contentResolver
-            val current = Settings.System.getString(resolver, MILLET_NO_RESTRICT_APP) ?: ""
+            val current = Settings.System.getString(resolver, KEY) ?: ""
             val list = current.split(",").toMutableList().map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
 
-            // 1. Thêm Google Play Services
+            // Thêm GMS, CH Play và tự bảo vệ chính app chống nightZone
             list.add("com.google.android.gms")
-            // 2. Thêm Google Play Store
             list.add("com.android.vending")
-            // 3. THÊM CHÍNH BẢN THÂN APP (Giống bản 1.04 mới)
             list.add(context.packageName)
 
             val updated = list.joinToString(",")
             if (updated != current) {
-                Settings.System.putString(resolver, MILLET_NO_RESTRICT_APP, updated)
+                Settings.System.putString(resolver, KEY, updated)
             }
             return true
         } catch (_: Throwable) {
@@ -34,18 +32,16 @@ object MilletNoRestrict {
         }
     }
 
-    fun containsSelf(context: Context): Boolean {
-        val current = Settings.System.getString(context.contentResolver, MILLET_NO_RESTRICT_APP) ?: ""
-        return current.contains(context.packageName)
+    fun containsPackage(context: Context, packageName: String): Boolean {
+        try {
+            val current = Settings.System.getString(context.contentResolver, KEY) ?: ""
+            return current.split(",").map { it.trim() }.contains(packageName)
+        } catch (_: Throwable) {
+            return false
+        }
     }
 
-    fun containsGms(context: Context): Boolean {
-        val current = Settings.System.getString(context.contentResolver, MILLET_NO_RESTRICT_APP) ?: ""
-        return current.contains("com.google.android.gms")
-    }
-
-    fun containsPlayStore(context: Context): Boolean {
-        val current = Settings.System.getString(context.contentResolver, MILLET_NO_RESTRICT_APP) ?: ""
-        return current.contains("com.android.vending")
-    }
+    fun containsSelf(context: Context): Boolean = containsPackage(context, context.packageName)
+    fun containsGms(context: Context): Boolean = containsPackage(context, "com.google.android.gms")
+    fun containsPlayStore(context: Context): Boolean = containsPackage(context, "com.android.vending")
 }
