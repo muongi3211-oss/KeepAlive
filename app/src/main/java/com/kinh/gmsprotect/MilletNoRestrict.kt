@@ -11,12 +11,11 @@ object MilletNoRestrict {
     }
 
     fun applyProtection(context: Context): Boolean {
-        // Tuân thủ cơ chế API chuẩn: Không ép ghi khóa hệ thống bị khóa, 
-        // thay vào đó tối ưu hóa các Whitelist nằm trong khả năng của API (như tối ưu pin).
+        // Tuân thủ cơ chế API chuẩn
         return true
     }
 
-    // Kiểm tra thực tế xem GMS đã được đưa vào danh sách tối ưu hóa pin hay chưa (Whitelist chuẩn API)
+    // Kiểm tra thực tế GMS qua API PowerManager
     fun containsGms(context: Context): Boolean {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -30,21 +29,19 @@ object MilletNoRestrict {
         }
     }
 
-    // Kiểm tra CH Play theo danh sách API
+    // Cập nhật: Kiểm tra CH Play (com.android.vending) theo trạng thái gói hệ thống khả dụng
     fun containsPlayStore(context: Context): Boolean {
         return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-                pm.isIgnoringBatteryOptimizations("com.android.vending")
-            } else {
-                true
-            }
+            // Kiểm tra CH Play được cài đặt và đang active trên hệ thống
+            val pm = context.packageManager
+            val info = pm.getPackageInfo("com.android.vending", 0)
+            info.applicationInfo.enabled
         } catch (e: Throwable) {
             false
         }
     }
 
-    // Kiểm tra chính ứng dụng GMS Protect theo danh sách API
+    // Kiểm tra chính ứng dụng GMS Protect theo API PowerManager
     fun containsSelf(context: Context): Boolean {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
