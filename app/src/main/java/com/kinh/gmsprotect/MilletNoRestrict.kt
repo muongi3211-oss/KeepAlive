@@ -2,66 +2,50 @@ package com.kinh.gmsprotect
 
 import android.content.Context
 import android.provider.Settings
-import android.util.Log
 
 object MilletNoRestrict {
-    private const val TAG = "MilletNoRestrict"
-    const val KEY = "MILLET_NO_RESTRICT_APP"
-    const val GMS_PACKAGE = "com.google.android.gms"
-    const val PLAY_STORE_PACKAGE = "com.android.vending"
+    private const val MILLET_NO_RESTRICT_APP = "millet_no_restrict_app"
 
-    fun canWrite(context: Context): Boolean = try {
-        Settings.System.canWrite(context.applicationContext)
-    } catch (e: Throwable) {
-        false
+    fun canWrite(context: Context): Boolean {
+        return Settings.System.canWrite(context)
     }
-
-    fun containsPackage(context: Context, pkg: String): Boolean = try {
-        val raw = Settings.System.getString(context.applicationContext.contentResolver, KEY) ?: ""
-        parsePackages(raw).contains(pkg)
-    } catch (e: Throwable) {
-        false
-    }
-
-    fun containsGms(context: Context): Boolean = containsPackage(context, GMS_PACKAGE)
-    fun containsPlayStore(context: Context): Boolean = containsPackage(context, PLAY_STORE_PACKAGE)
 
     fun ensureGms(context: Context): Boolean {
-        val app = context.applicationContext
-        if (!canWrite(app)) return false
-
+        if (!canWrite(context)) return false
         try {
-            val resolver = app.contentResolver
-            val raw = Settings.System.getString(resolver, KEY) ?: ""
-            val currentList = parsePackages(raw).toMutableList()
+            val resolver = context.contentResolver
+            val current = Settings.System.getString(resolver, MILLET_NO_RESTRICT_APP) ?: ""
+            val list = current.split(",").toMutableList().map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
 
-            // Thêm các gói bắt buộc nếu chưa có
-            if (!currentList.contains(GMS_PACKAGE)) currentList.add(GMS_PACKAGE)
-            if (!currentList.contains(PLAY_STORE_PACKAGE)) currentList.add(PLAY_STORE_PACKAGE)
-            if (!currentList.contains(app.packageName)) currentList.add(app.packageName)
+            // 1. Thêm Google Play Services
+            list.add("com.google.android.gms")
+            // 2. Thêm Google Play Store
+            list.add("com.android.vending")
+            // 3. THÊM CHÍNH BẢN THÂN APP (Giống bản 1.04 mới)
+            list.add(context.packageName)
 
-            // Nối chuỗi bằng dấu phẩy chuẩn
-            val newListStr = currentList.joinToString(",")
-
-            // Ép ghi trực tiếp vào Settings.System
-            val isWritten = Settings.System.putString(resolver, KEY, newListStr)
-
-            // Đọc lại để xác nhận kết quả ghi
-            val verifiedRaw = Settings.System.getString(resolver, KEY) ?: ""
-            val verifiedList = parsePackages(verifiedRaw)
-
-            return isWritten && verifiedList.contains(GMS_PACKAGE)
-        } catch (e: Throwable) {
-            Log.e(TAG, "ensureGms failed", e)
+            val updated = list.joinToString(",")
+            if (updated != current) {
+                Settings.System.putString(resolver, MILLET_NO_RESTRICT_APP, updated)
+            }
+            return true
+        } catch (_: Throwable) {
             return false
         }
     }
 
-    private fun parsePackages(raw: String): Set<String> {
-        if (raw.isBlank()) return emptySet()
-        return raw.split(",")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .toSet()
+    fun containsSelf(context: Context): Boolean {
+        val current = Settings.System.getString(context.contentResolver, MILLET_NO_RESTRICT_APP) ?: ""
+        return current.contains(context.packageName)
+    }
+
+    fun containsGms(context: Context): Boolean {
+        val current = Settings.System.getString(context.contentResolver, MILLET_NO_RESTRICT_APP) ?: ""
+        return current.contains("com.google.android.gms")
+    }
+
+    fun containsPlayStore(context: Context): Boolean {
+        val current = Settings.System.getString(context.contentResolver, MILLET_NO_RESTRICT_APP) ?: ""
+        return current.contains("com.android.vending")
     }
 }
