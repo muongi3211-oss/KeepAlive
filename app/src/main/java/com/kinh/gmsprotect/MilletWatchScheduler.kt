@@ -5,43 +5,26 @@ import android.app.job.JobScheduler
 import android.content.ComponentName
 import android.content.Context
 import android.os.Build
-import android.provider.Settings
-import android.util.Log
 
 object MilletWatchScheduler {
-    const val TAG = "MILLET_WATCH"
-    private const val JOB_ID = 0x47534D57 // "GSMW"
+    private const val JOB_ID = 2026102
+    const val KEY = "millet_no_restrict_app"
 
-    fun schedule(context: Context): Boolean {
-        val app = context.applicationContext
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false
+    fun schedule(context: Context) {
+        try {
+            val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler ?: return
+            val component = ComponentName(context, MilletWatchJobService::class.java)
 
-        return try {
-            val scheduler = app.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler ?: return false
-            val uri = Settings.System.getUriFor(MilletNoRestrict.KEY)
+            val builder = JobInfo.Builder(JOB_ID, component).apply {
+                setPeriodic(15 * 60 * 1000L) // 15 phút
+                setPersisted(true)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    setRequiresBatteryNotLow(false)
+                    setRequiresCharging(false)
+                }
+            }
 
-            val job = JobInfo.Builder(JOB_ID, ComponentName(app, MilletWatchJobService::class.java))
-                .addTriggerContentUri(JobInfo.TriggerContentUri(uri, 0))
-                .setTriggerContentUpdateDelay(1000L)
-                .setTriggerContentMaxDelay(5000L)
-                .build()
-
-            scheduler.schedule(job) == JobScheduler.RESULT_SUCCESS
-        } catch (t: Throwable) {
-            Log.e(TAG, "SCHEDULE exception=$t")
-            false
-        }
-    }
-
-    fun isSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
-
-    fun isScheduled(context: Context): Boolean {
-        if (!isSupported()) return false
-        return try {
-            val scheduler = context.applicationContext.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler ?: return false
-            scheduler.getPendingJob(JOB_ID) != null
-        } catch (_: Throwable) {
-            false
-        }
+            scheduler.schedule(builder.build())
+        } catch (_: Throwable) {}
     }
 }
