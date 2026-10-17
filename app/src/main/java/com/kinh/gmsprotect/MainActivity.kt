@@ -22,48 +22,33 @@ import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
-    private var isCompatibilityScreen = false
-    private lateinit var mainScrollView: ScrollView
-    private lateinit var compatibilityScrollView: ScrollView
     private lateinit var sharedPreferences: SharedPreferences
 
-    // Các TextView hiển thị trạng thái động cho cả 2 màn hình
+    // Các TextView hiển thị trạng thái động
     private lateinit var txtMainStatusTitle: TextView
     private lateinit var txtMainGmsBadge: TextView
     private lateinit var txtMainGreezerBadge: TextView
-
-    private lateinit var txtPowerKeeperStatus: TextView
-    private lateinit var txtBatteryStatus: TextView
-    private lateinit var txtWriteSettingsStatus: TextView
-    private lateinit var txtSystemPropStatus: TextView
-    private lateinit var txtGmsServiceStatus: TextView
-    private lateinit var txtPlayStoreStatus: TextView
-    private lateinit var txtJobSchedulerStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         try {
-            // Khởi tạo SharedPreferences để lưu trạng thái bật/tắt nâng cao
+            // Khởi tạo SharedPreferences an toàn
             sharedPreferences = getSharedPreferences("GMSProtectPrefs", Context.MODE_PRIVATE)
 
             // Ẩn ActionBar mặc định để dùng Header custom
             supportActionBar?.hide()
 
-            // Khởi tạo giao diện
-            mainScrollView = createMainScreen()
-            compatibilityScrollView = createCompatibilityScreen()
+            // Hiển thị giao diện màn hình chính
+            setContentView(createMainScreen())
 
-            // Hiển thị màn hình chính
-            setContentView(mainScrollView)
-
-            // 1. Áp dụng bảo vệ Millet và lập lịch định kỳ (An toàn, không gây văng)
+            // Thực thi bảo vệ Millet và JobScheduler ở nền (An toàn tuyệt đối)
             try {
                 MilletHelper.applyMilletProtection(this)
                 MilletHelper.scheduleMilletJob(this)
             } catch (_: Throwable) {}
 
-            // 2. CHỈ khởi động Foreground Service nền khi người dùng đã chủ động BẬT công tắc Aurogon
+            // CHỈ khởi động Foreground Service nếu người dùng thực sự bật công tắc Aurogon
             val isAurogonEnabled = sharedPreferences.getBoolean("pref_aurogon_allowlist", false)
             if (isAurogonEnabled) {
                 try {
@@ -72,21 +57,17 @@ class MainActivity : AppCompatActivity() {
             }
 
         } catch (e: Throwable) {
-            // Bắt trọn ngoại lệ khởi động để tuyệt đối không bao giờ bị văng (Force Close)
+            // Bắt trọn mọi ngoại lệ khởi động để không bao giờ bị văng app
         }
     }
 
     override fun onResume() {
         super.onResume()
         try {
-            // Mỗi khi quay lại app, tiến hành quét lại toàn bộ trạng thái thực tế của hệ thống
             updateRealtimeStatus()
-        } catch (e: Throwable) {}
+        } catch (_: Throwable) {}
     }
 
-    // ==========================================
-    // HỆ THỐNG KIỂM TRA TRẠNG THÁI THỰC TẾ (REAL-TIME)
-    // ==========================================
     private fun isPowerKeeperPresent(): Boolean {
         return try {
             val manufacturer = Build.MANUFACTURER ?: ""
@@ -107,8 +88,7 @@ class MainActivity : AppCompatActivity() {
 
             isXiaomiOrHyperOS || binderPower != null || binderMillet != null
         } catch (e: Exception) {
-            val brand = Build.BRAND ?: ""
-            brand.contains("Xiaomi", ignoreCase = true) || brand.contains("Redmi", ignoreCase = true)
+            false
         }
     }
 
@@ -139,11 +119,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateRealtimeStatus() {
         val hasPowerKeeper = isPowerKeeperPresent()
-        val isBatteryExempted = isIgnoringBatteryOptimizations()
         val hasWritePermission = canWriteSettings()
 
         try {
-            // 1. Cập nhật Màn hình chính dựa trên trạng thái thực tế
             if (::txtMainStatusTitle.isInitialized) {
                 if (hasPowerKeeper && hasWritePermission) {
                     txtMainStatusTitle.text = "Bảo vệ GMS thành công"
@@ -165,86 +143,9 @@ class MainActivity : AppCompatActivity() {
                     (txtMainGreezerBadge.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
                 }
             }
-
-            // 2. Cập nhật Màn hình kiểm tra tương thích
-            if (::txtPowerKeeperStatus.isInitialized) {
-                if (hasPowerKeeper) {
-                    txtPowerKeeperStatus.text = "ĐÃ PHÁT HIỆN"
-                    txtPowerKeeperStatus.setTextColor(Color.parseColor("#155724"))
-                    (txtPowerKeeperStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
-                } else {
-                    txtPowerKeeperStatus.text = "KHÔNG PHÁT HIỆN"
-                    txtPowerKeeperStatus.setTextColor(Color.parseColor("#721C24"))
-                    (txtPowerKeeperStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#F8D7DA", 15f)
-                }
-            }
-
-            if (::txtBatteryStatus.isInitialized) {
-                if (isBatteryExempted) {
-                    txtBatteryStatus.text = "ĐÃ XÁC MINH"
-                    txtBatteryStatus.setTextColor(Color.parseColor("#155724"))
-                    (txtBatteryStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
-                } else {
-                    txtBatteryStatus.text = "CHƯA BẬT"
-                    txtBatteryStatus.setTextColor(Color.parseColor("#856404"))
-                    (txtBatteryStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
-                }
-            }
-
-            if (::txtWriteSettingsStatus.isInitialized) {
-                if (hasWritePermission) {
-                    txtWriteSettingsStatus.text = "ĐÃ CẤP"
-                    txtWriteSettingsStatus.setTextColor(Color.parseColor("#155724"))
-                    (txtWriteSettingsStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
-                } else {
-                    txtWriteSettingsStatus.text = "CHƯA BẬT"
-                    txtWriteSettingsStatus.setTextColor(Color.parseColor("#856404"))
-                    (txtWriteSettingsStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
-                }
-            }
-
-            if (::txtSystemPropStatus.isInitialized) {
-                val propStatusText = MilletHelper.systemPropStatus
-                val isAccepted = MilletHelper.isPropAccepted
-                txtSystemPropStatus.text = propStatusText
-                if (isAccepted) {
-                    txtSystemPropStatus.setTextColor(Color.parseColor("#155724"))
-                    (txtSystemPropStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
-                } else {
-                    txtSystemPropStatus.setTextColor(Color.parseColor("#856404"))
-                    (txtSystemPropStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#FFF3CD", 15f)
-                }
-            }
-
-            // Kiểm tra gói GMS và CH Play thực tế trên hệ thống
-            val hasGms = try { packageManager.getPackageInfo("com.google.android.gms", 0); true } catch (e: Exception) { false }
-            if (::txtGmsServiceStatus.isInitialized) {
-                txtGmsServiceStatus.text = if (hasGms) "ĐÃ CÀI ĐẶT" else "KHÔNG TÌM THẤY"
-                txtGmsServiceStatus.setTextColor(Color.parseColor(if (hasGms) "#155724" else "#721C24"))
-                (txtGmsServiceStatus.parent as? LinearLayout)?.background = createRoundedDrawable(if (hasGms) "#D4EDDA" else "#F8D7DA", 15f)
-            }
-
-            val hasPlayStore = try { packageManager.getPackageInfo("com.android.vending", 0); true } catch (e: Exception) { false }
-            if (::txtPlayStoreStatus.isInitialized) {
-                txtPlayStoreStatus.text = if (hasPlayStore) "ĐÃ CÀI ĐẶT" else "KHÔNG TÌM THẤY"
-                txtPlayStoreStatus.setTextColor(Color.parseColor(if (hasPlayStore) "#155724" else "#721C24"))
-                (txtPlayStoreStatus.parent as? LinearLayout)?.background = createRoundedDrawable(if (hasPlayStore) "#D4EDDA" else "#F8D7DA", 15f)
-            }
-
-            if (::txtJobSchedulerStatus.isInitialized) {
-                txtJobSchedulerStatus.text = "ĐANG HOẠT ĐỘNG"
-                txtJobSchedulerStatus.setTextColor(Color.parseColor("#155724"))
-                (txtJobSchedulerStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
-            }
-
-        } catch (e: Exception) {
-            // Bỏ qua lỗi nhỏ khi view chưa sẵn sàng
-        }
+        } catch (_: Exception) {}
     }
 
-    // ==========================================
-    // 1. DỰNG MÀN HÌNH CHÍNH (ĐỘNG 100%)
-    // ==========================================
     private fun createMainScreen(): ScrollView {
         val rootScroll = ScrollView(this).apply {
             setBackgroundColor(Color.parseColor("#F4F5F9"))
@@ -284,7 +185,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(35, 30, 35, 40)
         }
 
-        // Card 1: Trạng thái bảo vệ (Động theo thực tế)
+        // Card 1: Trạng thái bảo vệ
         val statusCard = createCardView().apply {
             gravity = Gravity.CENTER_HORIZONTAL
         }
@@ -333,7 +234,7 @@ class MainActivity : AppCompatActivity() {
         statusCard.addView(badgeListLayout)
         bodyLayout.addView(statusCard)
 
-        // Card 2: Cấp quyền hệ thống quan trọng
+        // Card 2: Cấp quyền hệ thống
         val permCard = createCardView()
         permCard.addView(TextView(this).apply {
             text = "Cài đặt & Quyền hệ thống"
@@ -357,9 +258,7 @@ class MainActivity : AppCompatActivity() {
             textSize = 14f
             background = createRoundedDrawable("#383B8E", 20f)
             setPadding(0, 20, 0, 20)
-            setOnClickListener {
-                openWriteSettingsAccess()
-            }
+            setOnClickListener { openWriteSettingsAccess() }
         }
         permCard.addView(btnWriteSettings)
 
@@ -370,27 +269,21 @@ class MainActivity : AppCompatActivity() {
             textSize = 14f
             background = createRoundedDrawable("#E8E9F5", 20f)
             setPadding(0, 20, 0, 20)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(0, 12, 0, 0) }
-            setOnClickListener {
-                requestBatteryOptimization()
-            }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 12, 0, 0) }
+            setOnClickListener { requestBatteryOptimization() }
         }
         permCard.addView(btnBattery)
         bodyLayout.addView(permCard)
 
         // Card 3: Nâng cao (Aurogon Allowlist)
         val advancedCard = createCardView()
-
-        val advTitle = TextView(this).apply {
+        advancedCard.addView(TextView(this).apply {
             text = "Nâng cao"
             textSize = 18f
             setTextColor(Color.parseColor("#212529"))
             setTypeface(null, Typeface.BOLD)
             setPadding(0, 0, 0, 15)
-        }
+        })
 
         val switchLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -399,40 +292,33 @@ class MainActivity : AppCompatActivity() {
 
         val switchLeft = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.8f)
+            layoutParams = LinearLayout.LayoutParams(0, -2, 0.8f)
         }
 
-        val switchTitle = TextView(this).apply {
+        switchLeft.addView(TextView(this).apply {
             text = "Aurogon Allowlist"
             textSize = 15f
             setTextColor(Color.parseColor("#212529"))
             setTypeface(null, Typeface.BOLD)
-        }
+        })
 
-        val switchDesc = TextView(this).apply {
+        switchLeft.addView(TextView(this).apply {
             text = "Lớp bảo vệ bổ sung cho HyperOS China. Khôi phục Google Play services vào danh sách cho phép khi tắt màn hình."
             textSize = 12f
             setTextColor(Color.parseColor("#6C757D"))
             setPadding(0, 8, 10, 0)
-        }
+        })
 
-        switchLeft.addView(switchTitle)
-        switchLeft.addView(switchDesc)
-
-        // Trạng thái công tắc (Mặc định là false - Tắt)
         val isAurogonEnabled = sharedPreferences.getBoolean("pref_aurogon_allowlist", false)
-
         val switchToggle = Switch(this).apply {
             isChecked = isAurogonEnabled
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.2f).apply {
+            layoutParams = LinearLayout.LayoutParams(0, -2, 0.2f).apply {
                 gravity = Gravity.TOP or Gravity.END
             }
             setOnCheckedChangeListener { _, isChecked ->
                 sharedPreferences.edit().putBoolean("pref_aurogon_allowlist", isChecked).apply()
                 if (isChecked) {
-                    try {
-                        MilletHelper.startProtectionService(context)
-                    } catch (_: Throwable) {}
+                    try { MilletHelper.startProtectionService(context) } catch (_: Throwable) {}
                     Toast.makeText(context, "Đã bật Aurogon Allowlist", Toast.LENGTH_SHORT).show()
                 } else {
                     try {
@@ -446,27 +332,24 @@ class MainActivity : AppCompatActivity() {
 
         switchLayout.addView(switchLeft)
         switchLayout.addView(switchToggle)
-
-        advancedCard.addView(advTitle)
         advancedCard.addView(switchLayout)
         bodyLayout.addView(advancedCard)
 
-        // Card 4: Kiểm tra tương thích
+        // Card 4: Kiểm tra tương thích (Mở CompatibilityActivity chuẩn qua Intent)
         val checkCard = createCardView()
-
-        val checkTitle = TextView(this).apply {
+        checkCard.addView(TextView(this).apply {
             text = "Kiểm tra tương thích"
             textSize = 18f
             setTextColor(Color.parseColor("#212529"))
             setTypeface(null, Typeface.BOLD)
-        }
+        })
 
-        val checkDesc = TextView(this).apply {
+        checkCard.addView(TextView(this).apply {
             text = "Kiểm tra trạng thái thực tế của PowerKeeper và cơ chế tự phục hồi trên thiết bị này."
             textSize = 13f
             setTextColor(Color.parseColor("#6C757D"))
             setPadding(0, 8, 0, 20)
-        }
+        })
 
         val btnOpenCheck = Button(this).apply {
             text = "Mở Kiểm tra tương thích"
@@ -476,13 +359,12 @@ class MainActivity : AppCompatActivity() {
             background = createRoundedDrawable("#E8E9F5", 20f)
             setPadding(0, 25, 0, 25)
             setOnClickListener {
-                setContentView(compatibilityScrollView)
-                isCompatibilityScreen = true
+                // Chuyển màn hình an toàn qua Activity độc lập đã khai báo trong Manifest
+                try {
+                    startActivity(Intent(this@MainActivity, CompatibilityActivity::class.java))
+                } catch (_: Throwable) {}
             }
         }
-
-        checkCard.addView(checkTitle)
-        checkCard.addView(checkDesc)
         checkCard.addView(btnOpenCheck)
         bodyLayout.addView(checkCard)
 
@@ -491,125 +373,6 @@ class MainActivity : AppCompatActivity() {
         return rootScroll
     }
 
-    // ==========================================
-    // 2. DỰNG MÀN HÌNH KIỂM TRA TƯƠNG THÍCH
-    // ==========================================
-    private fun createCompatibilityScreen(): ScrollView {
-        val rootScroll = ScrollView(this).apply {
-            setBackgroundColor(Color.parseColor("#F4F5F9"))
-        }
-
-        val mainLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#383B8E"))
-            setPadding(50, 80, 50, 60)
-        }
-
-        val title = TextView(this).apply {
-            text = "Kiểm tra tương thích"
-            textSize = 24f
-            setTextColor(Color.WHITE)
-            setTypeface(null, Typeface.BOLD)
-        }
-
-        val subTitle = TextView(this).apply {
-            text = "Trạng thái kiểm tra thực tế trên thiết bị của bạn"
-            textSize = 13f
-            setTextColor(Color.parseColor("#C5C7E8"))
-            setPadding(0, 8, 0, 0)
-        }
-
-        header.addView(title)
-        header.addView(subTitle)
-        mainLayout.addView(header)
-
-        val bodyLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(35, 30, 35, 40)
-        }
-
-        // Device Info Card
-        val devCard = createCardView()
-        val devInfo = TextView(this).apply {
-            text = "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL} • Android ${Build.VERSION.RELEASE}"
-            textSize = 13f
-            setTextColor(Color.parseColor("#495057"))
-            setTypeface(null, Typeface.BOLD)
-        }
-        val devBadge = createBadge("THIẾT BỊ HỖ TRỢ", "#E2F0D9", "#385723").apply {
-            setPadding(20, 8, 20, 8)
-        }
-
-        devCard.addView(devInfo)
-        devCard.addView(devBadge)
-        bodyLayout.addView(devCard)
-
-        // HyperOS / PowerKeeper Card (Dynamic Status)
-        val hkCard = createCardView()
-        hkCard.addView(TextView(this).apply {
-            text = "Trạng thái Hệ thống & Quyền"
-            textSize = 17f
-            setTextColor(Color.parseColor("#212529"))
-            setTypeface(null, Typeface.BOLD)
-            setPadding(0, 0, 0, 15)
-        })
-
-        // Khởi tạo các nhãn trạng thái động thực tế
-        val hasPK = isPowerKeeperPresent()
-        txtPowerKeeperStatus = createBadge(if (hasPK) "ĐÃ PHÁT HIỆN" else "KHÔNG PHÁT HIỆN", if (hasPK) "#D4EDDA" else "#F8D7DA", if (hasPK) "#155724" else "#721C24")
-        hkCard.addView(createCustomRow("PowerKeeper / Millet Service", txtPowerKeeperStatus))
-
-        val hasWrite = canWriteSettings()
-        txtWriteSettingsStatus = createBadge(if (hasWrite) "ĐÃ CẤP" else "CHƯA BẬT", if (hasWrite) "#D4EDDA" else "#FFF3CD", if (hasWrite) "#155724" else "#856404")
-        hkCard.addView(createCustomRow("Quyền thay đổi cài đặt", txtWriteSettingsStatus))
-
-        val isBattery = isIgnoringBatteryOptimizations()
-        txtBatteryStatus = createBadge(if (isBattery) "ĐÃ XÁC MINH" else "CHƯA BẬT", if (isBattery) "#D4EDDA" else "#FFF3CD", if (isBattery) "#155724" else "#856404")
-        hkCard.addView(createCustomRow("Miễn tối ưu pin Android", txtBatteryStatus))
-
-        txtSystemPropStatus = createBadge(MilletHelper.systemPropStatus, if (MilletHelper.isPropAccepted) "#D4EDDA" else "#FFF3CD", if (MilletHelper.isPropAccepted) "#155724" else "#856404")
-        hkCard.addView(createCustomRow("Ghi cờ SystemProperties", txtSystemPropStatus))
-
-        val hasGms = try { packageManager.getPackageInfo("com.google.android.gms", 0); true } catch (e: Exception) { false }
-        txtGmsServiceStatus = createBadge(if (hasGms) "ĐÃ CÀI ĐẶT" else "KHÔNG TÌM THẤY", if (hasGms) "#D4EDDA" else "#F8D7DA", if (hasGms) "#155724" else "#721C24")
-        hkCard.addView(createCustomRow("Google Play services", txtGmsServiceStatus))
-
-        val hasPlayStore = try { packageManager.getPackageInfo("com.android.vending", 0); true } catch (e: Exception) { false }
-        txtPlayStoreStatus = createBadge(if (hasPlayStore) "ĐÃ CÀI ĐẶT" else "KHÔNG TÌM THẤY", if (hasPlayStore) "#D4EDDA" else "#F8D7DA", if (hasPlayStore) "#155724" else "#721C24")
-        hkCard.addView(createCustomRow("CH Play", txtPlayStoreStatus))
-
-        txtJobSchedulerStatus = createBadge("ĐANG HOẠT ĐỘNG", "#D4EDDA", "#155724")
-        hkCard.addView(createCustomRow("Tiến trình JobScheduler", txtJobSchedulerStatus))
-
-        bodyLayout.addView(hkCard)
-
-        // Back Button
-        val btnBack = Button(this).apply {
-            text = "Quay lại Màn hình chính"
-            isAllCaps = false
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            background = createRoundedDrawable("#383B8E", 20f)
-            setPadding(0, 25, 0, 25)
-            setOnClickListener {
-                setContentView(mainScrollView)
-                isCompatibilityScreen = false
-            }
-        }
-        bodyLayout.addView(btnBack)
-
-        mainLayout.addView(bodyLayout)
-        rootScroll.addView(mainLayout)
-        return rootScroll
-    }
-
-    // ==========================================
-    // CÁC HÀM XỬ LÝ MỞ CÀI ĐẶT QUYỀN HỆ THỐNG
-    // ==========================================
     private fun openWriteSettingsAccess() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -618,9 +381,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 startActivity(intent)
             }
-        } catch (e: Exception) {
-            Toast.makeText(this, "Không thể mở cài đặt hệ thống", Toast.LENGTH_SHORT).show()
-        }
+        } catch (_: Exception) {}
     }
 
     private fun requestBatteryOptimization() {
@@ -630,12 +391,8 @@ class MainActivity : AppCompatActivity() {
                     data = Uri.parse("package:$packageName")
                 }
                 startActivity(intent)
-            } else {
-                Toast.makeText(this, "Thiết bị không hỗ trợ tính năng này", Toast.LENGTH_SHORT).show()
             }
-        } catch (e: Exception) {
-            Toast.makeText(this, "Không thể mở cài đặt pin: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+        } catch (_: Exception) {}
     }
 
     private fun createCardView(): LinearLayout {
@@ -643,10 +400,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             background = createRoundedDrawable("#FFFFFF", 30f)
             setPadding(40, 40, 40, 40)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
                 setMargins(0, 0, 0, 30)
             }
         }
@@ -660,53 +414,14 @@ class MainActivity : AppCompatActivity() {
             setTypeface(null, Typeface.BOLD)
             background = createRoundedDrawable(bgColorHex, 15f)
             setPadding(25, 10, 25, 10)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
+            layoutParams = LinearLayout.LayoutParams(-2, -2)
         }
-    }
-
-    private fun createCustomRow(label: String, badgeView: TextView): LinearLayout {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            weightSum = 1f
-            setPadding(0, 12, 0, 12)
-        }
-
-        val txtLabel = TextView(this).apply {
-            text = label
-            textSize = 13f
-            setTextColor(Color.parseColor("#333333"))
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.6f)
-        }
-
-        val badgeContainer = LinearLayout(this).apply {
-            gravity = Gravity.END
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.4f)
-        }
-
-        badgeContainer.addView(badgeView)
-        row.addView(txtLabel)
-        row.addView(badgeContainer)
-        return row
     }
 
     private fun createRoundedDrawable(colorHex: String, cornerRadius: Float): GradientDrawable {
         return GradientDrawable().apply {
             setColor(Color.parseColor(colorHex))
             setCornerRadius(cornerRadius)
-        }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (isCompatibilityScreen) {
-            setContentView(mainScrollView)
-            isCompatibilityScreen = false
-        } else {
-            @Suppress("DEPRECATION")
-            super.onBackPressed()
         }
     }
 }
