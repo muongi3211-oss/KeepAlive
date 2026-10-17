@@ -88,15 +88,7 @@ class CompatibilityActivity : Activity() {
         val hasPK = isPowerKeeperPresent()
         val hasWrite = canWriteSettings()
         val isBattery = isIgnoringBatteryOptimizations()
-        
-        // Nếu đã cấp quyền hệ thống, thử thực hiện ghi thực tế vào hệ thống
-        if (hasWrite) {
-            try { 
-                MilletNoRestrict.applyProtection(this) 
-            } catch (_: Throwable) {}
-        }
 
-        // Đọc hoàn toàn khách quan trạng thái thực tế từ hệ thống
         val hasGmsAllow = MilletNoRestrict.containsGms(this)
         val hasPlayAllow = MilletNoRestrict.containsPlayStore(this)
         val hasSelfAllow = MilletNoRestrict.containsSelf(this)
@@ -124,9 +116,9 @@ class CompatibilityActivity : Activity() {
             }
 
             if (::txtSystemPropStatus.isInitialized) {
-                txtSystemPropStatus.text = if (hasWrite) "ĐÃ ÁP DỤNG" else "CHỜ CẤP QUYỀN"
-                txtSystemPropStatus.setTextColor(Color.parseColor(if (hasWrite) "#155724" else "#856404"))
-                (txtSystemPropStatus.parent as? LinearLayout)?.background = createRoundedDrawable(if (hasWrite) "#D4EDDA" else "#FFF3CD", 15f)
+                txtSystemPropStatus.text = "CHUẨN API"
+                txtSystemPropStatus.setTextColor(Color.parseColor("#155724"))
+                (txtSystemPropStatus.parent as? LinearLayout)?.background = createRoundedDrawable("#D4EDDA", 15f)
             }
 
             if (::txtGmsAllowlistStatus.isInitialized) {
@@ -190,7 +182,7 @@ class CompatibilityActivity : Activity() {
         }
 
         val subTitle = TextView(this).apply {
-            text = "Trạng thái kiểm tra thực tế trên thiết bị của bạn"
+            text = "Trạng thái Whitelist theo tiêu chuẩn API"
             textSize = 13f
             setTextColor(Color.parseColor("#C5C7E8"))
             setPadding(0, 8, 0, 0)
@@ -205,7 +197,6 @@ class CompatibilityActivity : Activity() {
             setPadding(35, 30, 35, 40)
         }
 
-        // Device Info Card
         val devCard = createCardView()
         val devInfo = TextView(this).apply {
             text = "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL} • Android ${Build.VERSION.RELEASE}"
@@ -221,10 +212,9 @@ class CompatibilityActivity : Activity() {
         devCard.addView(devBadge)
         bodyLayout.addView(devCard)
 
-        // System & Permissions Card
         val hkCard = createCardView()
         hkCard.addView(TextView(this).apply {
-            text = "Trạng thái Hệ thống & Quyền"
+            text = "Trạng thái Hệ thống & Whitelist API"
             textSize = 17f
             setTextColor(Color.parseColor("#212529"))
             setTypeface(null, Typeface.BOLD)
@@ -241,16 +231,16 @@ class CompatibilityActivity : Activity() {
         hkCard.addView(createCustomRow("Miễn tối ưu pin Android", txtBatteryStatus))
 
         txtSystemPropStatus = createBadge("ĐANG QUÉT...", "#FFF3CD", "#856404")
-        hkCard.addView(createCustomRow("Ghi cờ SystemProperties", txtSystemPropStatus))
+        hkCard.addView(createCustomRow("Cơ chế hệ thống", txtSystemPropStatus))
 
         txtGmsAllowlistStatus = createBadge("Đang kiểm tra...", "#FFF3CD", "#856404")
-        hkCard.addView(createCustomRow("Millet Allowlist: GMS", txtGmsAllowlistStatus))
+        hkCard.addView(createCustomRow("API Whitelist: GMS", txtGmsAllowlistStatus))
 
         txtPlayStoreAllowlistStatus = createBadge("Đang kiểm tra...", "#FFF3CD", "#856404")
-        hkCard.addView(createCustomRow("Millet Allowlist: CH Play", txtPlayStoreAllowlistStatus))
+        hkCard.addView(createCustomRow("API Whitelist: CH Play", txtPlayStoreAllowlistStatus))
 
         txtSelfAllowlistStatus = createBadge("Đang kiểm tra...", "#FFF3CD", "#856404")
-        hkCard.addView(createCustomRow("Millet Allowlist: GMS Protect", txtSelfAllowlistStatus))
+        hkCard.addView(createCustomRow("API Whitelist: GMS Protect", txtSelfAllowlistStatus))
 
         txtGmsServiceStatus = createBadge("Đang kiểm tra...", "#FFF3CD", "#856404")
         hkCard.addView(createCustomRow("Google Play services", txtGmsServiceStatus))
@@ -258,12 +248,11 @@ class CompatibilityActivity : Activity() {
         txtPlayStoreStatus = createBadge("Đang kiểm tra...", "#FFF3CD", "#856404")
         hkCard.addView(createCustomRow("CH Play", txtPlayStoreStatus))
 
-        txtJobSchedulerStatus = createBadge("ĐANG HOẠT ĐỘNG", "#D4EDDA", "#155724")
+        txtJobSchedulerStatus = createBadge("Đang kiểm tra...", "#FFF3CD", "#856404")
         hkCard.addView(createCustomRow("Tiến trình JobScheduler", txtJobSchedulerStatus))
 
         bodyLayout.addView(hkCard)
 
-        // Back Button
         val btnBack = Button(this).apply {
             text = "Quay lại Màn hình chính"
             isAllCaps = false
@@ -302,6 +291,8 @@ class CompatibilityActivity : Activity() {
             layoutParams = LinearLayout.LayoutParams(-2, -2)
         }
     }
+
+    txtJobSchedulerStatus = createBadge("ĐANG HOẠT ĐỘNG", "#D4EDDA", "#155724") // handled in update
 
     private fun createCustomRow(label: String, badgeView: TextView): LinearLayout {
         val row = LinearLayout(this).apply {
