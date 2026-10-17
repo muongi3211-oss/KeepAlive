@@ -57,12 +57,22 @@ class MainActivity : AppCompatActivity() {
             // Hiển thị màn hình chính
             setContentView(mainScrollView)
 
-            // Thực thi cốt lõi qua MilletHelper và tự bảo vệ chính app chống nightZone
-            MilletHelper.applyMilletProtection(this)
-            MilletHelper.scheduleMilletJob(this)
-            MilletHelper.startProtectionService(this)
+            // 1. Áp dụng bảo vệ Millet và lập lịch định kỳ (An toàn, không gây văng)
+            try {
+                MilletHelper.applyMilletProtection(this)
+                MilletHelper.scheduleMilletJob(this)
+            } catch (_: Throwable) {}
+
+            // 2. CHỈ khởi động Foreground Service nền khi người dùng đã chủ động BẬT công tắc Aurogon
+            val isAurogonEnabled = sharedPreferences.getBoolean("pref_aurogon_allowlist", false)
+            if (isAurogonEnabled) {
+                try {
+                    MilletHelper.startProtectionService(this)
+                } catch (_: Throwable) {}
+            }
+
         } catch (e: Throwable) {
-            // Bắt trọn ngoại lệ khởi động để tuyệt đối không bị văng (Force Close) trên Android 14+
+            // Bắt trọn ngoại lệ khởi động để tuyệt đối không bao giờ bị văng (Force Close)
         }
     }
 
@@ -371,7 +381,7 @@ class MainActivity : AppCompatActivity() {
         permCard.addView(btnBattery)
         bodyLayout.addView(permCard)
 
-        // Card 3: Nâng cao
+        // Card 3: Nâng cao (Aurogon Allowlist)
         val advancedCard = createCardView()
 
         val advTitle = TextView(this).apply {
@@ -409,7 +419,8 @@ class MainActivity : AppCompatActivity() {
         switchLeft.addView(switchTitle)
         switchLeft.addView(switchDesc)
 
-        val isAurogonEnabled = sharedPreferences.getBoolean("pref_aurogon_allowlist", true)
+        // Trạng thái công tắc (Mặc định là false - Tắt)
+        val isAurogonEnabled = sharedPreferences.getBoolean("pref_aurogon_allowlist", false)
 
         val switchToggle = Switch(this).apply {
             isChecked = isAurogonEnabled
@@ -418,8 +429,18 @@ class MainActivity : AppCompatActivity() {
             }
             setOnCheckedChangeListener { _, isChecked ->
                 sharedPreferences.edit().putBoolean("pref_aurogon_allowlist", isChecked).apply()
-                val msg = if (isChecked) "Đã bật Aurogon Allowlist" else "Đã tắt Aurogon Allowlist"
-                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                if (isChecked) {
+                    try {
+                        MilletHelper.startProtectionService(context)
+                    } catch (_: Throwable) {}
+                    Toast.makeText(context, "Đã bật Aurogon Allowlist", Toast.LENGTH_SHORT).show()
+                } else {
+                    try {
+                        val intent = Intent(context, AurogonAllowlistService::class.java)
+                        context.stopService(intent)
+                    } catch (_: Throwable) {}
+                    Toast.makeText(context, "Đã tắt Aurogon Allowlist", Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
@@ -471,7 +492,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ==========================================
-    // 2. DỰNG MÀN HÌNH KIỂM TRA TƯƠNG THÍCH (THỰC TẾ 100%)
+    // 2. DỰNG MÀN HÌNH KIỂM TRA TƯƠNG THÍCH
     // ==========================================
     private fun createCompatibilityScreen(): ScrollView {
         val rootScroll = ScrollView(this).apply {
@@ -553,7 +574,6 @@ class MainActivity : AppCompatActivity() {
         txtSystemPropStatus = createBadge(MilletHelper.systemPropStatus, if (MilletHelper.isPropAccepted) "#D4EDDA" else "#FFF3CD", if (MilletHelper.isPropAccepted) "#155724" else "#856404")
         hkCard.addView(createCustomRow("Ghi cờ SystemProperties", txtSystemPropStatus))
 
-        // Các dòng kiểm tra gói dịch vụ thực tế
         val hasGms = try { packageManager.getPackageInfo("com.google.android.gms", 0); true } catch (e: Exception) { false }
         txtGmsServiceStatus = createBadge(if (hasGms) "ĐÃ CÀI ĐẶT" else "KHÔNG TÌM THẤY", if (hasGms) "#D4EDDA" else "#F8D7DA", if (hasGms) "#155724" else "#721C24")
         hkCard.addView(createCustomRow("Google Play services", txtGmsServiceStatus))
