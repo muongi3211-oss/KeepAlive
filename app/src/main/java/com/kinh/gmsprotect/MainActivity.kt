@@ -1,5 +1,6 @@
 package com.kinh.gmsprotect
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -12,15 +13,15 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.Gravity
+import android.view.Window
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
 
     private lateinit var sharedPreferences: SharedPreferences
 
@@ -36,8 +37,8 @@ class MainActivity : AppCompatActivity() {
             // Khởi tạo SharedPreferences an toàn
             sharedPreferences = getSharedPreferences("GMSProtectPrefs", Context.MODE_PRIVATE)
 
-            // Ẩn ActionBar mặc định để dùng Header custom
-            supportActionBar?.hide()
+            // Ẩn tiêu đề Activity gốc để dùng Header custom
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
 
             // Hiển thị giao diện màn hình chính
             setContentView(createMainScreen())
@@ -87,19 +88,6 @@ class MainActivity : AppCompatActivity() {
             val binderMillet = getService.invoke(null, "millet")
 
             isXiaomiOrHyperOS || binderPower != null || binderMillet != null
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    private fun isIgnoringBatteryOptimizations(): Boolean {
-        return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-                pm.isIgnoringBatteryOptimizations(packageName)
-            } else {
-                true
-            }
         } catch (e: Exception) {
             false
         }
@@ -335,7 +323,7 @@ class MainActivity : AppCompatActivity() {
         advancedCard.addView(switchLayout)
         bodyLayout.addView(advancedCard)
 
-        // Card 4: Kiểm tra tương thích (Mở CompatibilityActivity chuẩn qua Intent)
+        // Card 4: Kiểm tra tương thích
         val checkCard = createCardView()
         checkCard.addView(TextView(this).apply {
             text = "Kiểm tra tương thích"
@@ -359,7 +347,6 @@ class MainActivity : AppCompatActivity() {
             background = createRoundedDrawable("#E8E9F5", 20f)
             setPadding(0, 25, 0, 25)
             setOnClickListener {
-                // Chuyển màn hình an toàn qua Activity độc lập đã khai báo trong Manifest
                 try {
                     startActivity(Intent(this@MainActivity, CompatibilityActivity::class.java))
                 } catch (_: Throwable) {}
