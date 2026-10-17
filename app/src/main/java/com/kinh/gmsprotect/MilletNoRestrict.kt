@@ -6,8 +6,10 @@ import android.provider.Settings
 object MilletNoRestrict {
     private const val KEY = "millet_no_restrict_app"
 
-    fun ensureGms(context: Context): Boolean {
+    // Hàm thực hiện ghi danh sách vào hệ thống (chỉ chạy khi có yêu cầu áp dụng)
+    fun applyProtection(context: Context): Boolean {
         try {
+            if (!Settings.System.canWrite(context)) return false
             val resolver = context.contentResolver
             val current = Settings.System.getString(resolver, KEY) ?: ""
             val list = current.split(",")
@@ -15,7 +17,6 @@ object MilletNoRestrict {
                 .filter { it.isNotEmpty() }
                 .toMutableSet()
 
-            // Danh sách các package cần được đưa vào danh sách trắng chống đóng băng
             val targetPackages = listOf(
                 "com.google.android.gms",
                 "com.android.vending",
@@ -30,7 +31,6 @@ object MilletNoRestrict {
                 }
             }
 
-            // Ghi lại dữ liệu vào Settings.System nếu có thay đổi hoặc chuỗi đang trống
             if (modified || current.isEmpty()) {
                 val updated = list.joinToString(",")
                 Settings.System.putString(resolver, KEY, updated)
@@ -41,20 +41,26 @@ object MilletNoRestrict {
         }
     }
 
-    private fun checkPackage(context: Context, pkgName: String): Boolean {
+    // Hàm CHỈ ĐỌC trạng thái thực tế hiện tại của hệ thống (True/False khách quan)
+    private fun getActualSystemList(context: Context): List<String> {
         return try {
-            // Đảm bảo luôn tự động gọi ghi dữ liệu trước khi kiểm tra
-            ensureGms(context)
-            
-            val current = Settings.System.getString(context.contentResolver, KEY) ?: ""
-            val list = current.split(",").map { it.trim() }
-            list.contains(pkgName)
+            val resolver = context.contentResolver
+            val current = Settings.System.getString(resolver, KEY) ?: ""
+            current.split(",").map { it.trim() }.filter { it.isNotEmpty() }
         } catch (e: Throwable) {
-            false
+            emptyList()
         }
     }
 
-    fun containsGms(context: Context): Boolean = checkPackage(context, "com.google.android.gms")
-    fun containsPlayStore(context: Context): Boolean = checkPackage(context, "com.android.vending")
-    fun containsSelf(context: Context): Boolean = checkPackage(context, context.packageName)
+    fun containsGms(context: Context): Boolean {
+        return getActualSystemList(context).contains("com.google.android.gms")
+    }
+
+    fun containsPlayStore(context: Context): Boolean {
+        return getActualSystemList(context).contains("com.android.vending")
+    }
+
+    fun containsSelf(context: Context): Boolean {
+        return getActualSystemList(context).contains(context.packageName)
+    }
 }
