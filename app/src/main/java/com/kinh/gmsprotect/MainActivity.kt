@@ -43,29 +43,35 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Khởi tạo SharedPreferences để lưu trạng thái bật/tắt nâng cao
-        sharedPreferences = getSharedPreferences("GMSProtectPrefs", Context.MODE_PRIVATE)
+        try {
+            // Khởi tạo SharedPreferences để lưu trạng thái bật/tắt nâng cao
+            sharedPreferences = getSharedPreferences("GMSProtectPrefs", Context.MODE_PRIVATE)
 
-        // Ẩn ActionBar mặc định để dùng Header custom
-        supportActionBar?.hide()
+            // Ẩn ActionBar mặc định để dùng Header custom
+            supportActionBar?.hide()
 
-        // Khởi tạo giao diện
-        mainScrollView = createMainScreen()
-        compatibilityScrollView = createCompatibilityScreen()
+            // Khởi tạo giao diện
+            mainScrollView = createMainScreen()
+            compatibilityScrollView = createCompatibilityScreen()
 
-        // Hiển thị màn hình chính
-        setContentView(mainScrollView)
+            // Hiển thị màn hình chính
+            setContentView(mainScrollView)
 
-        // Thực thi cốt lõi qua MilletHelper
-        MilletHelper.applyMilletProtection(this)
-        MilletHelper.scheduleMilletJob(this)
-        MilletHelper.startProtectionService(this)
+            // Thực thi cốt lõi qua MilletHelper và tự bảo vệ chính app chống nightZone
+            MilletHelper.applyMilletProtection(this)
+            MilletHelper.scheduleMilletJob(this)
+            MilletHelper.startProtectionService(this)
+        } catch (e: Throwable) {
+            // Bắt trọn ngoại lệ khởi động để tuyệt đối không bị văng (Force Close) trên Android 14+
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        // Mỗi khi quay lại app, tiến hành quét lại toàn bộ trạng thái thực tế của hệ thống
-        updateRealtimeStatus()
+        try {
+            // Mỗi khi quay lại app, tiến hành quét lại toàn bộ trạng thái thực tế của hệ thống
+            updateRealtimeStatus()
+        } catch (e: Throwable) {}
     }
 
     // ==========================================
@@ -508,7 +514,7 @@ class MainActivity : AppCompatActivity() {
         // Device Info Card
         val devCard = createCardView()
         val devInfo = TextView(this).apply {
-            text = "${Build.MANUFACTURER.capitalize()} ${Build.MODEL} • Android ${Build.VERSION.RELEASE}"
+            text = "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL} • Android ${Build.VERSION.RELEASE}"
             textSize = 13f
             setTextColor(Color.parseColor("#495057"))
             setTypeface(null, Typeface.BOLD)
@@ -641,33 +647,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun createCheckRow(label: String, badgeText: String, bgColorHex: String, textColorHex: String): LinearLayout {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            weightSum = 1f
-            setPadding(0, 12, 0, 12)
-        }
-
-        val txtLabel = TextView(this).apply {
-            text = label
-            textSize = 13f
-            setTextColor(Color.parseColor("#333333"))
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.6f)
-        }
-
-        val badgeContainer = LinearLayout(this).apply {
-            gravity = Gravity.END
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.4f)
-        }
-
-        val badge = createBadge(badgeText, bgColorHex, textColorHex)
-        badgeContainer.addView(badge)
-
-        row.addView(txtLabel)
-        row.addView(badgeContainer)
-        return row
-    }
-
     private fun createCustomRow(label: String, badgeView: TextView): LinearLayout {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -700,11 +679,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (isCompatibilityScreen) {
             setContentView(mainScrollView)
             isCompatibilityScreen = false
         } else {
+            @Suppress("DEPRECATION")
             super.onBackPressed()
         }
     }
