@@ -16,7 +16,7 @@ object MilletWatchScheduler {
             val component = ComponentName(context, MilletWatchJobService::class.java)
 
             val builder = JobInfo.Builder(JOB_ID, component).apply {
-                setPeriodic(15 * 60 * 1000L) // 15 phút
+                setPeriodic(15 * 60 * 1000L) // Chạy định kỳ 15 phút
                 setPersisted(true)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     setRequiresBatteryNotLow(false)
