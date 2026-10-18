@@ -15,6 +15,37 @@ import android.os.Looper
 
 class AurogonAllowlistService : Service() {
 
+    companion object {
+        // Phương thức tĩnh để khởi động Foreground Service an toàn từ mọi nơi
+        fun startProtectionService(context: Context) {
+            try {
+                val intent = Intent(context, AurogonAllowlistService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (_: Throwable) {}
+        }
+
+        // Phương thức kiểm tra công tắc và kích hoạt dịch vụ nếu được phép
+        fun startIfEnabled(context: Context) {
+            try {
+                val prefs = context.getSharedPreferences("GMSProtectPrefs", Context.MODE_PRIVATE)
+                val isAurogonEnabled = prefs.getBoolean("pref_aurogon_allowlist", false)
+                
+                // Luôn đảm bảo áp dụng bảo vệ Millet và xếp lịch JobScheduler
+                MilletNoRestrict.applyProtection(context)
+                MilletWatchScheduler.schedule(context)
+
+                // Chỉ chạy service ngầm nếu người dùng bật công tắc Aurogon
+                if (isAurogonEnabled) {
+                    startProtectionService(context)
+                }
+            } catch (_: Throwable) {}
+        }
+    }
+
     private val handler = Handler(Looper.getMainLooper())
     private var isScreenOff = false
     private var offStep = 0
