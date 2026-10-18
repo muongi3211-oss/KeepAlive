@@ -4,107 +4,112 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 
 class AurogonAllowlistService : Service() {
-    companion object {
-        private const val PREFS = "setup_v1"
-        private const val KEY_ENABLED = "aurogon_enabled_v1"
-        private const val CHANNEL_ID = "aurogon_channel"
-        private const val NOTIF_ID = 1001
 
-        fun isEnabled(context: Context): Boolean {
-            return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getBoolean(KEY_ENABLED, false)
-        }
+    private val handler = Handler(Looper.getMainLooper())
+    private var isScreenOff = false
+    private var offStep = 0
 
-        fun setEnabled(context: Context, enabled: Boolean) {
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit().putBoolean(KEY_ENABLED, enabled).apply()
-            if (enabled) {
-                startIfEnabled(context)
-            } else {
-                stop(context)
-            }
-        }
-
-        fun startIfEnabled(context: Context) {
-            if (!isEnabled(context)) return
-            try {
-                val intent = Intent(context, AurogonAllowlistService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    isScreenOff = true
+                    offStep = 0
+                    scheduleNextCheck()
                 }
-            } catch (_: Throwable) {
-                // Bắt ngoại lệ nếu hệ thống Android 14+ chặn startForegroundService
+                Intent.ACTION_SCREEN_ON -> {
+                    isScreenOff = false
+                    handler.removeCallbacksAndMessages(null)
+                    // Khi sáng màn hình: Khôi phục 1 lần rồi dừng lịch
+                    performProtection()
+                }
             }
         }
+    }
 
-        fun stop(context: Context) {
-            try {
-                val intent = Intent(context, AurogonAllowlistService::class.java)
-                context.stopService(intent)
-            } catch (_: Throwable) {}
+    private val checkRunnable = Runnable {
+        if (isScreenOff) {
+            performProtection()
+            offStep++
+            scheduleNextCheck()
         }
+    }
+
+    private fun scheduleNextCheck() {
+        handler.removeCallbacks(checkRunnable)
+        if (!isScreenOff) return
+
+        // Nhịp nền đúng chuẩn app gốc: 40s -> 2 phút -> Mỗi 10 phút
+        val delayMillis: Long = when (offStep) {
+            0 -> 40_000L      // 40 giây sau khi tắt màn
+            1 -> 120_000L     // Phút thứ 2
+            else -> 600_000L  // Mỗi 10 phút tiếp theo khi màn vẫn tắt
+        }
+        handler.postDelayed(checkRunnable, delayMillis)
+    }
+
+    private fun performProtection() {
+        try {
+            MilletNoRestrict.applyProtection(this)
+            // Gửi ping khôi phục FCM Socket
+            val intentGcm = Intent("com.google.android.intent.action.GCM_RECONNECT").apply {
+                setPackage("com.google.android.gms")
+            }
+            sendBroadcast(intentGcm)
+        } catch (_: Throwable) {}
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        startForegroundServiceNotification()
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
+        registerReceiver(screenReceiver, filter)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        performProtection()
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try { unregisterReceiver(screenReceiver) } catch (_: Throwable) {}
+        handler.removeCallbacksAndMessages(null)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override fun onCreate() {
-        super.onCreate()
-        // Gọi startForeground ngay trong onCreate() để tránh bị Android 14+ kill vì trễ thời gian
-        try {
-            createNotificationChannel()
-            val notification = createNotification()
-            startForeground(NOTIF_ID, notification)
-        } catch (_: Throwable) {
-            // Nếu bị chặn quyền Notification hoặc ForegroundService, tự ngắt service an toàn
-            stopSelf()
-        }
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        try {
-            // Tự động duy trì và làm mới danh sách Millet mỗi khi Service được kích hoạt
-            MilletNoRestrict.ensureGms(this)
-        } catch (_: Throwable) {}
-        return START_STICKY
-    }
-
-    private fun createNotificationChannel() {
+    private fun startForegroundServiceNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = getString(R.string.aurogon_notification_channel)
-            val descriptionText = getString(R.string.aurogon_notification_channel_desc)
-            val importance = NotificationManager.IMPORTANCE_MIN
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-            }
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            notificationManager?.createNotificationChannel(channel)
-        }
-    }
+            val channelId = "aurogon_protection_channel"
+            val channel = NotificationChannel(
+                channelId,
+                "Aurogon Protection Service",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
 
-    private fun createNotification(): Notification {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle(getString(R.string.aurogon_notification_title))
-                .setContentText(getString(R.string.aurogon_notification_text))
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setOngoing(true)
+            val notification: Notification = Notification.Builder(this, channelId)
+                .setContentTitle("GMS Protect đang chạy ngầm")
+                .setContentText("Duy trì bảo vệ Google Play services")
+                .setSmallIcon(android.R.drawable.stat_notify_sync)
                 .build()
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-                .setContentTitle(getString(R.string.aurogon_notification_title))
-                .setContentText(getString(R.string.aurogon_notification_text))
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setOngoing(true)
-                .build()
+
+            startForeground(1001, notification)
         }
     }
 }
