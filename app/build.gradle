@@ -10,7 +10,7 @@ android {
     defaultConfig {
         applicationId "com.kinh.gmsprotect"
         minSdk 24
-        targetSdk 34
+        targetSdk 22
         
         // Tự động nhận phiên bản từ GitHub Actions hoặc dùng giá trị mặc định nếu build local
         versionCode project.hasProperty('APK_VERSION_CODE') ? project.property('APK_VERSION_CODE').toInteger() : 1
