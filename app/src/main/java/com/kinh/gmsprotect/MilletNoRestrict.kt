@@ -45,6 +45,11 @@ object MilletNoRestrict {
         }
     }
 
+    // Cung cấp đồng thời applyProtection và ensureGms để tương thích mọi tệp gọi
+    fun applyProtection(context: Context): Result {
+        return ensureGms(context)
+    }
+
     fun ensureGms(context: Context): Result {
         val app = context.applicationContext
         if (!canWrite(app)) return Result.NO_PERMISSION
