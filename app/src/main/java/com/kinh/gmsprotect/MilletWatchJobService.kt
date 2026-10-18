@@ -36,7 +36,19 @@ class MilletWatchJobService : JobService() {
         try {
             // Ép ghi toàn bộ danh sách Millet (GMS + Play Store + App)
             MilletNoRestrict.ensureGms(applicationContext)
-            // Kích hoạt lại Service nếu bật
+
+            // Cập nhật trạng thái xác minh thụ động cho màn hình Kiểm tra tương thích
+            val prefs = getSharedPreferences("GMSProtectPrefs", MODE_PRIVATE)
+            val nowStr = java.text.SimpleDateFormat("HH:mm:ss dd/MM", java.util.Locale.getDefault()).format(java.util.Date())
+            prefs.edit()
+                .putBoolean("verify_system_wakeup", true)
+                .putString("verify_last_time", nowStr)
+                .apply()
+
+            // Ping giữ kết nối FCM Socket luôn thông suốt
+            FcmKeepAliveHelper.pingFcmConnection(applicationContext)
+
+            // Khởi động lại Service nếu người dùng có bật cấu hình Aurogon
             AurogonAllowlistService.startIfEnabled(applicationContext)
         } catch (_: Throwable) {}
 
