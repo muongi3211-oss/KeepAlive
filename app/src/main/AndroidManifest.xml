@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Quyền hệ thống & Tự khởi chạy ngầm -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.DUMP" />
@@ -8,9 +9,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Bổ sung quyền yêu cầu miễn tối ưu pin -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- Khai báo truy vấn thông tin Package trên Android 11+ -->
     <queries>
         <package android:name="com.google.android.gms" />
+        <package android:name="com.android.vending" /> <!-- Bổ sung CH Play -->
         <package android:name="com.miui.securitycenter" />
         <package android:name="com.miui.powerkeeper" />
     </queries>
@@ -38,10 +43,11 @@
             android:exported="false"
             android:resizeableActivity="true" />
 
+        <!-- Sửa exported="false" cho JobService an toàn tuyệt đối -->
         <service
             android:name=".MilletWatchJobService"
             android:permission="android.permission.BIND_JOB_SERVICE"
-            android:exported="true"
+            android:exported="false"
             android:directBootAware="true" />
 
         <service
