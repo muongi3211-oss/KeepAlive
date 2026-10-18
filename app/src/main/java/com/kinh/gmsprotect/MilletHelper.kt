@@ -36,17 +36,17 @@ object MilletHelper {
         } catch (_: Throwable) {}
     }
 
-    // Hàm quan trọng giải quyết triệt để lỗi Unresolved reference: startIfEnabled
+    // Hàm quan trọng để sửa triệt để lỗi Unresolved reference: startIfEnabled
     fun startIfEnabled(context: Context) {
         try {
             val prefs = context.getSharedPreferences("GMSProtectPrefs", Context.MODE_PRIVATE)
             val isAurogonEnabled = prefs.getBoolean("pref_aurogon_allowlist", false)
             
-            // Thực thi bảo vệ danh sách trắng và đăng ký lại JobScheduler
+            // Thực thi áp dụng bảo vệ và xếp lịch JobScheduler
             applyMilletProtection(context)
             scheduleMilletJob(context)
 
-            // Khởi chạy Aurogon Service nếu người dùng bật công tắc Aurogon
+            // Khởi chạy Aurogon Service nếu công tắc Aurogon đang bật
             if (isAurogonEnabled) {
                 startProtectionService(context)
             }
