@@ -53,7 +53,7 @@ class MainActivity : Activity() {
             val isAurogonEnabled = sharedPreferences.getBoolean("pref_aurogon_allowlist", false)
             if (isAurogonEnabled) {
                 try {
-                    MilletHelper.startProtectionService(this)
+                    AurogonAllowlistService.startProtectionService(this)
                 } catch (_: Throwable) {}
             }
 
@@ -312,7 +312,7 @@ class MainActivity : Activity() {
             setOnCheckedChangeListener { _, isChecked ->
                 sharedPreferences.edit().putBoolean("pref_aurogon_allowlist", isChecked).apply()
                 if (isChecked) {
-                    try { MilletHelper.startProtectionService(context) } catch (_: Throwable) {}
+                    try { AurogonAllowlistService.startProtectionService(context) } catch (_: Throwable) {}
                     Toast.makeText(context, "Đã bật Aurogon Allowlist", Toast.LENGTH_SHORT).show()
                 } else {
                     try {
