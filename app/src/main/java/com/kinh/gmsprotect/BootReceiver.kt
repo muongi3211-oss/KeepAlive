@@ -3,34 +3,34 @@ package com.kinh.gmsprotect
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        val action = intent?.action
-        if (action == Intent.ACTION_BOOT_COMPLETED ||
-            action == Intent.ACTION_LOCKED_BOOT_COMPLETED ||
-            action == Intent.ACTION_USER_UNLOCKED ||
-            action == Intent.ACTION_MY_PACKAGE_REPLACED
-        ) {
-            // Giữ cho tiến trình Broadcast sống sót an toàn trong lúc thực hiện tác vụ nặng sau khởi động
-            val pending = goAsync()
+        try {
+            val action = intent?.action
+            Log.i("BootReceiver", "Received action: $action")
+
+            // Gọi đồng thời schedule từ MilletHelper hoặc MilletWatchScheduler an toàn
             try {
-                val appContext = context.applicationContext
-                
-                // 1. Khôi phục dịch vụ nền Aurogon nếu người dùng đã bật trước đó
-                AurogonAllowlistService.startIfEnabled(appContext)
-                
-                // 2. Ép ghi ngay danh sách trắng Millet cho GMS & Play Store
-                MilletNoRestrict.ensureGms(appContext)
-                
-                // 3. Tái lập lịch trình JobScheduler định kỳ
-                MilletWatchJobService.schedule(appContext)
+                MilletHelper.schedule(context)
             } catch (_: Throwable) {
-                // Bắt trọn mọi ngoại lệ hệ thống để không gây lỗi ANR
-            } finally {
-                // Hoàn tất tiến trình an toàn
-                pending.finish()
+                try {
+                    MilletWatchScheduler.schedule(context)
+                } catch (_: Throwable) {}
             }
+
+            // Khi khởi động thiết bị hoặc mở khóa, tự động áp dụng bảo vệ Millet
+            if (action == Intent.ACTION_BOOT_COMPLETED || 
+                action == "android.intent.action.LOCKED_BOOT_COMPLETED" || 
+                action == Intent.ACTION_USER_UNLOCKED ||
+                action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+                try {
+                    MilletNoRestrict.applyProtection(context)
+                } catch (_: Throwable) {}
+            }
+        } catch (t: Throwable) {
+            Log.e("BootReceiver", "Error in onReceive: ${t.message}", t)
         }
     }
 }
