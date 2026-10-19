@@ -86,7 +86,6 @@
     <string name="gms_no_restrict_active">GMS No-Restrict: Đang bật</string>
     <string name="gms_no_restrict_missing">GMS No-Restrict: Thiếu</string>
     <string name="gms_no_restrict_permission_needed">GMS No-Restrict: Cần quyền</string>
-    <string name="greezer_protection_active">Greezer Protection: Hoạt động</string>
     <string name="play_store_no_restrict_active">Play Store No-Restrict: Đang bật</string>
     <string name="play_store_no_restrict_missing">Play Store No-Restrict: Thiếu</string>
     <string name="play_store_no_restrict_permission_needed">Play Store No-Restrict: Cần quyền</string>
@@ -117,5 +116,4 @@
     <string name="aurogon_allowlist_timing">Thời gian: 40s / 2m / 10m.</string>
     <string name="battery_request_unavailable">Không khả dụng.</string>
     <string name="settings_hint_autostart">Vui lòng bật trong Cài đặt.</string>
-    <string name="donate_later">Để sau</string>
 </resources>
