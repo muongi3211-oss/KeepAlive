@@ -367,8 +367,4 @@ class CompatibilityActivity : Activity() {
         }
 
         badgeContainer.addView(badgeView)
-        row.addView(txtLabel)
-        row.addView(badgeContainer)
-        return row
-    }
-
+        
