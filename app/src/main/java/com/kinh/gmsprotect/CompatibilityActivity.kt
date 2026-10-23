@@ -322,7 +322,7 @@ class CompatibilityActivity : Activity() {
         mainLayout.addView(bodyLayout)
         rootScroll.addView(mainLayout)
         return rootScroll
-    }
+    } // <-- Dấu ngoặc đóng cho hàm createCompatibilityScreen() đã được đặt chuẩn xác ở đây
 
     private fun createCardView(): LinearLayout {
         return LinearLayout(this).apply {
@@ -367,4 +367,15 @@ class CompatibilityActivity : Activity() {
         }
 
         badgeContainer.addView(badgeView)
-        
+        row.addView(txtLabel)
+        row.addView(badgeContainer)
+        return row
+    }
+
+    private fun createRoundedDrawable(colorHex: String, cornerRadius: Float): GradientDrawable {
+        return GradientDrawable().apply {
+            setColor(Color.parseColor(colorHex))
+            setCornerRadius(cornerRadius)
+        }
+    }
+}
