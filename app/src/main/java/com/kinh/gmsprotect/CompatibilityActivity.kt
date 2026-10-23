@@ -33,9 +33,7 @@ class CompatibilityActivity : Activity() {
     private lateinit var txtSystemWakeApp: TextView
     private lateinit var txtSelfRestoreGms: TextView
     private lateinit var txtLastVerify: TextView
-    
-    // Khai báo biến lưu trữ Badge Banner phía trên để cập nhật động
-    private lateinit var badgeBanner: TextView
+    private lateinit var txtBannerBadge: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,7 +101,19 @@ class CompatibilityActivity : Activity() {
         val isRestoreGmsVerified = prefs.getBoolean("verify_restore_gms", false)
         val lastVerifyTime = prefs.getString("verify_last_time", "Chưa có") ?: "Chưa có"
 
+        // Kiểm tra xem tất cả các mục quan trọng đã được xác minh hoàn toàn chưa
+        val allVerified = hasPK && canWrite && isBattery && isWakeupVerified && isRestoreGmsVerified
+
         try {
+            // Cập nhật huy hiệu tương thích phía trên khi tất cả đã xác thực
+            if (::txtBannerBadge.isInitialized) {
+                if (allVerified) {
+                    updateBadge(txtBannerBadge, "HOÀN TOÀN TƯƠNG THÍCH", true)
+                } else {
+                    updateBadge(txtBannerBadge, "TƯƠNG THÍCH • CHỜ XÁC MINH THỰC TẾ", false, isWarning = true)
+                }
+            }
+
             // HyperOS / PowerKeeper Card
             if (::txtPowerKeeper.isInitialized) {
                 updateBadge(txtPowerKeeper, if (hasPK) "ĐÃ PHÁT HIỆN" else "KHÔNG PHÁT HIỆN", hasPK)
@@ -139,16 +149,6 @@ class CompatibilityActivity : Activity() {
             }
             if (::txtLastVerify.isInitialized) {
                 txtLastVerify.text = lastVerifyTime
-            }
-
-            // Cập nhật trạng thái Banner phía trên dựa trên kết quả xác minh thực tế
-            if (::badgeBanner.isInitialized) {
-                val isFullyCompatible = isWakeupVerified && isRestoreGmsVerified
-                if (isFullyCompatible) {
-                    updateBadge(badgeBanner, "HOÀN TOÀN TƯƠNG THÍCH", true)
-                } else {
-                    updateBadge(badgeBanner, "TƯƠNG THÍCH • CHỜ XÁC MINH THỰC TẾ", false, isWarning = true)
-                }
             }
         } catch (_: Exception) {}
     }
@@ -212,12 +212,11 @@ class CompatibilityActivity : Activity() {
             setTextColor(Color.parseColor("#495057"))
             setTypeface(null, Typeface.BOLD)
         })
-        
-        // Khởi tạo badgeBanner động
-        badgeBanner = createBadge("TƯƠNG THÍCH • CHỜ XÁC MINH THỰC TẾ", "#FFF3CD", "#856404").apply {
+
+        txtBannerBadge = createBadge("TƯƠNG THÍCH • CHỜ XÁC MINH THỰC TẾ", "#FFF3CD", "#856404").apply {
             setPadding(20, 8, 20, 8)
         }
-        bannerCard.addView(badgeBanner)
+        bannerCard.addView(txtBannerBadge)
 
         bannerCard.addView(TextView(this).apply {
             text = "Kết quả kết hợp trạng thái hiện tại với bằng chứng thực tế được lưu khi Android/HyperOS thật sự gọi dậy GMS Protect sau khi danh sách MILLET thay đổi."
@@ -328,3 +327,61 @@ class CompatibilityActivity : Activity() {
 
         mainLayout.addView(bodyLayout)
         rootScroll.addView(mainLayout)
+        return rootScroll
+    }
+
+    private fun createCardView(): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = createRoundedDrawable("#FFFFFF", 30f)
+            setPadding(40, 40, 40, 40)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
+                setMargins(0, 0, 0, 30)
+            }
+        }
+    }
+
+    private fun createBadge(textStr: String, bgColorHex: String, textColorHex: String): TextView {
+        return TextView(this).apply {
+            text = textStr
+            textSize = 11f
+            setTextColor(Color.parseColor(textColorHex))
+            setTypeface(null, Typeface.BOLD)
+            background = createRoundedDrawable(bgColorHex, 15f)
+            setPadding(25, 10, 25, 10)
+            layoutParams = LinearLayout.LayoutParams(-2, -2)
+        }
+    }
+
+    private fun createCustomRow(label: String, badgeView: TextView): LinearLayout {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            weightSum = 1f
+            setPadding(0, 12, 0, 12)
+        }
+
+        val txtLabel = TextView(this).apply {
+            text = label
+            textSize = 13f
+            setTextColor(Color.parseColor("#333333"))
+            layoutParams = LinearLayout.LayoutParams(0, -2, 0.6f)
+        }
+
+        val badgeContainer = LinearLayout(this).apply {
+            gravity = Gravity.END
+            layoutParams = LinearLayout.LayoutParams(0, -2, 0.4f)
+        }
+
+        badgeContainer.addView(badgeView)
+        row.addView(txtLabel)
+        row.addView(badgeContainer)
+        return row
+    }
+
+    private fun createRoundedDrawable(colorHex: String, cornerRadius: Float): GradientDrawable {
+        return GradientDrawable().apply {
+            setColor(Color.parseColor(colorHex))
+            setCornerRadius(cornerRadius)
+        }
+    }
+}
