@@ -20,7 +20,6 @@ import android.widget.TextView
 class CompatibilityActivity : Activity() {
 
     private lateinit var prefs: SharedPreferences
-    private lateinit var badgeBanner: TextView
 
     private lateinit var txtPowerKeeper: TextView
     private lateinit var txtNoRestrictList: TextView
@@ -34,6 +33,9 @@ class CompatibilityActivity : Activity() {
     private lateinit var txtSystemWakeApp: TextView
     private lateinit var txtSelfRestoreGms: TextView
     private lateinit var txtLastVerify: TextView
+    
+    // Khai báo biến lưu trữ Badge Banner phía trên để cập nhật động
+    private lateinit var badgeBanner: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,11 +98,13 @@ class CompatibilityActivity : Activity() {
         val canWrite = canWriteSettings()
         val isBattery = isIgnoringBatteryOptimizations()
 
+        // Đọc dữ liệu xác minh thụ động đã lưu trong SharedPreferences
         val isWakeupVerified = prefs.getBoolean("verify_system_wakeup", false)
         val isRestoreGmsVerified = prefs.getBoolean("verify_restore_gms", false)
         val lastVerifyTime = prefs.getString("verify_last_time", "Chưa có") ?: "Chưa có"
 
         try {
+            // HyperOS / PowerKeeper Card
             if (::txtPowerKeeper.isInitialized) {
                 updateBadge(txtPowerKeeper, if (hasPK) "ĐÃ PHÁT HIỆN" else "KHÔNG PHÁT HIỆN", hasPK)
             }
@@ -123,6 +127,7 @@ class CompatibilityActivity : Activity() {
                 updateBadge(txtHyperOsBgStatus, "ĐÃ GỬI YÊU CẦU", true)
             }
 
+            // Tự phục hồi Card (Thụ động)
             if (::txtSystemChangeMonitor.isInitialized) {
                 updateBadge(txtSystemChangeMonitor, "ĐÃ ĐĂNG KÝ", true)
             }
@@ -136,16 +141,13 @@ class CompatibilityActivity : Activity() {
                 txtLastVerify.text = lastVerifyTime
             }
 
-            val isAllVerified = hasPK && canWrite && isBattery && isWakeupVerified && isRestoreGmsVerified
+            // Cập nhật trạng thái Banner phía trên dựa trên kết quả xác minh thực tế
             if (::badgeBanner.isInitialized) {
-                if (isAllVerified) {
-                    badgeBanner.text = "TƯƠNG THÍCH • ĐÃ XÁC MINH THỰC TẾ"
-                    badgeBanner.setTextColor(Color.parseColor("#155724"))
-                    badgeBanner.background = createRoundedDrawable("#D4EDDA", 15f)
+                val isFullyCompatible = isWakeupVerified && isRestoreGmsVerified
+                if (isFullyCompatible) {
+                    updateBadge(badgeBanner, "HOÀN TOÀN TƯƠNG THÍCH", true)
                 } else {
-                    badgeBanner.text = "TƯƠNG THÍCH • CHỜ XÁC MINH THỰC TẾ"
-                    badgeBanner.setTextColor(Color.parseColor("#856404"))
-                    badgeBanner.background = createRoundedDrawable("#FFF3CD", 15f)
+                    updateBadge(badgeBanner, "TƯƠNG THÍCH • CHỜ XÁC MINH THỰC TẾ", false, isWarning = true)
                 }
             }
         } catch (_: Exception) {}
@@ -202,6 +204,7 @@ class CompatibilityActivity : Activity() {
             setPadding(35, 30, 35, 40)
         }
 
+        // Card 1: Banner Thông tin
         val bannerCard = createCardView()
         bannerCard.addView(TextView(this).apply {
             text = "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL} • Android ${Build.VERSION.RELEASE}"
@@ -209,7 +212,8 @@ class CompatibilityActivity : Activity() {
             setTextColor(Color.parseColor("#495057"))
             setTypeface(null, Typeface.BOLD)
         })
-
+        
+        // Khởi tạo badgeBanner động
         badgeBanner = createBadge("TƯƠNG THÍCH • CHỜ XÁC MINH THỰC TẾ", "#FFF3CD", "#856404").apply {
             setPadding(20, 8, 20, 8)
         }
@@ -223,6 +227,7 @@ class CompatibilityActivity : Activity() {
         })
         bodyLayout.addView(bannerCard)
 
+        // Card 2: HyperOS / PowerKeeper
         val hkCard = createCardView()
         hkCard.addView(TextView(this).apply {
             text = "HyperOS / PowerKeeper"
@@ -261,6 +266,7 @@ class CompatibilityActivity : Activity() {
         })
         bodyLayout.addView(hkCard)
 
+        // Card 3: Tự phục hồi
         val restoreCard = createCardView()
         restoreCard.addView(TextView(this).apply {
             text = "Tự phục hồi"
@@ -308,6 +314,7 @@ class CompatibilityActivity : Activity() {
         })
         bodyLayout.addView(restoreCard)
 
+        // Back Button
         val btnBack = Button(this).apply {
             text = "Quay lại Màn hình chính"
             isAllCaps = false
@@ -321,61 +328,3 @@ class CompatibilityActivity : Activity() {
 
         mainLayout.addView(bodyLayout)
         rootScroll.addView(mainLayout)
-        return rootScroll
-    } // <-- Dấu ngoặc đóng cho hàm createCompatibilityScreen() đã được đặt chuẩn xác ở đây
-
-    private fun createCardView(): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = createRoundedDrawable("#FFFFFF", 30f)
-            setPadding(40, 40, 40, 40)
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
-                setMargins(0, 0, 0, 30)
-            }
-        }
-    }
-
-    private fun createBadge(textStr: String, bgColorHex: String, textColorHex: String): TextView {
-        return TextView(this).apply {
-            text = textStr
-            textSize = 11f
-            setTextColor(Color.parseColor(textColorHex))
-            setTypeface(null, Typeface.BOLD)
-            background = createRoundedDrawable(bgColorHex, 15f)
-            setPadding(25, 10, 25, 10)
-            layoutParams = LinearLayout.LayoutParams(-2, -2)
-        }
-    }
-
-    private fun createCustomRow(label: String, badgeView: TextView): LinearLayout {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            weightSum = 1f
-            setPadding(0, 12, 0, 12)
-        }
-
-        val txtLabel = TextView(this).apply {
-            text = label
-            textSize = 13f
-            setTextColor(Color.parseColor("#333333"))
-            layoutParams = LinearLayout.LayoutParams(0, -2, 0.6f)
-        }
-
-        val badgeContainer = LinearLayout(this).apply {
-            gravity = Gravity.END
-            layoutParams = LinearLayout.LayoutParams(0, -2, 0.4f)
-        }
-
-        badgeContainer.addView(badgeView)
-        row.addView(txtLabel)
-        row.addView(badgeContainer)
-        return row
-    }
-
-    private fun createRoundedDrawable(colorHex: String, cornerRadius: Float): GradientDrawable {
-        return GradientDrawable().apply {
-            setColor(Color.parseColor(colorHex))
-            setCornerRadius(cornerRadius)
-        }
-    }
-}
