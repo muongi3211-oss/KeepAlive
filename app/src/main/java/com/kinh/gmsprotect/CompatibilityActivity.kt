@@ -33,7 +33,6 @@ class CompatibilityActivity : Activity() {
     private lateinit var txtSystemWakeApp: TextView
     private lateinit var txtSelfRestoreGms: TextView
     private lateinit var txtLastVerify: TextView
-    private lateinit var txtBannerBadge: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -101,19 +100,7 @@ class CompatibilityActivity : Activity() {
         val isRestoreGmsVerified = prefs.getBoolean("verify_restore_gms", false)
         val lastVerifyTime = prefs.getString("verify_last_time", "Chưa có") ?: "Chưa có"
 
-        // Kiểm tra xem tất cả các mục quan trọng đã được xác minh hoàn toàn chưa
-        val allVerified = hasPK && canWrite && isBattery && isWakeupVerified && isRestoreGmsVerified
-
         try {
-            // Cập nhật huy hiệu tương thích phía trên khi tất cả đã xác thực
-            if (::txtBannerBadge.isInitialized) {
-                if (allVerified) {
-                    updateBadge(txtBannerBadge, "HOÀN TOÀN TƯƠNG THÍCH", true)
-                } else {
-                    updateBadge(txtBannerBadge, "TƯƠNG THÍCH • CHỜ XÁC MINH THỰC TẾ", false, isWarning = true)
-                }
-            }
-
             // HyperOS / PowerKeeper Card
             if (::txtPowerKeeper.isInitialized) {
                 updateBadge(txtPowerKeeper, if (hasPK) "ĐÃ PHÁT HIỆN" else "KHÔNG PHÁT HIỆN", hasPK)
@@ -134,6 +121,7 @@ class CompatibilityActivity : Activity() {
                 updateBadge(txtBatteryStatus, if (isBattery) "ĐÃ XÁC MINH" else "CHƯA BẬT", isBattery)
             }
             if (::txtHyperOsBgStatus.isInitialized) {
+                // Đúng chuẩn app gốc: ĐÃ GỬI YÊU CẦU
                 updateBadge(txtHyperOsBgStatus, "ĐÃ GỬI YÊU CẦU", true)
             }
 
@@ -212,11 +200,10 @@ class CompatibilityActivity : Activity() {
             setTextColor(Color.parseColor("#495057"))
             setTypeface(null, Typeface.BOLD)
         })
-
-        txtBannerBadge = createBadge("TƯƠNG THÍCH • CHỜ XÁC MINH THỰC TẾ", "#FFF3CD", "#856404").apply {
+        val badgeBanner = createBadge("TƯƠNG THÍCH • CHỜ XÁC MINH THỰC TẾ", "#FFF3CD", "#856404").apply {
             setPadding(20, 8, 20, 8)
         }
-        bannerCard.addView(txtBannerBadge)
+        bannerCard.addView(badgeBanner)
 
         bannerCard.addView(TextView(this).apply {
             text = "Kết quả kết hợp trạng thái hiện tại với bằng chứng thực tế được lưu khi Android/HyperOS thật sự gọi dậy GMS Protect sau khi danh sách MILLET thay đổi."
