@@ -16,7 +16,6 @@ import android.os.Looper
 class AurogonAllowlistService : Service() {
 
     companion object {
-        // Phương thức tĩnh để khởi động Foreground Service an toàn từ mọi nơi
         fun startProtectionService(context: Context) {
             try {
                 val intent = Intent(context, AurogonAllowlistService::class.java)
@@ -28,17 +27,14 @@ class AurogonAllowlistService : Service() {
             } catch (_: Throwable) {}
         }
 
-        // Phương thức kiểm tra công tắc và kích hoạt dịch vụ nếu được phép
         fun startIfEnabled(context: Context) {
             try {
                 val prefs = context.getSharedPreferences("GMSProtectPrefs", Context.MODE_PRIVATE)
                 val isAurogonEnabled = prefs.getBoolean("pref_aurogon_allowlist", false)
                 
-                // Luôn đảm bảo áp dụng bảo vệ Millet và xếp lịch JobScheduler
                 MilletNoRestrict.applyProtection(context)
                 MilletWatchScheduler.schedule(context)
 
-                // Chỉ chạy service ngầm nếu người dùng bật công tắc Aurogon
                 if (isAurogonEnabled) {
                     startProtectionService(context)
                 }
@@ -61,8 +57,8 @@ class AurogonAllowlistService : Service() {
                 Intent.ACTION_SCREEN_ON -> {
                     isScreenOff = false
                     handler.removeCallbacksAndMessages(null)
-                    // Khi sáng màn hình: Khôi phục 1 lần rồi dừng lịch
-                    performProtection()
+                    // Chỉ củng cố 1 lần nhẹ nhàng khi bật sáng màn hình, KHÔNG ép reconnect mạng
+                    performQuietProtection()
                 }
             }
         }
@@ -70,7 +66,7 @@ class AurogonAllowlistService : Service() {
 
     private val checkRunnable = Runnable {
         if (isScreenOff) {
-            performProtection()
+            performQuietProtection()
             offStep++
             scheduleNextCheck()
         }
@@ -80,23 +76,19 @@ class AurogonAllowlistService : Service() {
         handler.removeCallbacks(checkRunnable)
         if (!isScreenOff) return
 
-        // Nhịp nền đúng chuẩn app gốc: 40s -> 2 phút -> Mỗi 10 phút
+        // Giãn nhịp thưa hơn để tránh làm phiền hệ thống (4 phút -> 15 phút)
         val delayMillis: Long = when (offStep) {
-            0 -> 40_000L      // 40 giây sau khi tắt màn
-            1 -> 120_000L     // Phút thứ 2
-            else -> 600_000L  // Mỗi 10 phút tiếp theo khi màn vẫn tắt
+            0 -> 240_000L     // 4 phút sau khi tắt màn
+            else -> 900_000L  // Mỗi 15 phút tiếp theo
         }
         handler.postDelayed(checkRunnable, delayMillis)
     }
 
-    private fun performProtection() {
+    private fun performQuietProtection() {
         try {
-            MilletNoRestrict.applyProtection(this)
-            // Gửi ping khôi phục FCM Socket
-            val intentGcm = Intent("com.google.android.intent.action.GCM_RECONNECT").apply {
-                setPackage("com.google.android.gms")
-            }
-            sendBroadcast(intentGcm)
+            // Chỉ gọi ghi bảo vệ Millet nếu thực sự cần thiết (bên trong ensureGms đã có kiểm tra thông minh)
+            // TUYỆT ĐỐI KHÔNG gửi broadcast GCM_RECONNECT để tránh làm đứt ngắt socket FCM
+            MilletNoRestrict.ensureGms(this)
         } catch (_: Throwable) {}
     }
 
@@ -111,7 +103,7 @@ class AurogonAllowlistService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        performProtection()
+        performQuietProtection()
         return START_STICKY
     }
 
