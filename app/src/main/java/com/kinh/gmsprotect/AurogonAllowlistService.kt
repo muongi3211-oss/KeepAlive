@@ -44,21 +44,19 @@ class AurogonAllowlistService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var isScreenOff = false
-    private var offStep = 0
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 Intent.ACTION_SCREEN_OFF -> {
                     isScreenOff = true
-                    offStep = 0
                     scheduleNextCheck()
                 }
                 Intent.ACTION_SCREEN_ON -> {
                     isScreenOff = false
                     handler.removeCallbacksAndMessages(null)
-                    // Chỉ củng cố 1 lần nhẹ nhàng khi bật sáng màn hình, KHÔNG ép reconnect mạng
-                    performQuietProtection()
+                    // Khi vừa sáng màn hình: Củng cố bảo vệ nhẹ nhàng
+                    performProtection(false)
                 }
             }
         }
@@ -66,8 +64,8 @@ class AurogonAllowlistService : Service() {
 
     private val checkRunnable = Runnable {
         if (isScreenOff) {
-            performQuietProtection()
-            offStep++
+            // Khi màn hình tắt: Thực hiện giữ nhịp định kỳ để chống timeout socket
+            performProtection(true)
             scheduleNextCheck()
         }
     }
@@ -76,19 +74,22 @@ class AurogonAllowlistService : Service() {
         handler.removeCallbacks(checkRunnable)
         if (!isScreenOff) return
 
-        // Giãn nhịp thưa hơn để tránh làm phiền hệ thống (4 phút -> 15 phút)
-        val delayMillis: Long = when (offStep) {
-            0 -> 240_000L     // 4 phút sau khi tắt màn
-            else -> 900_000L  // Mỗi 15 phút tiếp theo
-        }
+        // Nhịp duy trì tối ưu khi màn hình tắt: 20 phút / lần
+        // Đủ thưa để không làm reset socket liên tục, nhưng đủ gần để giữ kết nối FCM luôn sống
+        val delayMillis: Long = 1_200_000L // 20 phút
         handler.postDelayed(checkRunnable, delayMillis)
     }
 
-    private fun performQuietProtection() {
+    private fun performProtection(isKeepAlive: Boolean) {
         try {
-            // Chỉ gọi ghi bảo vệ Millet nếu thực sự cần thiết (bên trong ensureGms đã có kiểm tra thông minh)
-            // TUYỆT ĐỐI KHÔNG gửi broadcast GCM_RECONNECT để tránh làm đứt ngắt socket FCM
             MilletNoRestrict.ensureGms(this)
+            if (isKeepAlive) {
+                // Gửi ping giữ kết nối định kỳ để tránh hệ thống đóng băng socket TCP
+                val intentGcm = Intent("com.google.android.intent.action.GCM_RECONNECT").apply {
+                    setPackage("com.google.android.gms")
+                }
+                sendBroadcast(intentGcm)
+            }
         } catch (_: Throwable) {}
     }
 
@@ -103,7 +104,7 @@ class AurogonAllowlistService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        performQuietProtection()
+        performProtection(false)
         return START_STICKY
     }
 
