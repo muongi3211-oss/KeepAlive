@@ -34,19 +34,19 @@ jobs:
         gradle wrapper --gradle-version 8.5
         chmod +x gradlew
 
-    - name: Check version mode (v1.0 or v2.0)
+    - name: Check version mode (v2.0 or v3.0)
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Kiểm tra trực tiếp trên GitHub Releases xem v1.0 đã tồn tại chưa
-        if gh release view v1.0 >/dev/null 2>&1; then
+        # Kiểm tra xem v2.0 đã tồn tại trên GitHub chưa
+        if gh release view v2.0 >/dev/null 2>&1; then
+          echo "MODE=v3" >> $GITHUB_ENV
+          VERSION_NAME="3.0.${{ github.run_number }}"
+          echo "Release v2.0 đã tồn tại. Chuyển sang chế độ cập nhật/ghi đè v3.0."
+        else
           echo "MODE=v2" >> $GITHUB_ENV
           VERSION_NAME="2.0.${{ github.run_number }}"
-          echo "Release v1.0 đã tồn tại. Chuyển sang chế độ ghi đè v2.0."
-        else
-          echo "MODE=v1" >> $GITHUB_ENV
-          VERSION_NAME="1.0.${{ github.run_number }}"
-          echo "Release v1.0 chưa có. Tiến hành tạo bản v1.0 cố định."
+          echo "Release v2.0 chưa có. Tiến hành khóa và giữ lại bản v2.0 cố định."
         fi
         
         echo "VERSION_CODE=${{ github.run_number }}" >> $GITHUB_ENV
@@ -100,28 +100,25 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-        if [ "${{ env.MODE }}" = "v1" ]; then
-          echo "Đang tạo bản v1.0..."
-          gh release delete v1.0 --yes 2>/dev/null || true
-          git tag -d v1.0 2>/dev/null || true
-          git push origin --delete v1.0 2>/dev/null || true
-
-          git tag v1.0
-          git push origin v1.0
+        if [ "${{ env.MODE }}" = "v2" ]; then
+          echo "Đang khóa và giữ lại bản v2.0 cố định..."
+          git tag v2.0 2>/dev/null || true
+          git push origin v2.0 2>/dev/null || true
           
-          gh release create v1.0 app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
-            --title "GmsProtect v1.0 (Bản gốc cố định)" \
-            --notes "Bản v1.0 cố định được giữ lại làm mốc ổn định (Build #${{ env.VERSION_CODE }})."
-        else
-          echo "Đang cập nhật bản v2.0..."
-          gh release delete v2.0 --yes 2>/dev/null || true
-          git tag -d v2.0 2>/dev/null || true
-          git push origin --delete v2.0 2>/dev/null || true
-
-          git tag v2.0
-          git push origin v2.0 --force
-          
+          # Đảm bảo release v2.0 trỏ đúng tệp APK hiện tại nếu chưa có asset
           gh release create v2.0 app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
-            --title "GmsProtect v2.0 (Build #${{ env.VERSION_CODE }})" \
-            --notes "Bản cập nhật tự động mới nhất v2.0 (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
+            --title "GmsProtect v2.0 (Bản gốc cố định)" \
+            --notes "Bản v2.0 cố định được giữ lại làm mốc ổn định (Build #${{ env.VERSION_CODE }})." || true
+        else
+          echo "Đang cập nhật bản v3.0 (ghi đè)..."
+          gh release delete v3.0 --yes 2>/dev/null || true
+          git tag -d v3.0 2>/dev/null || true
+          git push origin --delete v3.0 2>/dev/null || true
+
+          git tag v3.0
+          git push origin v3.0 --force
+          
+          gh release create v3.0 app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
+            --title "GmsProtect v3.0 (Build #${{ env.VERSION_CODE }})" \
+            --notes "Bản cập nhật tự động mới nhất v3.0 (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
         fi
