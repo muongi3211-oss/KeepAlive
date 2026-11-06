@@ -1,76 +1,79 @@
-package com.kinh.gmsprotect
+package com.hanh.gmsprotect
 
 import android.content.Context
 import android.graphics.Color
-import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.view.Gravity
+import android.os.Build
 import android.view.View
+import android.view.WindowInsets
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.TextView
 
 object UiKit {
-    const val PRIMARY = 0xFF3F3D9B.toInt()
-    const val PRIMARY_DARK = 0xFF302E78.toInt()
-    const val PRIMARY_SOFT = 0xFFECEBFF.toInt()
-    const val BG = 0xFFF6F6FB.toInt()
-    const val SURFACE = 0xFFFFFFFF.toInt()
-    const val TEXT = 0xFF202033.toInt()
-    const val MUTED = 0xFF77778B.toInt()
-    const val BORDER = 0xFFE7E7F0.toInt()
-    const val SUCCESS = 0xFF28A96B.toInt()
-    const val SUCCESS_SOFT = 0xFFE7F7EF.toInt()
-    const val ERROR = 0xFFE45A62.toInt()
-    const val ERROR_SOFT = 0xFFFFECEE.toInt()
+    const val PRIMARY = 0xFF50647F.toInt()
+    const val PRIMARY_DARK = 0xFF35465E.toInt()
+    const val PRIMARY_SOFT = 0xFFEEEFF7.toInt()
+    const val BG = 0xFFF7F5FA.toInt()
+    const val SURFACE = 0xFFF7F5FA.toInt()
+    const val TEXT = 0xFF262832.toInt()
+    const val MUTED = 0xFF686A76.toInt()
+    const val BORDER = 0xFFE1DFE7.toInt()
+    const val SUCCESS = 0xFF16875E.toInt()
+    const val ERROR = 0xFFCA4A59.toInt()
 
     fun dp(context: Context, value: Int): Int {
         return (value * context.resources.displayMetrics.density + 0.5f).toInt()
     }
 
-    fun rounded(color: Int, radiusDp: Int, context: Context, strokeColor: Int? = null, strokeDp: Int = 1): GradientDrawable {
+    fun applyTopSystemInset(view: View) {
+        val left = view.paddingLeft
+        val top = view.paddingTop
+        val right = view.paddingRight
+        val bottom = view.paddingBottom
+        view.setOnApplyWindowInsetsListener { v, insets ->
+            val insetTop = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                insets.getInsets(WindowInsets.Type.statusBars()).top
+            else
+                insets.systemWindowInsetTop
+            v.setPadding(left, top + insetTop, right, bottom)
+            insets
+        }
+        view.requestApplyInsets()
+    }
+
+    fun applyBottomSystemInset(view: View) {
+        val left = view.paddingLeft
+        val top = view.paddingTop
+        val right = view.paddingRight
+        val bottom = view.paddingBottom
+        view.setOnApplyWindowInsetsListener { v, insets ->
+            val insetBottom = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                insets.getInsets(WindowInsets.Type.navigationBars()).bottom
+            else
+                insets.systemWindowInsetBottom
+            v.setPadding(left, top, right, bottom + insetBottom)
+            insets
+        }
+        view.requestApplyInsets()
+    }
+
+    fun rounded(color: Int, radiusDp: Int, context: Context): GradientDrawable {
+        return rounded(color, radiusDp, context, null, 1)
+    }
+
+    fun rounded(color: Int, radiusDp: Int, context: Context, strokeColor: Int?, strokeDp: Int): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             setColor(color)
             cornerRadius = dp(context, radiusDp).toFloat()
-            if (strokeColor != null) {
-                setStroke(dp(context, strokeDp), strokeColor)
-            }
-        }
-    }
-
-    fun verticalGradient(): GradientDrawable {
-        return GradientDrawable(
-            GradientDrawable.Orientation.TOP_BOTTOM,
-            intArrayOf(PRIMARY_DARK, PRIMARY)
-        )
-    }
-
-    fun applyTopSystemInset(view: View) {
-        val dpTop = dp(view.context, 12)
-        view.setPadding(view.paddingLeft, view.paddingTop + dpTop, view.paddingRight, view.paddingBottom)
-    }
-
-    fun applyBottomSystemInset(view: View) {
-        val dpBottom = dp(view.context, 12)
-        view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, view.paddingBottom + dpBottom)
-    }
-
-    fun pill(context: Context, text: String, bgColor: Int, textColor: Int): TextView {
-        return TextView(context).apply {
-            this.text = text
-            textSize = 12f
-            setTextColor(textColor)
-            setTypeface(typeface, Typeface.BOLD)
-            setPadding(dp(context, 12), dp(context, 6), dp(context, 12), dp(context, 6))
-            background = rounded(bgColor, 50, context)
+            if (strokeColor != null) setStroke(dp(context, strokeDp), strokeColor)
         }
     }
 
     fun muted(context: Context, text: String, size: Float): TextView {
         return TextView(context).apply {
             this.text = text
-            textSize = size
+            textSize = Math.max(size, 12.5f)
             setTextColor(MUTED)
         }
     }
@@ -79,10 +82,13 @@ object UiKit {
         return Button(context).apply {
             this.text = text
             isAllCaps = false
-            textSize = 14f
+            textSize = 15f
             setTextColor(Color.WHITE)
             background = rounded(PRIMARY, 14, context)
-            minHeight = dp(context, 50)
+            minHeight = dp(context, 48)
+            minimumHeight = dp(context, 48)
+            stateListAnimator = null
+            elevation = 0f
             setOnClickListener(action)
         }
     }
@@ -91,19 +97,14 @@ object UiKit {
         return Button(context).apply {
             this.text = text
             isAllCaps = false
-            textSize = 13f
+            textSize = 14f
             setTextColor(PRIMARY)
             background = rounded(PRIMARY_SOFT, 12, context, 0xFFD8D5F2.toInt(), 1)
-            minHeight = dp(context, 46)
+            minHeight = dp(context, 48)
+            minimumHeight = dp(context, 48)
+            stateListAnimator = null
+            elevation = 0f
             setOnClickListener(action)
-        }
-    }
-
-    fun card(context: Context): LinearLayout {
-        return LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(context, 16), dp(context, 16), dp(context, 16), dp(context, 16))
-            background = rounded(SURFACE, 20, context, BORDER, 1)
         }
     }
 }
