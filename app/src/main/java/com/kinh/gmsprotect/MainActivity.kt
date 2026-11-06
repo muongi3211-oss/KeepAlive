@@ -2,11 +2,8 @@ package com.kinh.gmsprotect
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Intent
-import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -16,7 +13,6 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
-import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -30,7 +26,6 @@ class MainActivity : Activity() {
     private var waitingAutostartSettingsReturn = false
     private var waitingWriteSettingsReturn = false
     private var waitingBatterySettingsReturn = false
-    private var donatePromptCheckedThisSession = false
     private var waitingAdvancedScreenReturn = false
     private var googleServiceCheckRow: LinearLayout? = null
     private var recheckGoogleRowAfterPause = false
@@ -57,7 +52,6 @@ class MainActivity : Activity() {
         if (GameWatchScheduler.shouldWatch(this)) GameWatchScheduler.ensure(this, "APP_OPEN")
 
         if (isSetupDone()) {
-            recordReturningLaunchForDonate()
             showMainScreen()
         } else {
             continueSetupFlow()
@@ -185,18 +179,7 @@ class MainActivity : Activity() {
 
     private fun setSetupDone(done: Boolean) {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val editor = prefs.edit().putBoolean(KEY_SETUP_DONE, done)
-        if (done && prefs.getLong(KEY_DONATE_START_MS, 0L) == 0L) {
-            editor.putLong(KEY_DONATE_START_MS, System.currentTimeMillis())
-            editor.putInt(KEY_DONATE_LAUNCH_COUNT, Math.max(1, prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0)))
-        }
-        editor.apply()
-    }
-
-    private fun recordReturningLaunchForDonate() {
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val launches = prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0)
-        prefs.edit().putInt(KEY_DONATE_LAUNCH_COUNT, launches + 1).apply()
+        prefs.edit().putBoolean(KEY_SETUP_DONE, done).apply()
     }
 
     private fun buildHeader(): View {
@@ -533,14 +516,10 @@ class MainActivity : Activity() {
         SettingsListUi.row(this, tools, R.drawable.sg_ic_history, getString(R.string.gamewatch_logs), getString(R.string.settings_history_desc), null, SettingsListUi.NEUTRAL) {
             startActivity(Intent(this, ActivityLogActivity::class.java))
         }
-        SettingsListUi.row(this, tools, R.drawable.sg_ic_heart, getString(R.string.donate_title), null, null, SettingsListUi.NEUTRAL) {
-            showDonateDialog()
-        }
         SettingsListUi.row(this, tools, R.drawable.sg_ic_info, getString(R.string.app_info), null, null, SettingsListUi.NEUTRAL) {
             showAboutDialog()
         }
         page.addView(tools, matchWidth())
-        page.post { maybeShowDonatePrompt() }
     }
 
     private fun addMicrogSeparator(page: LinearLayout) {
@@ -657,37 +636,6 @@ class MainActivity : Activity() {
         return setup
     }
 
-    private fun maybeShowDonatePrompt() {
-        if (donatePromptCheckedThisSession || !isSetupDone() || isFinishing) return
-        donatePromptCheckedThisSession = true
-
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val now = System.currentTimeMillis()
-        val start = prefs.getLong(KEY_DONATE_START_MS, 0L)
-        val launches = prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0)
-        val lastPrompt = prefs.getLong(KEY_DONATE_LAST_PROMPT_MS, 0L)
-        val promptCount = prefs.getInt(KEY_DONATE_PROMPT_COUNT, 0)
-
-        if (start <= 0L) {
-            prefs.edit().putLong(KEY_DONATE_START_MS, now).apply()
-            return
-        }
-        if (now - start < DONATE_FIRST_DELAY_MS) return
-        if (launches < DONATE_MIN_LAUNCHES) return
-        if (promptCount >= DONATE_MAX_AUTO_PROMPTS) return
-        if (lastPrompt > 0L && now - lastPrompt < DONATE_REPEAT_DELAY_MS) return
-
-        val days = Math.max(7L, (now - start) / DAY_MS)
-        prefs.edit().putLong(KEY_DONATE_LAST_PROMPT_MS, now).putInt(KEY_DONATE_PROMPT_COUNT, promptCount + 1).apply()
-
-        AlertDialog.Builder(this)
-            .setTitle(R.string.donate_reminder_title)
-            .setMessage(getString(R.string.donate_reminder_message, days))
-            .setPositiveButton(R.string.donate_button) { _, _ -> showDonateDialog() }
-            .setNegativeButton(R.string.donate_later, null)
-            .show()
-    }
-
     private fun openManagedApps() {
         waitingAdvancedScreenReturn = true
         startActivity(Intent(this, AdvancedAppsActivity::class.java))
@@ -696,7 +644,6 @@ class MainActivity : Activity() {
     private fun buildAppInfoCard(): View {
         val content = SettingsListUi.group(this).apply { setPadding(0, dp(4), 0, dp(8)) }
         SettingsListUi.row(this, content, R.drawable.sg_ic_info, getString(R.string.about_developer_label), getString(R.string.developer), null, SettingsListUi.NEUTRAL, null)
-        SettingsListUi.row(this, content, R.drawable.ic_facebook, getString(R.string.facebook), null, null, SettingsListUi.NEUTRAL) { openFacebookProfile() }
 
         val note = UiKit.muted(this, getString(R.string.about_note), 13f).apply {
             setLineSpacing(dp(2).toFloat(), 1.02f)
@@ -704,103 +651,6 @@ class MainActivity : Activity() {
         }
         content.addView(note, matchWidth())
         return content
-    }
-
-    private fun showDonateDialog() {
-        val usdtEvm = "0x4cC35bE54c358146E7b71E58f965532193848FDd"
-        val usdtTrc20 = "TD8fkqHy5cGQU3tFf7Qi7AeeqrAWi6e9Rm"
-
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(22), dp(10), dp(22), dp(12))
-        }
-
-        val thanks = TextView(this).apply {
-            text = getString(R.string.donate_thanks)
-            textSize = 14f
-            setTextColor(UiKit.TEXT)
-            gravity = Gravity.CENTER
-        }
-        content.addView(thanks, matchWidthWithBottom(dp(14)))
-
-        val qr = ImageView(this).apply {
-            setImageResource(R.drawable.donate_qr)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            adjustViewBounds = true
-            background = UiKit.rounded(Color.WHITE, 16, this@MainActivity)
-            setPadding(dp(10), dp(10), dp(10), dp(10))
-        }
-        content.addView(qr, LinearLayout.LayoutParams(dp(240), dp(240)))
-
-        val hint = UiKit.muted(this, getString(R.string.donate_qr_hint), 12f).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, dp(12), 0, dp(12))
-        }
-        content.addView(hint, matchWidth())
-
-        val cryptoTitle = TextView(this).apply {
-            text = getString(R.string.donate_usdt)
-            textSize = 13f
-            setTextColor(UiKit.TEXT)
-            setTypeface(typeface, Typeface.BOLD)
-        }
-        content.addView(cryptoTitle, matchWidth())
-        content.addView(buildCryptoAddressRow("USDT - EVM", usdtEvm), matchWidthWithTop(dp(8)))
-        content.addView(buildCryptoAddressRow("USDT - TRC20", usdtTrc20), matchWidthWithTop(dp(8)))
-
-        val warning = UiKit.muted(this, getString(R.string.donate_network_warning), 10.5f).apply {
-            setPadding(0, dp(9), 0, 0)
-        }
-        content.addView(warning, matchWidth())
-
-        val scroll = ScrollView(this).apply { addView(content, ScrollView.LayoutParams(-1, -2)) }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.donate_dialog_title)
-            .setView(scroll)
-            .setPositiveButton(R.string.close, null)
-            .show()
-    }
-
-    private fun buildCryptoAddressRow(network: String, address: String): View {
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(11), dp(9), dp(9), dp(9))
-            background = UiKit.rounded(0xFFF8F7FF.toInt(), 12, this@MainActivity, UiKit.BORDER, 1)
-        }
-
-        val label = TextView(this).apply {
-            text = network
-            textSize = 12.5f
-            setTextColor(UiKit.TEXT)
-            setTypeface(typeface, Typeface.BOLD)
-        }
-        box.addView(label, matchWidth())
-
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(5), 0, 0)
-        }
-
-        val value = TextView(this).apply {
-            text = address
-            textSize = 12.5f
-            setTextColor(UiKit.MUTED)
-            setTextIsSelectable(true)
-            setTypeface(Typeface.MONOSPACE)
-        }
-        row.addView(value, LinearLayout.LayoutParams(0, -2, 1f))
-
-        val copy = UiKit.secondaryButton(this, getString(R.string.copy)) {
-            val cm = getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager
-            cm?.setPrimaryClip(ClipData.newPlainText(network, address))
-            toast(getString(R.string.copied_address, network))
-        }
-        val copyLp = LinearLayout.LayoutParams(dp(82), dp(42)).apply { leftMargin = dp(8) }
-        row.addView(copy, copyLp)
-        box.addView(row, matchWidth())
-        return box
     }
 
     private fun openWriteSettingsAccess() {
@@ -872,14 +722,6 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun openFacebookProfile() {
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.facebook.com/mrhankytb")))
-        } catch (t: Throwable) {
-            toast(getString(R.string.facebook_failed))
-        }
-    }
-
     private fun toast(value: String) { Toast.makeText(this, value, Toast.LENGTH_SHORT).show() }
     private fun dp(value: Int): Int = UiKit.dp(this, value)
     private fun matchWidth(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(-1, -2)
@@ -890,15 +732,5 @@ class MainActivity : Activity() {
         private const val PREFS = "setup_v1"
         private const val KEY_SETUP_DONE = "setup_done"
         private const val KEY_BATTERY_USER_CONFIRMED = "battery_user_confirmed_v1"
-        private const val KEY_DONATE_START_MS = "donate_start_ms"
-        private const val KEY_DONATE_LAUNCH_COUNT = "donate_launch_count"
-        private const val KEY_DONATE_LAST_PROMPT_MS = "donate_last_prompt_ms"
-        private const val KEY_DONATE_PROMPT_COUNT = "donate_prompt_count"
-
-        private const val DAY_MS = 24L * 60L * 60L * 1000L
-        private const val DONATE_FIRST_DELAY_MS = 7L * DAY_MS
-        private const val DONATE_REPEAT_DELAY_MS = 30L * DAY_MS
-        private const val DONATE_MIN_LAUNCHES = 3
-        private const val DONATE_MAX_AUTO_PROMPTS = 3
     }
 }
