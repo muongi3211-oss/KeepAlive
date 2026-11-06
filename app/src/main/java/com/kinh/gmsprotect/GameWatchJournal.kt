@@ -228,8 +228,25 @@ object GameWatchJournal {
             val code = legacyCode(cat, msg) ?: continue
             var whenTime = now
             try {
-                whenTime = format.parse("$year-${match.group(1)}").time
+                whenTime = format.parse("$year-${match.group(1)}")?.time ?: now
                 if (whenTime > now + 12L * 3600_000L) {
-                    whenTime = format.parse("${year - 1}-${match.group(1)}").time
+                    whenTime = format.parse("${year - 1}-${match.group(1)}")?.time ?: now
                 }
-            } catch
+            } catch (ignored: ParseException) {
+                // Giữ nguyên mốc thời gian hiện tại nếu phân tích cú pháp ngày tháng cũ lỗi
+            }
+            into.add(Event(whenTime, whenTime, 1, kindFor(code), code, fingerprint(code, sanitize(msg)), sanitize(msg)))
+        }
+    }
+
+    private fun legacyCode(cat: String?, msg: String?): String? {
+        val c = cat ?: ""
+        val m = msg ?: ""
+        if (c == "ERROR") return "game_error"
+        if (c == "CHANGE") return "game_changed"
+        if (c == "REPAIR") return "game_repaired"
+        if (c == "WATCH") return "watch_registered"
+        if (m.contains("error")) return "watch_error"
+        return null
+    }
+}
