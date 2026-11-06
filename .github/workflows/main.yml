@@ -35,7 +35,7 @@ jobs:
     - name: Set up Dynamic Version
       run: |
         VERSION_CODE=${{ github.run_number }}
-        VERSION_NAME="1.0.$VERSION_CODE"
+        VERSION_NAME="2.0.$VERSION_CODE"
         
         echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
         echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
@@ -80,21 +80,21 @@ jobs:
         name: app-release-apk
         path: app/build/outputs/apk/release/*.apk
 
-    - name: Delete old latest release and tag
+    - name: Delete old v2.0 release and tag only
       uses: dev-drprasad/delete-tag-and-release@v0.2.1
       with:
         delete_release: true
-        tag_name: latest
+        tag_name: v2.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       continue-on-error: true
 
-    - name: Publish to GitHub Releases
+    - name: Publish to GitHub Releases (v2.0 Overwrite)
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: latest
-        name: "GmsProtect v${{ env.VERSION_NAME }}"
-        body: "Bản cập nhật tự động mới nhất v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
+        tag_name: v2.0
+        name: "GmsProtect v2.0 (Build #${{ env.VERSION_CODE }})"
+        body: "Bản cập nhật tự động mới nhất v2.0 (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
         files: |
           app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk
       env:
