@@ -1,4 +1,4 @@
-package com.kinh.gmsprotect
+package con.kinh.gmsprotect
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -69,7 +69,7 @@ object GameWatchJournal {
     }
 
     fun add(c: Context, category: String?, message: String?) {
-        Log.i(TAG, "[$category] $message")
+        Log.i(TAG, "[$category]$message")
         val raw = message ?: ""
         val cat = category ?: ""
         if ("CHECK" == cat || "BASELINE" == cat || ("JOB" == cat && !raw.startsWith("END rearm=false"))) return
@@ -99,7 +99,7 @@ object GameWatchJournal {
 
     @Synchronized
     fun event(c: Context, code: String?, technicalDetail: String?) {
-        if (c == null || code.isNullOrEmpty()) return
+        if (code.isNullOrEmpty()) return
         try {
             val detail = sanitize(technicalDetail)
             val kind = kindFor(code)
@@ -187,7 +187,8 @@ object GameWatchJournal {
         val json = p.getString(HISTORY, "[]")
         try {
             val a = JSONArray(json)
-            for (i in 0 until a.length() && list.size < LIMIT) {
+            for (i in 0 until a.length()) {
+                if (list.size >= LIMIT) break
                 val o = a.optJSONObject(i)
                 if (o != null && o.optLong("t", 0L) > 0L) list.add(Event.parse(o))
             }
@@ -231,26 +232,4 @@ object GameWatchJournal {
                 if (whenTime > now + 12L * 3600_000L) {
                     whenTime = format.parse("${year - 1}-${match.group(1)}").time
                 }
-            } catch (ignored: ParseException) {}
-            val detail = sanitize(msg)
-            into.add(Event(whenTime, whenTime, 1, kindFor(code), code, fingerprint(code, detail), detail))
-        }
-    }
-
-    private fun legacyCode(cat: String?, msg: String?): String? {
-        if ("ERROR" == cat) return "game_error"
-        if ("ADV" == cat) return "app_error"
-        if ("CHANGE" == cat && msg != null && !msg.startsWith("from=SELF_WRITE")) return "game_changed"
-        if ("REPAIR" == cat && msg != null) {
-            return if (msg.contains("concurrent_settings_update")) "game_deferred"
-            else if (msg.contains("verified=true")) "game_repaired"
-            else "game_error"
-        }
-        if ("COMPAT" == cat && msg != null && msg.contains("dual-entry repair verified")) return "watch_verified"
-        if ("WATCH" == cat && msg != null) {
-            if (msg.startsWith("schedule=true") && !msg.contains("reason=JOB_REARM")) return "watch_registered"
-            if (msg.contains("error") || msg.startsWith("schedule=false")) return "watch_error"
-        }
-        return null
-    }
-}
+            } catch
