@@ -134,8 +134,7 @@
     <string name="onboarding_overview_subtitle">Hoàn thành các bước dưới đây để ứng dụng hoạt động tối ưu.</string>
     <string name="onboarding_section_label">Tiến trình thiết lập</string>
     <string name="onboarding_completed_format">%1$d / %2$d hoàn thành</string>
-    <string name="onboarding_autostart_name">Tự khởi động (Autostart)</string>
-    <string name="autostart_name">Tự khởi động</string>
+    <string name="onboarding_autostart_name">Tự khởi động</string>
     <string name="onboarding_autostart_desc">Cho phép ứng dụng khởi động cùng hệ thống</string>
     <string name="onboarding_system_name">Quyền ghi hệ thống</string>
     <string name="onboarding_system_desc">Cho phép chỉnh sửa danh sách trắng Millet</string>
