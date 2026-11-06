@@ -113,7 +113,6 @@
     <string name="ui_status_sent">Đã gửi</string>
     <string name="gamewatch_logs">Nhật ký hoạt động</string>
     <string name="settings_history_desc">Xem lịch sử bảo vệ và sự kiện nền</string>
-    <string name="donate_title">Ủng hộ nhà phát triển</string>
     <string name="close_button">Đóng</string>
     <string name="dashboard_gms">Google Play Services</string>
     <string name="dashboard_greezer">Greezer Signal</string>
@@ -121,7 +120,6 @@
     <string name="settings105_mipush_note">MiPush giúp duy trì thông báo và kết nối nền ổn định.</string>
     <string name="settings_protection">Trạng thái bảo vệ</string>
     <string name="about_developer_label">Nhà phát triển</string>
-    <string name="facebook">Facebook</string>
     <string name="about_note">Ứng dụng mã nguồn mở hỗ trợ bảo vệ tiến trình nền trên các thiết bị chạy HyperOS.</string>
     <string name="setup">Cài đặt ban đầu</string>
     <string name="autostart_setup_missing">Chưa cấp quyền tự khởi động.</string>
@@ -130,19 +128,6 @@
     <string name="system_access_applied">Đã áp dụng quyền hệ thống.</string>
     <string name="system_access_apply_failed">Áp dụng quyền thất bại.</string>
     <string name="about_app_title">Thông tin ứng dụng</string>
-    
-    <!-- Donate Dialog -->
-    <string name="donate_reminder_title">Ủng hộ dự án</string>
-    <string name="donate_reminder_message">Cảm ơn bạn đã sử dụng ứng dụng trong %1$d ngày qua. Nếu ứng dụng hữu ích, bạn có thể cân nhắc ủng hộ nhà phát triển!</string>
-    <string name="donate_button">Ủng hộ ngay</string>
-    <string name="donate_later">Để sau</string>
-    <string name="donate_thanks">Cảm ơn sự đồng hành và hỗ trợ của bạn!</string>
-    <string name="donate_qr_hint">Quét mã QR qua ứng dụng ngân hàng hoặc ví điện tử</string>
-    <string name="donate_usdt">Địa chỉ ví USDT (Crypto)</string>
-    <string name="donate_network_warning">Vui lòng kiểm tra kỹ mạng lưới trước khi chuyển khoản crypto.</string>
-    <string name="donate_dialog_title">Ủng hộ nhà phát triển</string>
-    <string name="copy">Sao chép</string>
-    <string name="copied_address">Đã sao chép địa chỉ %1$s</string>
 
     <!-- Onboarding & Fallbacks -->
     <string name="onboarding_overview_title">Thiết lập bảo vệ</string>
@@ -175,7 +160,9 @@
     <string name="autostart_not_enabled">Chưa bật tự khởi động.</string>
     <string name="system_access_not_granted">Chưa cấp quyền Write Settings.</string>
     <string name="system_access_settings_fallback">Vui lòng cấp quyền thủ công trong cài đặt hệ thống.</string>
-    <string name="facebook_failed">Không thể mở liên kết Facebook.</string>
+    <string name="battery_doze_granted">Đã được miễn trừ tối ưu pin nền.</string>
+    <string name="battery_doze_missing">Chưa được miễn trừ tối ưu pin.</string>
+    <string name="battery_continue">Xác nhận tiếp tục</string>
     <string name="ui_status_error">Lỗi</string>
     <string name="settings105_mipush_not_sent">Chưa gửi</string>
 </resources>
