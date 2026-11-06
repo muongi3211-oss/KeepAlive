@@ -34,13 +34,14 @@ jobs:
         gradle wrapper --gradle-version 8.5
         chmod +x gradlew
 
-    - name: Set up Dynamic Version (v1.0.101+)
+    - name: Set up Dynamic Version (v2.0.01+)
       run: |
         RUN_NUM=${{ github.run_number }}
-        # Tự động tính toán số phiên bản tăng dần bắt đầu từ 1.0.101 dựa trên run_number hiện tại
-        PATCH_VERSION=$(( 100 + RUN_NUM ))
+        
+        # Định dạng số thứ tự thành 2 chữ số (01, 02, 03, ...) để đi sau v2.0.
+        PATCH_VERSION=$(printf "%02d" $RUN_NUM)
         VERSION_CODE=$RUN_NUM
-        VERSION_NAME="1.0.$PATCH_VERSION"
+        VERSION_NAME="2.0.$PATCH_VERSION"
         
         echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
         echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
@@ -95,11 +96,10 @@ jobs:
 
         TAG_NAME="v${{ env.VERSION_NAME }}"
         
-        # Tạo tag mới hoàn toàn độc lập cho lần build này (Không thực hiện xóa bất kỳ tag/release cũ nào)
+        # Tạo tag và release mới độc lập hoàn toàn, không xóa bất kỳ bản cũ nào
         git tag "$TAG_NAME"
         git push origin "$TAG_NAME"
         
-        # Tạo trang Release riêng biệt ứng với mỗi lần chạy
         gh release create "$TAG_NAME" app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
           --title "GmsProtect v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }})" \
           --notes "Bản phát hành tự động v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
