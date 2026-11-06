@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Cấp quyền để GitHub Actions tạo và cập nhật Release
+      contents: write  # Cấp quyền để GitHub Actions tạo Release mới độc lập
 
     steps:
     - name: Checkout repository
@@ -34,24 +34,17 @@ jobs:
         gradle wrapper --gradle-version 8.5
         chmod +x gradlew
 
-    - name: Check version mode (v2.0 or v3.0)
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Set up Dynamic Version (v1.0.101+)
       run: |
-        # Kiểm tra xem v2.0 đã tồn tại trên GitHub chưa
-        if gh release view v2.0 >/dev/null 2>&1; then
-          echo "MODE=v3" >> $GITHUB_ENV
-          VERSION_NAME="3.0.${{ github.run_number }}"
-          echo "Release v2.0 đã tồn tại. Chuyển sang chế độ cập nhật/ghi đè v3.0."
-        else
-          echo "MODE=v2" >> $GITHUB_ENV
-          VERSION_NAME="2.0.${{ github.run_number }}"
-          echo "Release v2.0 chưa có. Tiến hành khóa và giữ lại bản v2.0 cố định."
-        fi
+        RUN_NUM=${{ github.run_number }}
+        # Tự động tính toán số phiên bản tăng dần bắt đầu từ 1.0.101 dựa trên run_number hiện tại
+        PATCH_VERSION=$(( 100 + RUN_NUM ))
+        VERSION_CODE=$RUN_NUM
+        VERSION_NAME="1.0.$PATCH_VERSION"
         
-        echo "VERSION_CODE=${{ github.run_number }}" >> $GITHUB_ENV
+        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
         echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
-        echo "Building version: $VERSION_NAME"
+        echo "Building version: $VERSION_NAME (Code: $VERSION_CODE)"
 
     - name: Build Release APK
       run: ./gradlew assembleRelease -PAPK_VERSION_CODE=${{ env.VERSION_CODE }} -PAPK_VERSION_NAME=${{ env.VERSION_NAME }}
@@ -92,7 +85,7 @@ jobs:
         name: app-release-apk
         path: app/build/outputs/apk/release/*.apk
 
-    - name: Publish to GitHub Releases
+    - name: Publish Unique Release to GitHub
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -100,25 +93,13 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-        if [ "${{ env.MODE }}" = "v2" ]; then
-          echo "Đang khóa và giữ lại bản v2.0 cố định..."
-          git tag v2.0 2>/dev/null || true
-          git push origin v2.0 2>/dev/null || true
-          
-          # Đảm bảo release v2.0 trỏ đúng tệp APK hiện tại nếu chưa có asset
-          gh release create v2.0 app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
-            --title "GmsProtect v2.0 (Bản gốc cố định)" \
-            --notes "Bản v2.0 cố định được giữ lại làm mốc ổn định (Build #${{ env.VERSION_CODE }})." || true
-        else
-          echo "Đang cập nhật bản v3.0 (ghi đè)..."
-          gh release delete v3.0 --yes 2>/dev/null || true
-          git tag -d v3.0 2>/dev/null || true
-          git push origin --delete v3.0 2>/dev/null || true
-
-          git tag v3.0
-          git push origin v3.0 --force
-          
-          gh release create v3.0 app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
-            --title "GmsProtect v3.0 (Build #${{ env.VERSION_CODE }})" \
-            --notes "Bản cập nhật tự động mới nhất v3.0 (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
-        fi
+        TAG_NAME="v${{ env.VERSION_NAME }}"
+        
+        # Tạo tag mới hoàn toàn độc lập cho lần build này (Không thực hiện xóa bất kỳ tag/release cũ nào)
+        git tag "$TAG_NAME"
+        git push origin "$TAG_NAME"
+        
+        # Tạo trang Release riêng biệt ứng với mỗi lần chạy
+        gh release create "$TAG_NAME" app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
+          --title "GmsProtect v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }})" \
+          --notes "Bản phát hành tự động v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
