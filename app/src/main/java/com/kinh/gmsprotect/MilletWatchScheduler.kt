@@ -1,4 +1,4 @@
-package com.hanh.gmsprotect
+package com.kinh.gmsprotect
 
 import android.app.job.JobInfo
 import android.app.job.JobScheduler
