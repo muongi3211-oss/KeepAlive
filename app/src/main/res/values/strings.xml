@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">GMS Protect</string>
     <string name="header_subtitle">Bảo vệ tiến trình nền HyperOS</string>
+    <string name="ui_short_header">Duy trì danh sách trắng và chống đóng băng nền</string>
     
     <!-- Aurogon Service -->
     <string name="aurogon_notification_channel">Aurogon Background Monitor</string>
@@ -58,7 +59,7 @@
     <string name="compat_check_hyperos_failed">Kiểm tra HyperOS thất bại</string>
 
     <!-- Setup & Autostart -->
-    <string name="step_format">Bước %1$d / %2$d</string>
+    <string name="step_format">Bước %1$d / \%2$d</string>
     <string name="autostart_title">Khởi động tự động</string>
     <string name="autostart_body_auto">Bật quyền tự khởi động trong Security Center.</string>
     <string name="autostart_button">Mở cài đặt Autostart</string>
@@ -73,8 +74,10 @@
     <string name="battery_hyperos_check_limited">Kiểm tra tùy chọn pin HyperOS.</string>
     <string name="battery_button">Yêu cầu bỏ tối ưu pin</string>
     <string name="battery_continue">Tiếp tục</string>
+    <string name="battery_review">Xem lại cài đặt pin</string>
+    <string name="battery_setup_missing">Cần xác nhận pin.</string>
     
-    <!-- Main Status -->
+    <!-- Main Status & Settings UI -->
     <string name="status_protected">Đã được bảo vệ</string>
     <string name="status_unavailable">Không khả dụng</string>
     <string name="status_failed">Thất bại</string>
@@ -90,30 +93,65 @@
     <string name="play_store_no_restrict_missing">Play Store No-Restrict: Thiếu</string>
     <string name="play_store_no_restrict_permission_needed">Play Store No-Restrict: Cần quyền</string>
     <string name="retry">Thử lại</string>
+    <string name="close">Đóng</string>
     <string name="compat_card_desc">Xem chi tiết trạng thái tương thích.</string>
     <string name="compat_open">Mở trình kiểm tra</string>
-    
-    <!-- Advanced -->
-    <string name="setup">Cài đặt thiết lập</string>
-    <string name="autostart_setup_missing">Thiếu quyền khởi động tự động.</string>
-    <string name="system_access_setup_line">Thiếu quyền truy cập hệ thống.</string>
+
+    <string name="settings13_self_check">Kiểm tra trạng thái hệ thống</string>
+    <string name="settings13_self_check_desc">Chẩn đoán nhanh các thành phần bảo vệ</string>
+    <string name="settings13_google_section">Dịch vụ Google &amp; Ứng dụng</string>
+    <string name="settings14_checking">Đang kiểm tra trạng thái…</string>
+    <string name="settings_gms_service_title">Trạng thái Google Mobile Services</string>
+    <string name="settings_protection_details_desc">Nhấn để xem chi tiết danh sách trắng</string>
+    <string name="ui_section_apps">Ứng dụng nâng cao</string>
+    <string name="adv_main_desc">Đang quản lý %1$d ứng dụng</string>
+    <string name="ui_section_attention">Cần chú ý</string>
+    <string name="settings_tools">Công cụ hệ thống</string>
+    <string name="settings_battery_short">Tối ưu pin &amp; Doze</string>
+    <string name="ui_status_verified">Đã tối ưu</string>
+    <string name="ui_status_missing">Chưa tối ưu</string>
+    <string name="ui_status_sent">Đã gửi</string>
+    <string name="gamewatch_logs">Nhật ký hoạt động</string>
+    <string name="settings_history_desc">Xem lịch sử bảo vệ và sự kiện nền</string>
+    <string name="donate_title">Ủng hộ nhà phát triển</string>
+    <string name="close_button">Đóng</string>
+    <string name="dashboard_gms">Google Play Services</string>
+    <string name="dashboard_greezer">Greezer Signal</string>
+    <string name="dashboard_play_store">Google Play Store</string>
+    <string name="settings105_mipush_note">MiPush giúp duy trì thông báo và kết nối nền ổn định.</string>
+    <string name="settings_protection">Trạng thái bảo vệ</string>
+    <string name="about_developer_label">Nhà phát triển</string>
+    <string name="facebook">Facebook</string>
+    <string name="about_note">Ứng dụng mã nguồn mở hỗ trợ bảo vệ tiến trình nền trên các thiết bị chạy HyperOS.</string>
+    <string name="setup">Cài đặt ban đầu</string>
+    <string name="autostart_setup_missing">Chưa cấp quyền tự khởi động.</string>
+    <string name="system_access_setup_line">Chưa cấp quyền ghi cấu hình hệ thống.</string>
     <string name="system_access_apply_now">Áp dụng ngay</string>
     <string name="system_access_applied">Đã áp dụng quyền hệ thống.</string>
-    <string name="system_access_apply_failed">Áp dụng thất bại.</string>
-    <string name="battery_setup_missing">Cần xác nhận pin.</string>
-    <string name="battery_review">Xem lại cài đặt pin</string>
-    <string name="app_info">Thông tin ứng dụng</string>
-    <string name="developer">Phát triển bởi Hanh / Kinh</string>
-    <string name="about_note">Ứng dụng bảo vệ tiến trình nền.</string>
-    <string name="autostart_not_enabled">Chưa bật tự khởi động.</string>
-    <string name="system_access_not_granted">Chưa cấp quyền hệ thống.</string>
-    <string name="advanced">Nâng cao</string>
-    <string name="aurogon_allowlist_title">Aurogon Allowlist</string>
-    <string name="aurogon_allowlist_desc">Tự động làm mới bộ lọc khi tắt màn hình.</string>
-    <string name="aurogon_allowlist_failed">Không bật được Aurogon.</string>
-    <string name="aurogon_allowlist_enabled">Đã bật Aurogon Allowlist.</string>
-    <string name="aurogon_allowlist_disabled">Đã tắt Aurogon Allowlist.</string>
-    <string name="aurogon_allowlist_timing">Thời gian: 40s / 2m / 10m.</string>
-    <string name="battery_request_unavailable">Không khả dụng.</string>
-    <string name="settings_hint_autostart">Vui lòng bật trong Cài đặt.</string>
-</resources>
+    <string name="system_access_apply_failed">Áp dụng quyền thất bại.</string>
+    <string name="about_app_title">Thông tin ứng dụng</string>
+    
+    <!-- Donate Dialog -->
+    <string name="donate_reminder_title">Ủng hộ dự án</string>
+    <string name="donate_reminder_message">Cảm ơn bạn đã sử dụng ứng dụng trong %1$d ngày qua. Nếu ứng dụng hữu ích, bạn có thể cân nhắc ủng hộ nhà phát triển!</string>
+    <string name="donate_button">Ủng hộ ngay</string>
+    <string name="donate_later">Để sau</string>
+    <string name="donate_thanks">Cảm ơn sự đồng hành và hỗ trợ của bạn!</string>
+    <string name="donate_qr_hint">Quét mã QR qua ứng dụng ngân hàng hoặc ví điện tử</string>
+    <string name="donate_usdt">Địa chỉ ví USDT (Crypto)</string>
+    <string name="donate_network_warning">Vui lòng kiểm tra kỹ mạng lưới trước khi chuyển khoản crypto.</string>
+    <string name="donate_dialog_title">Ủng hộ nhà phát triển</string>
+    <string name="copy">Sao chép</string>
+    <string name="copied_address">Đã sao chép địa chỉ %1$s</string>
+
+    <!-- Onboarding & Fallbacks -->
+    <string name="onboarding_overview_title">Thiết lập bảo vệ</string>
+    <string name="onboarding_overview_subtitle">Hoàn thành các bước dưới đây để ứng dụng hoạt động tối ưu.</string>
+    <string name="onboarding_section_label">Tiến trình thiết lập</string>
+    <string name="onboarding_completed_format">%1$d / \%2$d hoàn thành</string>
+    <string name="onboarding_autostart_name">Tự khởi động (Autostart)</string>
+    <string name="onboarding_autostart_desc">Cho phép ứng dụng khởi động cùng hệ thống</string>
+    <string name="onboarding_system_name">Quyền ghi hệ thống</string>
+    <string name="onboarding_system_desc">Cho phép chỉnh sửa danh sách trắng Millet</string>
+    <string name="onboarding_battery_name">Chế độ tiết kiệm pin</string>
+    <string name="onboarding_battery_desc">
