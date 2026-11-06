@@ -69,7 +69,7 @@
     <string name="system_access_button">Cấp quyền Write Settings</string>
     <string name="battery_title">Tối ưu pin</string>
     <string name="battery_body">Chọn Không hạn chế pin.</string>
-    <string name="battery_doze_granted">Đã miễn trừ Doze</string>
+    <string name="battery_doze_granted">Đã được miễn trừ tối ưu pin nền.</string>
     <string name="battery_doze_missing">Chưa miễn trừ Doze</string>
     <string name="battery_hyperos_check_limited">Kiểm tra tùy chọn pin HyperOS.</string>
     <string name="battery_button">Yêu cầu bỏ tối ưu pin</string>
@@ -160,7 +160,6 @@
     <string name="autostart_not_enabled">Chưa bật tự khởi động.</string>
     <string name="system_access_not_granted">Chưa cấp quyền Write Settings.</string>
     <string name="system_access_settings_fallback">Vui lòng cấp quyền thủ công trong cài đặt hệ thống.</string>
-    <string name="battery_doze_granted">Đã được miễn trừ tối ưu pin nền.</string>
     <string name="battery_doze_missing">Chưa được miễn trừ tối ưu pin.</string>
     <string name="battery_continue">Xác nhận tiếp tục</string>
     <string name="ui_status_error">Lỗi</string>
