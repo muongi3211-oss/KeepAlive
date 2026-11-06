@@ -1,36 +1,44 @@
-package com.kinh.gmsprotect
+package com.hanh.gmsprotect
 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        try {
-            val action = intent?.action
-            Log.i("BootReceiver", "Received action: $action")
-
-            // Gọi đồng thời schedule từ MilletHelper hoặc MilletWatchScheduler an toàn
+        val action = intent?.action
+        if (Intent.ACTION_LOCKED_BOOT_COMPLETED == action ||
+            Intent.ACTION_BOOT_COMPLETED == action ||
+            Intent.ACTION_USER_UNLOCKED == action ||
+            Intent.ACTION_MY_PACKAGE_REPLACED == action
+        ) {
+            val pending = goAsync()
             try {
-                MilletHelper.schedule(context)
-            } catch (_: Throwable) {
-                try {
+                if (Intent.ACTION_LOCKED_BOOT_COMPLETED != action && GameWatchCore.isEnabled(context)) {
+                    val targetsReady = GameWatchCore.ensureTargets(context, "BOOT_$action")
+                    val jobReady = GameWatchScheduler.ensure(context, "BOOT_$action")
+                    if (Intent.ACTION_BOOT_COMPLETED == action || Intent.ACTION_USER_UNLOCKED == action) {
+                        GameWatchEvidence.noteBoot(context, targetsReady && jobReady)
+                    }
+                }
+                if (Intent.ACTION_LOCKED_BOOT_COMPLETED != action) {
+                    try {
+                        AdvancedAppProtector.maintain(context, "BOOT_$action")
+                        if (GameWatchScheduler.shouldWatch(context)) {
+                            GameWatchScheduler.ensure(context, "BOOT_ADV_$action")
+                        }
+                    } catch (ignored: Throwable) {}
+                }
+                if (Intent.ACTION_LOCKED_BOOT_COMPLETED != action) {
+                    LegacyBackgroundCleanup.runOnce(context)
+                }
+                GmsProtector.protect(context) {
                     MilletWatchScheduler.schedule(context)
-                } catch (_: Throwable) {}
+                    pending.finish()
+                }
+            } catch (t: Throwable) {
+                pending.finish()
             }
-
-            // Khi khởi động thiết bị hoặc mở khóa, tự động áp dụng bảo vệ Millet
-            if (action == Intent.ACTION_BOOT_COMPLETED || 
-                action == "android.intent.action.LOCKED_BOOT_COMPLETED" || 
-                action == Intent.ACTION_USER_UNLOCKED ||
-                action == Intent.ACTION_MY_PACKAGE_REPLACED) {
-                try {
-                    MilletNoRestrict.applyProtection(context)
-                } catch (_: Throwable) {}
-            }
-        } catch (t: Throwable) {
-            Log.e("BootReceiver", "Error in onReceive: ${t.message}", t)
         }
     }
 }
