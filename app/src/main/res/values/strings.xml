@@ -59,7 +59,7 @@
     <string name="compat_check_hyperos_failed">Kiểm tra HyperOS thất bại</string>
 
     <!-- Setup & Autostart -->
-    <string name="step_format">Bước %1$d / \%2$d</string>
+    <string name="step_format">Bước %1$d / %2$d</string>
     <string name="autostart_title">Khởi động tự động</string>
     <string name="autostart_body_auto">Bật quyền tự khởi động trong Security Center.</string>
     <string name="autostart_button">Mở cài đặt Autostart</string>
@@ -148,10 +148,38 @@
     <string name="onboarding_overview_title">Thiết lập bảo vệ</string>
     <string name="onboarding_overview_subtitle">Hoàn thành các bước dưới đây để ứng dụng hoạt động tối ưu.</string>
     <string name="onboarding_section_label">Tiến trình thiết lập</string>
-    <string name="onboarding_completed_format">%1$d / \%2$d hoàn thành</string>
+    <string name="onboarding_completed_format">%1$d / %2$d hoàn thành</string>
     <string name="onboarding_autostart_name">Tự khởi động (Autostart)</string>
     <string name="onboarding_autostart_desc">Cho phép ứng dụng khởi động cùng hệ thống</string>
     <string name="onboarding_system_name">Quyền ghi hệ thống</string>
     <string name="onboarding_system_desc">Cho phép chỉnh sửa danh sách trắng Millet</string>
     <string name="onboarding_battery_name">Chế độ tiết kiệm pin</string>
-    <string name="onboarding_battery_desc">
+    <string name="onboarding_battery_desc">Tránh bị hệ thống đóng băng tiến trình nền</string>
+    <string name="onboarding_instruction_label">Hướng dẫn thao tác</string>
+    <string name="onboarding_info_note">Các thiết lập này là bắt buộc trên HyperOS để giữ cho thông báo và dịch vụ nền không bị bóp băng thông/RAM.</string>
+    <string name="onboarding_next_pending">Tiếp tục</string>
+    <string name="autostart_manual_continue">Xác nhận đã bật thủ công</string>
+    <string name="onboarding_verified">Đã xác thực</string>
+    <string name="onboarding_confirmed">Đã xác nhận</string>
+    <string name="onboarding_pending">Chưa hoàn tất</string>
+
+    <!-- Advanced -->
+    <string name="advanced">Nâng cao</string>
+    <string name="aurogon_allowlist_title">Aurogon Allowlist</string>
+    <string name="aurogon_allowlist_desc">Tự động làm mới bộ lọc khi tắt màn hình.</string>
+    <string name="aurogon_allowlist_failed">Không bật được Aurogon.</string>
+    <string name="aurogon_allowlist_enabled">Đã bật Aurogon Allowlist.</string>
+    <string name="aurogon_allowlist_disabled">Đã tắt Aurogon Allowlist.</string>
+    <string name="aurogon_allowlist_timing">Thời gian: 40s / 2m / 10m.</string>
+    <string name="battery_request_unavailable">Không khả dụng.</string>
+    <string name="settings_hint_autostart">Vui lòng bật quyền tự khởi động trong thông tin ứng dụng.</string>
+    <string name="autostart_not_enabled">Chưa bật tự khởi động.</string>
+    <string name="system_access_not_granted">Chưa cấp quyền Write Settings.</string>
+    <string name="system_access_settings_fallback">Vui lòng cấp quyền thủ công trong cài đặt hệ thống.</string>
+    <string name="battery_doze_granted">Đã được miễn trừ tối ưu pin nền.</string>
+    <string name="battery_doze_missing">Chưa được miễn trừ tối ưu pin.</string>
+    <string name="battery_continue">Xác nhận tiếp tục</string>
+    <string name="facebook_failed">Không thể mở liên kết Facebook.</string>
+    <string name="ui_status_error">Lỗi</string>
+    <string name="settings105_mipush_not_sent">Chưa gửi</string>
+</resources>
