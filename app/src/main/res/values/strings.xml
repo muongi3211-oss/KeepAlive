@@ -135,6 +135,7 @@
     <string name="onboarding_section_label">Tiến trình thiết lập</string>
     <string name="onboarding_completed_format">%1$d / %2$d hoàn thành</string>
     <string name="onboarding_autostart_name">Tự khởi động (Autostart)</string>
+    <string name="autostart_name">Tự khởi động</string>
     <string name="onboarding_autostart_desc">Cho phép ứng dụng khởi động cùng hệ thống</string>
     <string name="onboarding_system_name">Quyền ghi hệ thống</string>
     <string name="onboarding_system_desc">Cho phép chỉnh sửa danh sách trắng Millet</string>
@@ -160,7 +161,6 @@
     <string name="autostart_not_enabled">Chưa bật tự khởi động.</string>
     <string name="system_access_not_granted">Chưa cấp quyền Write Settings.</string>
     <string name="system_access_settings_fallback">Vui lòng cấp quyền thủ công trong cài đặt hệ thống.</string>
-    <string name="battery_continue">Xác nhận tiếp tục</string>
     <string name="ui_status_error">Lỗi</string>
     <string name="settings105_mipush_not_sent">Chưa gửi</string>
 </resources>
