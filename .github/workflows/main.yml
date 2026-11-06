@@ -80,6 +80,20 @@ jobs:
         name: app-release-apk
         path: app/build/outputs/apk/release/*.apk
 
+    - name: Ensure permanent v1.0 Release Exists
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Kiểm tra xem tag v1.0 đã có trên repo chưa, nếu chưa có thì tạo mới một lần duy nhất
+        if ! gh release view v1.0 &>/dev/null; then
+          echo "Release v1.0 chưa tồn tại, đang tạo bản v1.0 cố định..."
+          gh release create v1.0 app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
+            --title "GmsProtect v1.0 (Bản gốc cố định)" \
+            --notes "Bản v1.0 cố định được giữ lại làm mốc ổn định."
+        else
+          echo "Release v1.0 đã tồn tại, bỏ qua để bảo vệ dữ liệu cũ."
+        fi
+
     - name: Delete old v2.0 release and tag only
       uses: dev-drprasad/delete-tag-and-release@v0.2.1
       with:
