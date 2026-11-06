@@ -1,4 +1,4 @@
-package com.hanh.gmsprotect
+package com.kinh.gmsprotect
 
 import android.app.job.JobParameters
 import android.app.job.JobService
