@@ -158,7 +158,6 @@
     <string name="onboarding_instruction_label">Hướng dẫn thao tác</string>
     <string name="onboarding_info_note">Các thiết lập này là bắt buộc trên HyperOS để giữ cho thông báo và dịch vụ nền không bị bóp băng thông/RAM.</string>
     <string name="onboarding_next_pending">Tiếp tục</string>
-    <string name="autostart_manual_continue">Xác nhận đã bật thủ công</string>
     <string name="onboarding_verified">Đã xác thực</string>
     <string name="onboarding_confirmed">Đã xác nhận</string>
     <string name="onboarding_pending">Chưa hoàn tất</string>
