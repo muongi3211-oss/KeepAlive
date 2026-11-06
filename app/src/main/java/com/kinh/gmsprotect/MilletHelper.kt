@@ -10,7 +10,7 @@ object MilletHelper {
 
     fun applyMilletProtection(context: Context) {
         try {
-            // Đảm bảo gọi đúng phương thức cấu hình danh sách trắng Millet có sẵn
+            // Đồng bộ phương thức chính xác từ MilletNoRestrict
             MilletNoRestrict.ensureGms(context)
             isPropAccepted = true
             systemPropStatus = "ĐÃ ÁP DỤNG"
