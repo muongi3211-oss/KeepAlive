@@ -16,7 +16,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Lấy toàn bộ lịch sử và tag để kiểm tra v1.0
+        fetch-depth: 0  # Lấy toàn bộ lịch sử và tag
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -34,14 +34,24 @@ jobs:
         gradle wrapper --gradle-version 8.5
         chmod +x gradlew
 
-    - name: Set up Dynamic Version
+    - name: Check version mode (v1.0 or v2.0)
       run: |
-        VERSION_CODE=${{ github.run_number }}
-        VERSION_NAME="2.0.$VERSION_CODE"
+        git fetch --tags
         
-        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+        # Nếu chưa có tag v1.0 thì lần chạy này sẽ là v1.0 và giữ lại vĩnh viễn
+        if ! git rev-parse v1.0 >/dev/null 2>&1; then
+          echo "MODE=v1" >> $GITHUB_ENV
+          VERSION_NAME="1.0.${{ github.run_number }}"
+          echo "Creating v1.0 permanent release..."
+        else
+          echo "MODE=v2" >> $GITHUB_ENV
+          VERSION_NAME="2.0.${{ github.run_number }}"
+          echo "v1.0 already exists. Operating in v2.0 overwrite mode..."
+        fi
+        
+        echo "VERSION_CODE=${{ github.run_number }}" >> $GITHUB_ENV
         echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
-        echo "Building version: $VERSION_NAME (Code: $VERSION_CODE)"
+        echo "Building version: $VERSION_NAME"
 
     - name: Build Release APK
       run: ./gradlew assembleRelease -PAPK_VERSION_CODE=${{ env.VERSION_CODE }} -PAPK_VERSION_NAME=${{ env.VERSION_NAME }}
@@ -82,43 +92,35 @@ jobs:
         name: app-release-apk
         path: app/build/outputs/apk/release/*.apk
 
-    - name: Ensure permanent v1.0 Release Exists
+    - name: Publish to GitHub Releases
       env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        git fetch --tags
-        if ! git rev-parse v1.0 >/dev/null 2>&1; then
-          echo "Tag v1.0 chưa tồn tại. Đang tạo bản v1.0 cố định..."
-          
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+        if [ "${{ env.MODE }}" = "v1" ]; then
+          # Xóa bản v2.0 cũ (nếu có trên GitHub) để nhường chỗ cho mốc v1.0
+          gh release delete v2.0 --yes || true
+          git push origin --delete v2.0 || true
+
+          # Tạo và đẩy bản v1.0 cố định
           git tag v1.0
           git push origin v1.0
           
           gh release create v1.0 app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
             --title "GmsProtect v1.0 (Bản gốc cố định)" \
-            --notes "Bản v1.0 cố định được giữ lại làm mốc ổn định."
+            --notes "Bản v1.0 cố định được giữ lại làm mốc ổn định (Build #${{ env.VERSION_CODE }})."
         else
-          echo "Tag v1.0 đã tồn tại, bỏ qua để bảo vệ dữ liệu cũ."
+          # Chế độ v2.0: Xóa bản v2.0 cũ và ghi đè bản mới nhất
+          gh release delete v2.0 --yes || true
+          git push origin --delete v2.0 || true
+
+          git tag v2.0
+          git push origin v2.0
+          
+          gh release create v2.0 app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
+            --title "GmsProtect v2.0 (Build #${{ env.VERSION_CODE }})" \
+            --notes "Bản cập nhật tự động mới nhất v2.0 (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
         fi
-
-    - name: Delete old v2.0 release and tag only
-      uses: dev-drprasad/delete-tag-and-release@v0.2.1
-      with:
-        delete_release: true
-        tag_name: v2.0
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      continue-on-error: true
-
-    - name: Publish to GitHub Releases (v2.0 Overwrite)
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: v2.0
-        name: "GmsProtect v2.0 (Build #${{ env.VERSION_CODE }})"
-        body: "Bản cập nhật tự động mới nhất v2.0 (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
-        files: |
-          app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
