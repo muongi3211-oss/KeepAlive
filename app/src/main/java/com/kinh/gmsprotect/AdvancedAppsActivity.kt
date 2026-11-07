@@ -954,7 +954,6 @@ class AdvancedAppsActivity : Activity() {
         list.adapter = adapter
         // Sửa lỗi ép kiểu số nguyên sang Float bằng cách thêm hậu tố f (Đã fix lỗi dòng 934)
         box.addView(list, LinearLayout.LayoutParams(-1, dp(430)))
-
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.adv_choose_app)
             .setView(box)
