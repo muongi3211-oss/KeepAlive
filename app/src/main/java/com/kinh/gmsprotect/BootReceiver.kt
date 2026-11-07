@@ -14,6 +14,15 @@ class BootReceiver : BroadcastReceiver() {
         ) {
             val pending = goAsync()
             try {
+                // CHỐT AN TOÀN: Nếu ứng dụng chưa hoàn tất thiết lập (setup_done = false),
+                // tuyệt đối không cho phép các dịch vụ ngầm chạy tự động khi khởi động máy.
+                val prefs = context.getSharedPreferences("setup_v1", Context.MODE_PRIVATE)
+                val isSetupDone = prefs.getBoolean("setup_done", false)
+                if (!isSetupDone) {
+                    pending.finish()
+                    return
+                }
+
                 if (Intent.ACTION_LOCKED_BOOT_COMPLETED != action && GameWatchCore.isEnabled(context)) {
                     val targetsReady = GameWatchCore.ensureTargets(context, "BOOT_$action")
                     val jobReady = GameWatchScheduler.ensure(context, "BOOT_$action")
