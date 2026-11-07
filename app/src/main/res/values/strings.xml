@@ -120,7 +120,6 @@
     <string name="settings13_self_check">Kiểm tra trạng thái hệ thống</string>
     <string name="settings13_self_check_desc">Chẩn đoán nhanh các thành phần bảo vệ</string>
     <string name="settings13_google_section">Dịch vụ Google &amp; Ứng dụng</string>
-    <string name="settings14_checking">Đang kiểm tra trạng thái…</string>
     <string name="settings14_verified">Đã xác thực dịch vụ</string>
     <string name="settings14_request_failed">Gửi yêu cầu thất bại</string>
     <string name="settings14_attention">Cần chú ý hệ thống</string>
