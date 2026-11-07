@@ -32,7 +32,8 @@ class AurogonAllowlistService : Service() {
                 val prefs = context.getSharedPreferences("GMSProtectPrefs", Context.MODE_PRIVATE)
                 val isAurogonEnabled = prefs.getBoolean("pref_aurogon_allowlist", false)
                 
-                MilletNoRestrict.applyProtection(context)
+                // Sửa lỗi: Gọi qua GameWatchEvidence thay vì MilletNoRestrict
+                GameWatchEvidence.applyProtection(context)
                 MilletWatchScheduler.schedule(context)
 
                 if (isAurogonEnabled) {
@@ -75,7 +76,6 @@ class AurogonAllowlistService : Service() {
         if (!isScreenOff) return
 
         // Nhịp duy trì tối ưu khi màn hình tắt: 20 phút / lần
-        // Đủ thưa để không làm reset socket liên tục, nhưng đủ gần để giữ kết nối FCM luôn sống
         val delayMillis: Long = 1_200_000L // 20 phút
         handler.postDelayed(checkRunnable, delayMillis)
     }
