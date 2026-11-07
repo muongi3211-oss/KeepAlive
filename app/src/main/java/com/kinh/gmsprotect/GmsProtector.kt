@@ -21,7 +21,6 @@ object GmsProtector {
         val app = context.applicationContext
         Log.i(TAG, "protect START package=" + app.packageName)
 
-        // CHỐT AN TOÀN 1: Nếu chưa có quyền ghi hệ thống (lần đầu mở app chưa cấp quyền), tuyệt đối không chạy ngầm gây crash
         try {
             if (!MilletNoRestrict.canWrite(app)) {
                 Log.w(TAG, "protect skipped: WRITE_SETTINGS permission not granted yet.")
@@ -67,7 +66,6 @@ object GmsProtector {
             return Result.FAILED
         }
 
-        // CHỐT AN TOÀN 2: Chỉ chạy các tiến trình phụ trợ khi đã vượt qua kiểm tra hệ thống
         try {
             if (GameWatchCore.isEnabled(app)) {
                 GameWatchCore.ensureTargets(app, "GMS_PROTECT")
@@ -78,7 +76,12 @@ object GmsProtector {
         }
 
         return try {
-            GmsBindingProbe.ensureBound(app)
+            try {
+                GmsBindingProbe.ensureBound(app)
+            } catch (t: Throwable) {
+                Log.w(TAG, "GmsBindingProbe failed safely", t)
+            }
+            
             val mipushSent = continueProtection(app, recoveryFinished)
             if (!mipushSent) {
                 Log.e(TAG, "protect FAILED because MiPush protect broadcast was not sent")
