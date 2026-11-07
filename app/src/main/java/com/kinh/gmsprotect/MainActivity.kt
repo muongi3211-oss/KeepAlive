@@ -32,45 +32,58 @@ class MainActivity : Activity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
-        window.statusBarColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) UiKit.BG else UiKit.PRIMARY_DARK
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-        }
-        window.navigationBarColor = UiKit.SURFACE
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-        }
+        try {
+            window.statusBarColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) UiKit.BG else UiKit.PRIMARY_DARK
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            }
+            window.navigationBarColor = UiKit.SURFACE
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            }
 
-        protectResult = GmsProtector.protect(this)
-        LegacyBackgroundCleanup.runOnce(this)
+            protectResult = try { GmsProtector.protect(this) } catch (_: Throwable) { GmsProtector.Result.FAILED }
+            try { LegacyBackgroundCleanup.runOnce(this) } catch (_: Throwable) {}
 
-        MilletWatchScheduler.schedule(this)
-        if (GameWatchCore.isEnabled(this)) {
-            GameWatchCore.ensureTargets(this, "APP_OPEN")
-        }
-        AdvancedAppProtector.maintain(this, "APP_OPEN")
-        if (GameWatchScheduler.shouldWatch(this)) GameWatchScheduler.ensure(this, "APP_OPEN")
+            try {
+                MilletWatchScheduler.schedule(this)
+                if (GameWatchCore.isEnabled(this)) {
+                    GameWatchCore.ensureTargets(this, "APP_OPEN")
+                }
+                AdvancedAppProtector.maintain(this, "APP_OPEN")
+                if (GameWatchScheduler.shouldWatch(this)) GameWatchScheduler.ensure(this, "APP_OPEN")
+            } catch (_: Throwable) {}
 
-        if (isSetupDone()) {
-            showMainScreen()
-        } else {
-            continueSetupFlow()
+            if (isSetupDone()) {
+                showMainScreen()
+            } else {
+                continueSetupFlow()
+            }
+        } catch (e: Throwable) {
+            android.util.Log.e("MainActivity", "Crash prevented in onCreate", e)
+            try {
+                showMainScreen()
+            } catch (_: Throwable) {
+                finish()
+            }
         }
     }
 
     override fun onPause() {
-        GameWatchEvidence.noteUi(this, false)
+        try { GameWatchEvidence.noteUi(this, false) } catch (_: Throwable) {}
         recheckGoogleRowAfterPause = googleServiceCheckRow != null
         super.onPause()
     }
 
     override fun onResume() {
         super.onResume()
-        GameWatchEvidence.noteUi(this, true)
-        if (GameWatchCore.isEnabled(this)) {
-            GameWatchCore.ensureTargets(this, "APP_RESUME")
-        }
-        if (GameWatchScheduler.shouldWatch(this)) GameWatchScheduler.ensure(this, "APP_RESUME")
+        try {
+            GameWatchEvidence.noteUi(this, true)
+            if (GameWatchCore.isEnabled(this)) {
+                GameWatchCore.ensureTargets(this, "APP_RESUME")
+            }
+            if (GameWatchScheduler.shouldWatch(this)) GameWatchScheduler.ensure(this, "APP_RESUME")
+        } catch (_: Throwable) {}
 
         if (waitingAdvancedScreenReturn) {
             waitingAdvancedScreenReturn = false
@@ -236,7 +249,8 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(10), dp(18), dp(14))
         }
-        scroll.addView(page, FrameLayout.LayoutParams(-1, -2))
+        // Đã sửa thành ScrollView.LayoutParams để tránh crash ClassCastException
+        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val heading = LinearLayout(this).apply {
