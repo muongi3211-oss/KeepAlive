@@ -1,6 +1,5 @@
 package com.kinh.gmsprotect
 
-import android.view.ViewGroup.LayoutParams
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -8,7 +7,6 @@ import android.content.Context
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
-import android.view.View
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -68,7 +66,6 @@ class ActivityLogActivity : Activity() {
 
     private fun loadLogs() {
         container.removeAllViews()
-        // Sử dụng entries thay vì getAll cho GameWatchJournal
         val logs = GameWatchJournal.entries(this)
         if (logs.isEmpty()) {
             val empty = TextView(this).apply {
@@ -91,7 +88,7 @@ class ActivityLogActivity : Activity() {
             val lp = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) }
 
             val tagText = TextView(this).apply {
-                text = "[${log.kind}] ${log.code}" // Sử dụng code và kind thay cho tag
+                text = "[${log.kind}] ${log.code}"
                 textSize = 11.5f
                 setTextColor(UiKit.PRIMARY)
                 setTypeface(typeface, Typeface.BOLD)
@@ -100,7 +97,7 @@ class ActivityLogActivity : Activity() {
 
             if (log.detail.isNotEmpty()) {
                 val msgText = TextView(this).apply {
-                    text = log.detail // Sử dụng detail thay cho message
+                    text = log.detail
                     textSize = 13f
                     setTextColor(UiKit.TEXT)
                     setPadding(0, dp(4), 0, 0)
