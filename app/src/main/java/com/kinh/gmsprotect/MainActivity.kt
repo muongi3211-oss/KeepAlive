@@ -13,6 +13,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup.LayoutParams
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -262,7 +263,7 @@ class MainActivity : Activity() {
         for (i in 0..2) {
             val segment = View(this)
             val color = if (complete[i]) UiKit.SUCCESS else if (i == onboardingStep) UiKit.PRIMARY else UiKit.BORDER
-            segment.background = UiKit.rounded(color, 4, this)
+            segment.background = UiKit.rounded(color, 4, this@MainActivity)
             val lp = LinearLayout.LayoutParams(0, dp(5), 1f)
             if (i > 0) lp.leftMargin = dp(7)
             progress.addView(segment, lp)
@@ -284,7 +285,7 @@ class MainActivity : Activity() {
 
         val permissionRows = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = UiKit.rounded(UiKit.BG, 16, this)
+            background = UiKit.rounded(UiKit.BG, 16, this@MainActivity)
         }
         addOnboardingRow(permissionRows, 0, R.drawable.sg_ic_power, R.string.onboarding_autostart_name, R.string.onboarding_autostart_desc, complete[0], autostart == XiaomiSetupState.AutostartState.ALLOWED)
         onboardingDivider(permissionRows)
@@ -313,7 +314,7 @@ class MainActivity : Activity() {
             gravity = Gravity.TOP
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(11), dp(10), dp(11), dp(10))
-            background = UiKit.rounded(UiKit.PRIMARY_SOFT, 12, this)
+            background = UiKit.rounded(UiKit.PRIMARY_SOFT, 12, this@MainActivity)
         }
         val hintIcon = ImageView(this).apply {
             setImageResource(R.drawable.sg_ic_info)
@@ -473,7 +474,7 @@ class MainActivity : Activity() {
 
         val verify = SettingsListUi.group(this)
         SettingsListUi.row(this, verify, R.drawable.sg_ic_check, getString(R.string.settings13_self_check), getString(R.string.settings13_self_check_desc), null, SettingsListUi.NEUTRAL) {
-            startActivity(Intent(this, CompatibilityActivity::class.java))
+            startActivity(Intent(this@MainActivity, CompatibilityActivity::class.java))
         }
         page.addView(verify, matchWidth())
         addMicrogSeparator(page)
@@ -510,11 +511,11 @@ class MainActivity : Activity() {
             this, tools, R.drawable.sg_ic_battery, getString(R.string.settings_battery_short),
             getString(if (doze) R.string.ui_status_verified else R.string.ui_status_missing), null, if (doze) SettingsListUi.GOOD else SettingsListUi.BAD
         ) {
-            if (!BatterySetupState.isIgnoringBatteryOptimizations(this)) requestAndroidBatteryExemption()
+            if (!BatterySetupState.isIgnoringBatteryOptimizations(this@MainActivity)) requestAndroidBatteryExemption()
             else showAndroidBatteryInfo()
         }
         SettingsListUi.row(this, tools, R.drawable.sg_ic_history, getString(R.string.gamewatch_logs), getString(R.string.settings_history_desc), null, SettingsListUi.NEUTRAL) {
-            startActivity(Intent(this, ActivityLogActivity::class.java))
+            startActivity(Intent(this@MainActivity, ActivityLogActivity::class.java))
         }
         SettingsListUi.row(this, tools, R.drawable.sg_ic_info, getString(R.string.app_info), null, null, SettingsListUi.NEUTRAL) {
             showAboutDialog()
@@ -564,7 +565,7 @@ class MainActivity : Activity() {
             .setPositiveButton(R.string.close, null)
             .create()
         dialog.setOnShowListener {
-            dialog.window?.setBackgroundDrawable(UiKit.rounded(UiKit.BG, 20, this))
+            dialog.window?.setBackgroundDrawable(UiKit.rounded(UiKit.BG, 20, this@MainActivity))
             val close = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
             close?.apply {
                 isAllCaps = false
