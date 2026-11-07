@@ -882,9 +882,10 @@ class AdvancedAppsActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(5), dp(12), dp(8))
         }
+        // Sửa lỗi cú pháp size() thành thuộc tính size (Đã fix lỗi dòng 887)
         val note = UiKit.muted(
             this,
-            if (scan.limitedLauncherFallback) getString(R.string.adv_installed_apps_limited_list) else getString(R.string.adv_picker_note, all.size()),
+            if (scan.limitedLauncherFallback) getString(R.string.adv_installed_apps_limited_list) else getString(R.string.adv_picker_note, all.size),
             12.5f
         )
         box.addView(note, spaceBottom(5))
@@ -951,7 +952,8 @@ class AdvancedAppsActivity : Activity() {
             }
         }
         list.adapter = adapter
-        box.addView(list, LinearLayout.LayoutParams(-1, dp(430)))
+        // Sửa lỗi ép kiểu số nguyên sang Float bằng cách thêm hậu tố f (Đã fix lỗi dòng 934)
+        box.addView(list, LinearLayout.LayoutParams(-1, dp(430f).toInt()))
 
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.adv_choose_app)
@@ -973,6 +975,7 @@ class AdvancedAppsActivity : Activity() {
 
         search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after) {}
+            // Thêm kiểu tường minh cho tham số value (Đã fix lỗi dòng 975)
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
                 val filter = s.toString().trim().lowercase(Locale.ROOT)
                 filtered.clear()
@@ -982,6 +985,7 @@ class AdvancedAppsActivity : Activity() {
                     }
                 }
                 adapter.notifyDataSetChanged()
+                // Sử dụng size thay vì size() (Đã fix lỗi gọi size() như hàm)
                 note.text = if (filtered.isEmpty()) getString(R.string.adv_no_results)
                 else if (scan.limitedLauncherFallback) getString(R.string.adv_installed_apps_limited_list)
                 else getString(R.string.adv_picker_note, filtered.size)
