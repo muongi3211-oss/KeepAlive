@@ -230,7 +230,7 @@ class MainActivity : Activity() {
         val root = shell()
         val scroll = ScrollView(this).apply {
             isFillViewport = true
-            isClipToPadding = false
+            clipToPadding = false
         }
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -460,7 +460,7 @@ class MainActivity : Activity() {
         val frame = FrameLayout(this).apply { setBackgroundColor(UiKit.BG) }
         val scroll = ScrollView(this).apply {
             isFillViewport = true
-            isClipToPadding = false
+            clipToPadding = false
         }
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         UiKit.applyBottomSystemInset(page)
