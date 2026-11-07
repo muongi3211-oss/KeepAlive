@@ -32,7 +32,9 @@ object AdvancedAppStore {
         val text = prefs(c).getString(LIST, "[]")
         try {
             val a = JSONArray(text)
-            for (i in 0 until a.length() && result.size < MAX_APPS) {
+            // Sửa lại cú pháp vòng lặp for chuẩn Kotlin (Đã fix lỗi dòng 35)
+            for (i in 0 until a.length()) {
+                if (result.size >= MAX_APPS) break
                 val obj = a.optJSONObject(i) ?: continue
                 val pkg = obj.optString("pkg", "")
                 if (!valid(c, pkg)) continue
