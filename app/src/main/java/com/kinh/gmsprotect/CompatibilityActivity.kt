@@ -46,7 +46,7 @@ class CompatibilityActivity : Activity() {
         val scroll = ScrollView(this).apply { isFillViewport = true }
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         UiKit.applyBottomSystemInset(page)
-        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(page, FrameLayout.LayoutParams(-1, -2))
         frame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
         SettingsMotion.collapsingBar(this, frame, scroll, getString(R.string.compat_title)) { finish() }
         setContentView(frame)
