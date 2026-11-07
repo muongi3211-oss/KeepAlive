@@ -43,13 +43,17 @@ object GameWatchCore {
         }
     }
 
+    // ĐÃ SỬA: Bọc try-catch an toàn tuyệt đối tránh văng khi đọc Settings.System
     fun raw(c: Context): String? {
-        return Settings.System.getString(c.contentResolver, KEY)
+        return try {
+            Settings.System.getString(c.contentResolver, KEY)
+        } catch (t: Throwable) {
+            null
+        }
     }
 
     fun contains(raw: String?, pkg: String): Boolean {
         if (TextUtils.isEmpty(raw)) return false
-        // Sử dụng toán tử an toàn (?) để xử lý chuỗi raw có thể null
         for (part in raw?.split("_".toRegex())?.dropLastWhile { it.isEmpty() } ?: emptyList()) {
             if (pkg == part.trim()) return true
         }
@@ -94,26 +98,34 @@ object GameWatchCore {
 
     @Synchronized
     private fun recordError(c: Context, message: String) {
-        prefs(c).edit().putString(LAST_ERROR, message).commit()
-        GameWatchJournal.add(c, "ERROR", message)
+        try {
+            prefs(c).edit().putString(LAST_ERROR, message).commit()
+            GameWatchJournal.add(c, "ERROR", message)
+        } catch (_: Throwable) {}
     }
 
     @Synchronized
     fun onJobStart(c: Context, uriTriggered: Boolean) {
-        val p = prefs(c)
-        val e = p.edit().putLong(RUNS, p.getLong(RUNS, 0L) + 1L).putLong(LAST_JOB, System.currentTimeMillis())
-        if (uriTriggered) e.putLong(URI_EVENTS, p.getLong(URI_EVENTS, 0L) + 1L)
-        e.commit()
+        try {
+            val p = prefs(c)
+            val e = p.edit().putLong(RUNS, p.getLong(RUNS, 0L) + 1L).putLong(LAST_JOB, System.currentTimeMillis())
+            if (uriTriggered) e.putLong(URI_EVENTS, p.getLong(URI_EVENTS, 0L) + 1L)
+            e.commit()
+        } catch (_: Throwable) {}
     }
 
     fun ensureTargets(c: Context, reason: String): Boolean {
-        val managed = ArrayList<String>()
-        for (e in AdvancedAppStore.list(c)) {
-            if (e.enabled && e.pkg.indexOf('_') < 0 && AdvancedAppProtector.isInstalled(c, e.pkg)) {
-                managed.add(e.pkg)
+        try {
+            val managed = ArrayList<String>()
+            for (e in AdvancedAppStore.list(c)) {
+                if (e.enabled && e.pkg.indexOf('_') < 0 && AdvancedAppProtector.isInstalled(c, e.pkg)) {
+                    managed.add(e.pkg)
+                }
             }
+            return ensurePackages(c, managed, reason)
+        } catch (_: Throwable) {
+            return false
         }
-        return ensurePackages(c, managed, reason)
     }
 
     @Synchronized
@@ -146,30 +158,36 @@ object GameWatchCore {
                 }
             }
             if (missing == 0) {
-                if (lastError(c).isNotEmpty()) prefs(c).edit().putString(LAST_ERROR, "").commit()
-                GameWatchJournal.add(c, "CHECK", "$reason already_present targets=${wanted.size}")
+                if (lastError(c).isNotEmpty()) {
+                    try { prefs(c).edit().putString(LAST_ERROR, "").commit() } catch (_: Throwable) {}
+                }
+                try { GameWatchJournal.add(c, "CHECK", "$reason already_present targets=${wanted.size}") } catch (_: Throwable) {}
                 return true
             }
             val justBefore = raw(c)
             if (!(previous == null && justBefore == null || previous == justBefore)) {
-                GameWatchJournal.add(c, "REPAIR", "$reason concurrent_settings_update, defer")
+                try { GameWatchJournal.add(c, "REPAIR", "$reason concurrent_settings_update, defer") } catch (_: Throwable) {}
                 return false
             }
-            val put = Settings.System.putString(c.contentResolver, KEY, candidate)
+            val put = try { Settings.System.putString(c.contentResolver, KEY, candidate) } catch (_: Throwable) { false }
             val actual = raw(c)
             var verified = put
             for (pkg in wanted) verified = verified and contains(actual, pkg)
-            GameWatchJournal.add(
-                c, "REPAIR", "$reason missingGMS=" + !hadGms +
-                        " missingAPP=" + !hadSelf + " missingTotal=$missing targets=${wanted.size} put=$put verified=$verified"
-            )
+            try {
+                GameWatchJournal.add(
+                    c, "REPAIR", "$reason missingGMS=" + !hadGms +
+                            " missingAPP=" + !hadSelf + " missingTotal=$missing targets=${wanted.size} put=$put verified=$verified"
+                )
+            } catch (_: Throwable) {}
             observe(c, "SELF_WRITE")
             if (verified) {
-                val p = prefs(c)
-                p.edit().putLong(WRITES, p.getLong(WRITES, 0L) + 1L)
-                    .putLong(LAST_REPAIR, System.currentTimeMillis())
-                    .putString(LAST_ERROR, "")
-                    .commit()
+                try {
+                    val p = prefs(c)
+                    p.edit().putLong(WRITES, p.getLong(WRITES, 0L) + 1L)
+                        .putLong(LAST_REPAIR, System.currentTimeMillis())
+                        .putString(LAST_ERROR, "")
+                        .commit()
+                } catch (_: Throwable) {}
             } else {
                 recordError(c, "Repair unverified; reason=$reason")
             }
