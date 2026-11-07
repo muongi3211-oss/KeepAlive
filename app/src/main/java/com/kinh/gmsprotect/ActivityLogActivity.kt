@@ -57,7 +57,7 @@ class ActivityLogActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(8), dp(18), dp(24))
         }
-        scroll.addView(container, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(container, FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         setContentView(root)
