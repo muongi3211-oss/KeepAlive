@@ -1,6 +1,5 @@
 package com.kinh.gmsprotect
 
-import android.view.ViewGroup.LayoutParams
 import android.app.Activity
 import android.content.pm.PackageManager
 import android.graphics.Typeface
