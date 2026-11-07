@@ -35,7 +35,6 @@ object GameWatchJournal {
         val key: String,
         val detail: String
     ) {
-        @Throws(JSONException::class)
         fun json(): JSONObject {
             return JSONObject().apply {
                 put("t", timeMs)
@@ -69,32 +68,34 @@ object GameWatchJournal {
     }
 
     fun add(c: Context, category: String?, message: String?) {
-        Log.i(TAG, "[$category]$message")
-        val raw = message ?: ""
-        val cat = category ?: ""
-        if ("CHECK" == cat || "BASELINE" == cat || ("JOB" == cat && !raw.startsWith("END rearm=false"))) return
-        if ("COMPAT" == cat) {
-            if (raw.startsWith("real URI dual-entry repair verified")) event(c, "watch_verified", "GameWatchEvidence: $raw")
-            else if (raw.contains("failed")) event(c, "game_error", "COMPAT $raw")
-            return
-        }
-        if ("CHANGE" == cat) {
-            if (!raw.startsWith("from=SELF_WRITE")) event(c, "game_changed", raw)
-            return
-        }
-        if ("REPAIR" == cat) {
-            if (raw.contains("concurrent_settings_update")) event(c, "game_deferred", raw)
-            else if (raw.contains("verified=true")) event(c, "game_repaired", raw)
-            return
-        }
-        if ("WATCH" == cat) {
-            if (raw.startsWith("schedule=true") && !raw.contains("reason=JOB_REARM")) event(c, "watch_registered", raw)
-            else if (raw.contains("error") || raw.startsWith("schedule=false")) event(c, "watch_error", raw)
-            return
-        }
-        if ("ERROR" == cat) { event(c, "game_error", raw); return }
-        if ("ADV" == cat) { event(c, "app_error", raw); return }
-        if ("JOB" == cat) { event(c, "watch_error", raw) }
+        try {
+            Log.i(TAG, "[$category]$message")
+            val raw = message ?: ""
+            val cat = category ?: ""
+            if ("CHECK" == cat || "BASELINE" == cat || ("JOB" == cat && !raw.startsWith("END rearm=false"))) return
+            if ("COMPAT" == cat) {
+                if (raw.startsWith("real URI dual-entry repair verified")) event(c, "watch_verified", "GameWatchEvidence: $raw")
+                else if (raw.contains("failed")) event(c, "game_error", "COMPAT $raw")
+                return
+            }
+            if ("CHANGE" == cat) {
+                if (!raw.startsWith("from=SELF_WRITE")) event(c, "game_changed", raw)
+                return
+            }
+            if ("REPAIR" == cat) {
+                if (raw.contains("concurrent_settings_update")) event(c, "game_deferred", raw)
+                else if (raw.contains("verified=true")) event(c, "game_repaired", raw)
+                return
+            }
+            if ("WATCH" == cat) {
+                if (raw.startsWith("schedule=true") && !raw.contains("reason=JOB_REARM")) event(c, "watch_registered", raw)
+                else if (raw.contains("error") || raw.startsWith("schedule=false")) event(c, "watch_error", raw)
+                return
+            }
+            if ("ERROR" == cat) { event(c, "game_error", raw); return }
+            if ("ADV" == cat) { event(c, "app_error", raw); return }
+            if ("JOB" == cat) { event(c, "watch_error", raw) }
+        } catch (_: Throwable) {}
     }
 
     @Synchronized
@@ -120,7 +121,7 @@ object GameWatchJournal {
             }
             if (!merged) all.add(0, Event(now, now, 1, kind, code, key, detail))
             persist(p, all)
-        } catch (failure: RuntimeException) {
+        } catch (failure: Throwable) {
             Log.w(TAG, "Optional event storage unavailable", failure)
         }
     }
@@ -135,24 +136,28 @@ object GameWatchJournal {
                 migrateLegacy(c, result)
                 persist(p, result)
             }
-        } catch (failure: RuntimeException) {
+        } catch (failure: Throwable) {
             Log.w(TAG, "Unable to read optional journal", failure)
         }
         return result
     }
 
     fun technicalHistory(c: Context): String {
-        val out = StringBuilder()
-        val iso = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
-        for (e in entries(c)) {
-            out.append(iso.format(Date(e.lastMs)))
-                .append(" [").append(e.kind).append("] ")
-                .append(e.code)
-            if (e.count > 1) out.append(" count=").append(e.count).append(" first=").append(iso.format(Date(e.timeMs)))
-            out.append("\n")
-            if (e.detail.isNotEmpty()) out.append("  ").append(e.detail).append("\n")
+        return try {
+            val out = StringBuilder()
+            val iso = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+            for (e in entries(c)) {
+                out.append(iso.format(Date(e.lastMs)))
+                    .append(" [").append(e.kind).append("] ")
+                    .append(e.code)
+                if (e.count > 1) out.append(" count=").append(e.count).append(" first=").append(iso.format(Date(e.timeMs)))
+                out.append("\n")
+                if (e.detail.isNotEmpty()) out.append("  ").append(e.detail).append("\n")
+            }
+            out.toString()
+        } catch (_: Throwable) {
+            ""
         }
-        return out.toString()
     }
 
     fun history(c: Context): String = technicalHistory(c)
@@ -184,59 +189,63 @@ object GameWatchJournal {
 
     private fun read(p: SharedPreferences): ArrayList<Event> {
         val list = ArrayList<Event>()
-        val json = p.getString(HISTORY, "[]")
         try {
+            val json = p.getString(HISTORY, "[]") ?: "[]"
             val a = JSONArray(json)
             for (i in 0 until a.length()) {
                 if (list.size >= LIMIT) break
                 val o = a.optJSONObject(i)
                 if (o != null && o.optLong("t", 0L) > 0L) list.add(Event.parse(o))
             }
-        } catch (invalid: JSONException) {
-            if (!p.contains("corrupt_backup")) p.edit().putString("corrupt_backup", json).apply()
+        } catch (invalid: Throwable) {
+            try {
+                if (!p.contains("corrupt_backup")) p.edit().putString("corrupt_backup", p.getString(HISTORY, "")).apply()
+            } catch (_: Throwable) {}
             Log.w(TAG, "Unreadable journal JSON; original backed up", invalid)
         }
         return list
     }
 
     private fun persist(p: SharedPreferences, all: List<Event>) {
-        val a = JSONArray()
-        for (i in all.indices) {
-            if (i >= LIMIT) break
-            try {
-                a.put(all[i].json())
-            } catch (invalid: JSONException) {
-                Log.w(TAG, "Skipping invalid event", invalid)
+        try {
+            val a = JSONArray()
+            for (i in all.indices) {
+                if (i >= LIMIT) break
+                try {
+                    a.put(all[i].json())
+                } catch (invalid: Throwable) {
+                    Log.w(TAG, "Skipping invalid event", invalid)
+                }
             }
-        }
-        p.edit().putString(HISTORY, a.toString()).putBoolean(INIT, true).apply()
+            p.edit().putString(HISTORY, a.toString()).putBoolean(INIT, true).apply()
+        } catch (_: Throwable) {}
     }
 
     private fun migrateLegacy(c: Context, into: ArrayList<Event>) {
-        val old = c.applicationContext.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE).getString(LEGACY_HISTORY, "")
-        if (old.isNullOrEmpty()) return
-        val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
-        val year = Calendar.getInstance().get(Calendar.YEAR)
-        val now = System.currentTimeMillis()
-        val lines = old.split("\r?\n".toRegex()).dropLastWhile { it.isEmpty() }
-        for (line in lines) {
-            if (into.size >= LIMIT) break
-            val match = OLD_LINE.matcher(line)
-            if (!match.matches()) continue
-            val cat = match.group(2)
-            val msg = match.group(3)
-            val code = legacyCode(cat, msg) ?: continue
-            var whenTime = now
-            try {
-                whenTime = format.parse("$year-${match.group(1)}")?.time ?: now
-                if (whenTime > now + 12L * 3600_000L) {
-                    whenTime = format.parse("${year - 1}-${match.group(1)}")?.time ?: now
-                }
-            } catch (ignored: ParseException) {
-                // Giữ nguyên mốc thời gian hiện tại nếu phân tích cú pháp ngày tháng cũ lỗi
+        try {
+            val old = c.applicationContext.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE).getString(LEGACY_HISTORY, "")
+            if (old.isNullOrEmpty()) return
+            val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+            val year = Calendar.getInstance().get(Calendar.YEAR)
+            val now = System.currentTimeMillis()
+            val lines = old.split("\r?\n".toRegex()).dropLastWhile { it.isEmpty() }
+            for (line in lines) {
+                if (into.size >= LIMIT) break
+                val match = OLD_LINE.matcher(line)
+                if (!match.matches()) continue
+                val cat = match.group(2)
+                val msg = match.group(3)
+                val code = legacyCode(cat, msg) ?: continue
+                var whenTime = now
+                try {
+                    whenTime = format.parse("$year-${match.group(1)}")?.time ?: now
+                    if (whenTime > now + 12L * 3600_000L) {
+                        whenTime = format.parse("${year - 1}-${match.group(1)}")?.time ?: now
+                    }
+                } catch (_: Throwable) {}
+                into.add(Event(whenTime, whenTime, 1, kindFor(code), code, fingerprint(code, sanitize(msg)), sanitize(msg)))
             }
-            into.add(Event(whenTime, whenTime, 1, kindFor(code), code, fingerprint(code, sanitize(msg)), sanitize(msg)))
-        }
+        } catch (_: Throwable) {}
     }
 
     private fun legacyCode(cat: String?, msg: String?): String? {
