@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F6F6FB"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="GMS Protect"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#302E78"
+        android:paddingBottom="16dp" />
+
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Đang kiểm tra trạng thái bảo vệ hệ thống..."
+        android:textSize="14sp"
+        android:textColor="#262832"
+        android:paddingBottom="24dp" />
+
+    <Button
+        android:id="@+id/btnAction"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="Cấu hình & Cấp quyền"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF" />
+
+</LinearLayout>
