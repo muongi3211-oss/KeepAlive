@@ -124,6 +124,8 @@
     <string name="settings14_verified">Đã xác thực dịch vụ</string>
     <string name="settings14_request_failed">Gửi yêu cầu thất bại</string>
     <string name="settings14_attention">Cần chú ý hệ thống</string>
+    <string name="settings14_check_verified_ally">Đã liên kết xác thực</string>
+    <string name="settings14_check_attention_ally">Cần kiểm tra liên kết</string>
     
     <string name="settings_gms_service_title">Trạng thái Google Mobile Services</string>
     <string name="settings_protection_details_desc">Nhấn để xem chi tiết danh sách trắng</string>
@@ -276,13 +278,16 @@
     <string name="adv_title">Tiêu đề nâng cao</string>
     <string name="adv_detail_title">Chi tiết cấu hình nâng cao</string>
     
-    <!-- Các chuỗi bổ sung chống lỗi Unresolved reference -->
+    <!-- Các chuỗi bổ sung chống lỗi Unresolved reference (Bao gồm cả key a11y khớp với GoogleServiceCheckUi.kt) -->
     <string name="adv_unknown">Chưa rõ</string>
     <string name="adv_xiaomi_battery_unverified">Pin Xiaomi chưa xác thực</string>
     <string name="adv_game_permission">Quyền trò chơi</string>
     <string name="sg_ic_status_info">Trạng thái thông tin</string>
     <string name="settings14_check_verified_ally">Đã liên kết xác thực</string>
     <string name="settings14_check_attention_ally">Cần kiểm tra liên kết</string>
+    <string name="settings14_check_verified_a11y">Đã liên kết xác thực</string>
+    <string name="settings14_check_attention_a11y">Cần kiểm tra liên kết</string>
+    <string name="adv_system_app">Ứng dụng hệ thống</string>
     
     <string name="adv_help_status_heading">Trạng thái hỗ trợ</string>
     <string name="adv_help_pass_title">Trợ giúp vượt qua</string>
