@@ -121,7 +121,7 @@ class AdvancedAppsActivity : Activity() {
         mainScroll = ScrollView(this).apply { isFillViewport = true }
         content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         UiKit.applyBottomSystemInset(content!!)
-        mainScroll?.addView(content, ScrollView.LayoutParams(-1, -2))
+        mainScroll?.addView(content, FrameLayout.LayoutParams(-1, -2))
         frame.addView(mainScroll, FrameLayout.LayoutParams(-1, -1))
         collapsingHeader = SettingsMotion.collapsingBar(this, frame, mainScroll!!, getString(R.string.adv_title)) {
             if (detailPkg != null) showList() else finish()
