@@ -27,31 +27,30 @@ object GameWatchEvidence {
         }
     }
 
-    // Các hàm ghi nhận bằng chứng được gọi từ BroadcastReceiver / JobService / Services
-    fun noteBoot(context: Context) {
+    // Hỗ trợ nhận biến thể nhiều tham số từ các Service
+    fun noteBoot(context: Context, vararg args: Any?) {
         setPref(context, "boot_verified", true)
         setLongPref(context, "last_boot_ms", System.currentTimeMillis())
-        GameWatchJournal.add(context, "BOOT", "Device boot received and verified")
+        GameWatchJournal.add(context, "BOOT", "Device boot received")
     }
 
-    fun noteUriJob(context: Context) {
+    fun noteUriJob(context: Context, vararg args: Any?) {
         setPref(context, "uri_verified", true)
         setLongPref(context, "last_uri_ms", System.currentTimeMillis())
-        GameWatchJournal.add(context, "URI_JOB", "Uri job triggered and verified")
+        GameWatchJournal.add(context, "URI_JOB", "Uri job triggered")
     }
 
-    fun noteRepair(context: Context) {
+    fun noteRepair(context: Context, vararg args: Any?) {
         setPref(context, "repair_verified", true)
         setLongPref(context, "last_repair_ms", System.currentTimeMillis())
-        GameWatchJournal.add(context, "REPAIR", "Auto repair executed successfully")
+        GameWatchJournal.add(context, "REPAIR", "Auto repair executed")
     }
 
-    fun applyProtection(context: Context) {
+    fun applyProtection(context: Context, vararg args: Any?) {
         setPref(context, "bg_verified", true)
-        GameWatchJournal.add(context, "PROTECT", "Protection applied/verified")
+        GameWatchJournal.add(context, "PROTECT", "Protection applied")
     }
 
-    // Các hàm trạng thái kiểm tra từ CompatibilityActivity
     fun uriVerified(context: Context): Boolean = getPref(context, "uri_verified", false)
     fun backgroundVerified(context: Context): Boolean = getPref(context, "bg_verified", true)
     fun newPidVerified(context: Context): Boolean = getPref(context, "pid_verified", true)
@@ -60,11 +59,9 @@ object GameWatchEvidence {
     
     fun lastUri(context: Context): Long {
         return try {
-            val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            prefs.getLong("last_uri_ms", 0L)
-        } catch (_: Throwable) {
-            0L
-        }
+            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getLong("last_uri_ms", 0L)
+        } catch (_: Throwable) { 0L }
     }
 
     private fun setPref(context: Context, key: String, value: Boolean) {
@@ -83,10 +80,8 @@ object GameWatchEvidence {
 
     private fun getPref(context: Context, key: String, defaultVal: Boolean): Boolean {
         return try {
-            val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            prefs.getBoolean(key, defaultVal)
-        } catch (_: Throwable) {
-            defaultVal
-        }
+            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getBoolean(key, defaultVal)
+        } catch (_: Throwable) { defaultVal }
     }
 }
