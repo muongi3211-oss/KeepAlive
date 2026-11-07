@@ -28,7 +28,7 @@
         android:id="@+id/btnAction"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:text="Cấu hình & Cấp quyền"
+        android:text="Cấu hình &amp; Cấp quyền"
         android:textAllCaps="false"
         android:textColor="#FFFFFF" />
 
