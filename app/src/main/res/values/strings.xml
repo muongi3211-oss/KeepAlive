@@ -124,7 +124,6 @@
     <string name="settings14_verified">Đã xác thực dịch vụ</string>
     <string name="settings14_request_failed">Gửi yêu cầu thất bại</string>
     <string name="settings14_attention">Cần chú ý hệ thống</string>
-    <string name="settings14_check_attention_ally">Cần kiểm tra liên kết</string>
     
     <string name="settings_gms_service_title">Trạng thái Google Mobile Services</string>
     <string name="settings_protection_details_desc">Nhấn để xem chi tiết danh sách trắng</string>
