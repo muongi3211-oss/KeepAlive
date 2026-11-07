@@ -22,17 +22,20 @@ object AdvancedAppStore {
     }
 
     fun valid(c: Context, pkg: String?): Boolean {
-        return !TextUtils.isEmpty(pkg) && pkg!!.length <= 255 && PACKAGE.matcher(pkg).matches() &&
-                pkg != c.packageName && pkg != GameWatchCore.GMS && pkg != MilletNoRestrict.PLAY_STORE_PACKAGE
+        return try {
+            !TextUtils.isEmpty(pkg) && pkg!!.length <= 255 && PACKAGE.matcher(pkg).matches() &&
+                    pkg != c.packageName && pkg != GameWatchCore.GMS && pkg != MilletNoRestrict.PLAY_STORE_PACKAGE
+        } catch (_: Throwable) {
+            false
+        }
     }
 
     @Synchronized
     fun list(c: Context): List<Entry> {
         val result = ArrayList<Entry>()
-        val text = prefs(c).getString(LIST, "[]")
         try {
+            val text = prefs(c).getString(LIST, "[]") ?: "[]"
             val a = JSONArray(text)
-            // Sửa lại cú pháp vòng lặp for chuẩn Kotlin (Đã fix lỗi dòng 35)
             for (i in 0 until a.length()) {
                 if (result.size >= MAX_APPS) break
                 val obj = a.optJSONObject(i) ?: continue
@@ -55,43 +58,53 @@ object AdvancedAppStore {
 
     @Synchronized
     fun save(c: Context, changed: Entry?): Boolean {
-        if (changed == null || !valid(c, changed.pkg)) return false
-        val rows = list(c).toMutableList()
-        var replaced = false
-        var stateChanged = false
-        for (i in rows.indices) {
-            if (rows[i].pkg == changed.pkg) {
-                stateChanged = rows[i].enabled != changed.enabled
-                rows[i] = changed
-                replaced = true
-                break
+        try {
+            if (changed == null || !valid(c, changed.pkg)) return false
+            val rows = list(c).toMutableList()
+            var replaced = false
+            var stateChanged = false
+            for (i in rows.indices) {
+                if (rows[i].pkg == changed.pkg) {
+                    stateChanged = rows[i].enabled != changed.enabled
+                    rows[i] = changed
+                    replaced = true
+                    break
+                }
             }
+            if (!replaced) {
+                if (rows.size >= MAX_APPS) return false
+                rows.add(changed)
+            }
+            val saved = write(c, rows)
+            if (saved && (!replaced || stateChanged)) {
+                val action = if (!replaced) "app_added" else if (changed.enabled) "app_enabled" else "app_disabled"
+                try { GameWatchJournal.event(c, action, changed.pkg) } catch (_: Throwable) {}
+            }
+            return saved
+        } catch (_: Throwable) {
+            return false
         }
-        if (!replaced) {
-            if (rows.size >= MAX_APPS) return false
-            rows.add(changed)
-        }
-        val saved = write(c, rows)
-        if (saved && (!replaced || stateChanged)) {
-            val action = if (!replaced) "app_added" else if (changed.enabled) "app_enabled" else "app_disabled"
-            GameWatchJournal.event(c, action, changed.pkg)
-        }
-        return saved
     }
 
     @Synchronized
     fun remove(c: Context, pkg: String): Boolean {
-        val rows = list(c).toMutableList()
-        var removed = false
-        for (i in rows.indices.reversed()) {
-            if (rows[i].pkg == pkg) {
-                rows.removeAt(i)
-                removed = true
+        try {
+            val rows = list(c).toMutableList()
+            var removed = false
+            for (i in rows.indices.reversed()) {
+                if (rows[i].pkg == pkg) {
+                    rows.removeAt(i)
+                    removed = true
+                }
             }
+            val saved = removed && write(c, rows)
+            if (saved) {
+                try { GameWatchJournal.event(c, "app_removed", pkg) } catch (_: Throwable) {}
+            }
+            return saved
+        } catch (_: Throwable) {
+            return false
         }
-        val saved = removed && write(c, rows)
-        if (saved) GameWatchJournal.event(c, "app_removed", pkg)
-        return saved
     }
 
     private fun write(c: Context, rows: List<Entry>): Boolean {
@@ -112,29 +125,47 @@ object AdvancedAppStore {
     }
 
     fun hasEnabledEntries(c: Context): Boolean {
-        for (e in list(c)) if (e.enabled) return true
-        return false
+        return try {
+            for (e in list(c)) if (e.enabled) return true
+            false
+        } catch (_: Throwable) {
+            false
+        }
     }
 
     fun activeCount(c: Context): Int {
-        var count = 0
-        for (e in list(c)) if (e.enabled) count++
-        return count
+        return try {
+            var count = 0
+            for (e in list(c)) if (e.enabled) count++
+            count
+        } catch (_: Throwable) {
+            0
+        }
     }
 
     fun noteMiPush(c: Context, pkg: String, sent: Boolean, error: String?) {
-        val edit = prefs(c).edit()
-        edit.putLong("mipush_attempt:$pkg", System.currentTimeMillis())
-        edit.putBoolean("mipush_sent:$pkg", sent)
-        edit.putString("mipush_error:$pkg", error ?: "")
-        edit.apply()
+        try {
+            val edit = prefs(c).edit()
+            edit.putLong("mipush_attempt:$pkg", System.currentTimeMillis())
+            edit.putBoolean("mipush_sent:$pkg", sent)
+            edit.putString("mipush_error:$pkg", error ?: "")
+            edit.apply()
+        } catch (_: Throwable) {}
     }
 
     fun lastMiPushAttempt(c: Context, pkg: String): Long {
-        return prefs(c).getLong("mipush_attempt:$pkg", 0L)
+        return try {
+            prefs(c).getLong("mipush_attempt:$pkg", 0L)
+        } catch (_: Throwable) {
+            0L
+        }
     }
 
     fun lastMiPushSent(c: Context, pkg: String): Boolean {
-        return prefs(c).getBoolean("mipush_sent:$pkg", false)
+        return try {
+            prefs(c).getBoolean("mipush_sent:$pkg", false)
+        } catch (_: Throwable) {
+            false
+        }
     }
 }
