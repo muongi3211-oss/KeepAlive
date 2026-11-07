@@ -199,6 +199,8 @@
     <string name="settings16_special_attention">Trạng thái đặc biệt: Cần chú ý</string>
     <string name="settings16_special_missing">Trạng thái đặc biệt: Thiếu</string>
     <string name="settings16_special_locked">Trạng thái đặc biệt: Đã khóa</string>
+    <string name="settings16_special_heading">Phân loại đặc biệt</string>
+    <string name="settings16_user_apps_heading">Ứng dụng người dùng</string>
     
     <string name="settings_app_missing">Thiếu ứng dụng</string>
     <string name="settings_app_disabled">Ứng dụng đã bị vô hiệu hóa</string>
@@ -233,6 +235,7 @@
     <string name="adv_mipush_wait">Đang chờ MiPush</string>
     <string name="adv_mipush_sent">Đã gửi MiPush</string>
     <string name="adv_mipush_failed">MiPush thất bại</string>
+    <string name="adv_mipush_waiting">Đang chờ xử lý MiPush</string>
     
     <string name="adv_open_app_details">Mở chi tiết ứng dụng</string>
     <string name="adv_enable_app">Bật ứng dụng</string>
@@ -268,18 +271,42 @@
     <string name="adv_systen_app">Ứng dụng hệ thống</string>
     <string name="adv_choose_app">Chọn ứng dụng</string>
     <string name="adv_no_results">Không tìm thấy kết quả phù hợp</string>
+    <string name="adv_add">Thêm mới</string>
+    <string name="settings_add_desc">Thêm ứng dụng vào danh sách quản lý</string>
+    <string name="ui_watch_attention">Chú ý giám sát tiến trình</string>
+    <string name="adv_empty">Danh sách trống</string>
+    <string name="adv_title">Tiêu đề nâng cao</string>
+    <string name="adv_detail_title">Chi tiết cấu hình nâng cao</string>
+    
+    <string name="adv_help_status_heading">Trạng thái hỗ trợ</string>
+    <string name="adv_help_pass_title">Trợ giúp vượt qua</string>
+    <string name="adv_help_pass_desc">Hướng dẫn bỏ qua giới hạn nền.</string>
+    <string name="adv_help_attention_title">Cần chú ý</string>
+    <string name="adv_help_attention_desc">Các điểm lưu ý quan trọng.</string>
+    <string name="adv_help_unknown_title">Trạng thái không rõ</string>
+    <string name="adv_help_unknown_desc">Xử lý khi trạng thái không xác định.</string>
+    <string name="adv_help_off_title">Trợ giúp tắt</string>
+    <string name="adv_help_off_desc">Hướng dẫn vô hiệu hóa tính năng.</string>
+    <string name="adv_help_rule_heading">Quy tắc bổ sung</string>
+    <string name="adv_help_five_title">Quy tắc 5</string>
+    <string name="adv_help_five_desc">Mô tả quy tắc vận hành số 5.</string>
+    <string name="adv_help_mipush_title">Trợ giúp MiPush</string>
+    <string name="adv_help_mipush_desc">Duy trì kết nối thông báo nền.</string>
 
     <!-- Activity Log Activity Extra Strings -->
     <string name="activity_log_intro_v2">Nhật ký theo dõi sự kiện nền và bảo vệ tiến trình hoạt động.</string>
     <string name="activity_log_actions">Thao tác nhật ký</string>
     <string name="activity_log_copy_text">Sao chép nhật ký</string>
+    <string name="activity_log_copy_technical">Sao chép thông tin kỹ thuật</string>
     <string name="activity_log_refresh">Làm mới nhật ký</string>
     <string name="activity_log_all">Tất cả sự kiện</string>
     <string name="activity_log_important">Quan trọng</string>
     <string name="activity_log_errors">Lỗi hệ thống</string>
     <string name="activity_log_empty">Chưa có bản ghi nhật ký nào.</string>
     <string name="activity_log_repeat">Lặp lại sự kiện</string>
+    <string name="activity_log_repeated">Sự kiện lặp lại</string>
     <string name="activity_log_technical">Thông tin kỹ thuật</string>
+    <string name="activity_log_technical_item">Mục kỹ thuật</string>
     <string name="activity_log_copied">Đã sao chép nhật ký vào bộ nhớ tạm.</string>
     
     <string name="activity_log_title_app_enabled">Ứng dụng đã bật</string>
@@ -289,15 +316,30 @@
     <string name="activity_log_title_game_repaired">Đã sửa trạng thái game</string>
     <string name="activity_log_title_game_changed">Thay đổi cấu hình game</string>
     <string name="activity_log_title_game_deferred">Trì hoãn xử lý game</string>
+    <string name="activity_log_title_game_error">Lỗi trò chơi</string>
     <string name="activity_log_title_watch_registered">Đã đăng ký Watcher</string>
     <string name="activity_log_title_watch_verified">Đã xác thực Watcher</string>
     <string name="activity_log_title_watch_error">Lỗi giám sát Watcher</string>
     <string name="activity_log_title_millet_repaired">Đã khôi phục Millet</string>
     <string name="activity_log_title_millet_error">Lỗi phân vùng Millet</string>
     <string name="activity_log_title_mipush_requested">Đã yêu cầu tín hiệu MiPush</string>
+    <string name="activity_log_title_app_added">Đã thêm ứng dụng</string>
+    <string name="activity_log_title_app_error">Lỗi ứng dụng</string>
+    <string name="activity_log_title_other">Sự kiện khác</string>
     
     <string name="activity_log_desc_watch_registered">Tiến trình theo dõi Watcher đã được khởi tạo thành công.</string>
     <string name="activity_log_desc_watch_verified">Hệ thống đã xác minh tính toàn vẹn của tiến trình Watcher.</string>
+    <string name="activity_log_desc_millet_repaired">Đã khôi phục thành công danh sách Millet.</string>
+    <string name="activity_log_desc_millet_error">Gặp lỗi khi xử lý phân vùng Millet.</string>
+    <string name="activity_log_desc_mipush_requested">Đã gửi yêu cầu làm mới MiPush.</string>
+    <string name="activity_log_desc_mipush_error">Gặp lỗi khi xử lý tín hiệu MiPush.</string>
+    <string name="activity_log_desc_game_repaired">Đã sửa trạng thái tối ưu game.</string>
+    <string name="activity_log_desc_game_changed">Cấu hình game đã được thay đổi.</string>
+    <string name="activity_log_desc_game_deferred">Tác vụ game bị trì hoãn thực thi.</string>
+    <string name="activity_log_desc_game_error">Phát hiện lỗi liên quan đến game.</string>
+    <string name="activity_log_desc_watch_error">Lỗi trong tiến trình giám sát Watcher.</string>
+    <string name="activity_log_desc_app_error">Lỗi ứng dụng nâng cao.</string>
+    <string name="activity_log_desc_other">Sự kiện hệ thống khác.</string>
 
     <string name="ui_status_error">Lỗi</string>
     <string name="settings105_mipush_not_sent">Chưa gửi</string>
