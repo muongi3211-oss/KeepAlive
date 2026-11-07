@@ -932,7 +932,7 @@ class AdvancedAppsActivity : Activity() {
                         ellipsize = TextUtils.TruncateAt.MIDDLE
                     }
                     names.addView(pkg, full())
-                    row.addView(names, LinearLayout.LayoutParams(0, -2, 1))
+                    box.addView(list, LinearLayout.LayoutParams(-1, dp(430)))
                     h = PickerHolder(icon, name, pkg)
                     row.tag = h
                     view = row
@@ -953,7 +953,7 @@ class AdvancedAppsActivity : Activity() {
         }
         list.adapter = adapter
         // Sửa lỗi ép kiểu số nguyên sang Float bằng cách thêm hậu tố f (Đã fix lỗi dòng 934)
-        box.addView(list, LinearLayout.LayoutParams(-1, dp(430f).toInt()))
+        box.addView(list, LinearLayout.LayoutParams(-1, dp(430)))
 
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.adv_choose_app)
