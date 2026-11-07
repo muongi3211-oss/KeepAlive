@@ -43,15 +43,21 @@ object GmsProtector {
             Log.w(TAG, "GMS package probe failed; continuing error=" + t.javaClass.simpleName + ":" + t.message)
         }
 
-        val milletResult = MilletNoRestrict.ensureGms(app)
+        val milletResult = try {
+            MilletNoRestrict.ensureGms(app)
+        } catch (t: Throwable) {
+            MilletNoRestrict.Result.FAILED
+        }
         val milletOk = milletResult == MilletNoRestrict.Result.ADDED || milletResult == MilletNoRestrict.Result.ALREADY_PRESENT
 
         Log.i(TAG, "MILLET result=$milletResult canWrite=" + MilletNoRestrict.canWrite(app) + " containsGms=" + MilletNoRestrict.containsGms(app))
-        if (milletResult == MilletNoRestrict.Result.ADDED) {
-            GameWatchJournal.event(app, "millet_repaired", "GmsProtector.protect: $milletResult")
-        } else if (!milletOk) {
-            GameWatchJournal.event(app, "millet_error", "GmsProtector.protect: $milletResult")
-        }
+        try {
+            if (milletResult == MilletNoRestrict.Result.ADDED) {
+                GameWatchJournal.event(app, "millet_repaired", "GmsProtector.protect: $milletResult")
+            } else if (!milletOk) {
+                GameWatchJournal.event(app, "millet_error", "GmsProtector.protect: $milletResult")
+            }
+        } catch (_: Throwable) {}
 
         if (!milletOk) {
             Log.e(TAG, "protect FAILED because MILLET is not active result=$milletResult")
@@ -114,11 +120,15 @@ object GmsProtector {
             app.sendBroadcast(intent)
             CompatibilityVerification.markHyperOsProtectionRequestSent(app)
             Log.i(TAG, "MiPush protect broadcast SENT pkg=$GMS_PACKAGE")
-            GameWatchJournal.event(app, "mipush_requested", "Broadcast SENT pkg=$GMS_PACKAGE; this does not confirm Xiaomi accepted the request")
+            try {
+                GameWatchJournal.event(app, "mipush_requested", "Broadcast SENT pkg=$GMS_PACKAGE")
+            } catch (_: Throwable) {}
             HyperOsProtectionResult.SENT
         } catch (t: Throwable) {
             Log.e(TAG, "MiPush protect broadcast FAILED error=" + t.javaClass.simpleName + ":" + t.message, t)
-            GameWatchJournal.event(app, "mipush_error", "Broadcast FAILED: $t")
+            try {
+                GameWatchJournal.event(app, "mipush_error", "Broadcast FAILED: $t")
+            } catch (_: Throwable) {}
             HyperOsProtectionResult.FAILED
         }
     }
