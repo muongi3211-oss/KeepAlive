@@ -22,39 +22,59 @@ object UiKit {
     const val ERROR = 0xFFCA4A59.toInt()
 
     fun dp(context: Context, value: Int): Int {
-        return (value * context.resources.displayMetrics.density + 0.5f).toInt()
+        return try {
+            (value * context.resources.displayMetrics.density + 0.5f).toInt()
+        } catch (e: Throwable) {
+            value
+        }
     }
 
     fun applyTopSystemInset(view: View) {
-        val left = view.paddingLeft
-        val top = view.paddingTop
-        val right = view.paddingRight
-        val bottom = view.paddingBottom
-        view.setOnApplyWindowInsetsListener { v, insets ->
-            val insetTop = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
-                insets.getInsets(WindowInsets.Type.statusBars()).top
-            else
-                insets.systemWindowInsetTop
-            v.setPadding(left, top + insetTop, right, bottom)
-            insets
+        try {
+            val left = view.paddingLeft
+            val top = view.paddingTop
+            val right = view.paddingRight
+            val bottom = view.paddingBottom
+            view.setOnApplyWindowInsetsListener { v, insets ->
+                val insetTop = try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                        insets.getInsets(WindowInsets.Type.statusBars()).top
+                    else
+                        insets.systemWindowInsetTop
+                } catch (ignored: Throwable) {
+                    0
+                }
+                v.setPadding(left, top + insetTop, right, bottom)
+                insets
+            }
+            view.requestApplyInsets()
+        } catch (t: Throwable) {
+            // Tránh crash nếu hệ thống từ chối áp dụng window insets
         }
-        view.requestApplyInsets()
     }
 
     fun applyBottomSystemInset(view: View) {
-        val left = view.paddingLeft
-        val top = view.paddingTop
-        val right = view.paddingRight
-        val bottom = view.paddingBottom
-        view.setOnApplyWindowInsetsListener { v, insets ->
-            val insetBottom = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
-                insets.getInsets(WindowInsets.Type.navigationBars()).bottom
-            else
-                insets.systemWindowInsetBottom
-            v.setPadding(left, top, right, bottom + insetBottom)
-            insets
+        try {
+            val left = view.paddingLeft
+            val top = view.paddingTop
+            val right = view.paddingRight
+            val bottom = view.paddingBottom
+            view.setOnApplyWindowInsetsListener { v, insets ->
+                val insetBottom = try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                        insets.getInsets(WindowInsets.Type.navigationBars()).bottom
+                    else
+                        insets.systemWindowInsetBottom
+                } catch (ignored: Throwable) {
+                    0
+                }
+                v.setPadding(left, top, right, bottom + insetBottom)
+                insets
+            }
+            view.requestApplyInsets()
+        } catch (t: Throwable) {
+            // Tránh crash
         }
-        view.requestApplyInsets()
     }
 
     fun rounded(color: Int, radiusDp: Int, context: Context): GradientDrawable {
