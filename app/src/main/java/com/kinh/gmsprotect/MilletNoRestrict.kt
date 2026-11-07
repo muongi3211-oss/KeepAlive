@@ -33,7 +33,6 @@ object MilletNoRestrict {
             }
             Settings.System.canWrite(app)
         } catch (t: Throwable) {
-            Log.w(TAG, "canWrite FAILED error=" + errorOf(t))
             false
         }
     }
@@ -43,7 +42,6 @@ object MilletNoRestrict {
             Settings.System.getString(context.applicationContext.contentResolver, KEY)
             true
         } catch (t: Throwable) {
-            Log.w(TAG, "canRead FAILED error=" + errorOf(t))
             false
         }
     }
@@ -58,17 +56,15 @@ object MilletNoRestrict {
             val raw = Settings.System.getString(context.applicationContext.contentResolver, KEY)
             parse(raw).contains(packageName)
         } catch (t: Throwable) {
-            Log.w(TAG, "$logName FAILED error=" + errorOf(t))
             false
         }
     }
 
     fun ensureGms(context: Context): Result {
         val app = context.applicationContext
-        val writeAllowed = canWrite(app)
-        Log.i(TAG, "ensureGms canWrite=$writeAllowed")
-
-        if (!writeAllowed) return Result.NO_PERMISSION
+        
+        // CHỐT AN TOÀN: Nếu chưa có quyền ghi hệ thống, trả về NO_PERMISSION ngay lập tức, không cố ghi tránh crash
+        if (!canWrite(app)) return Result.NO_PERMISSION
 
         return try {
             val before = Settings.System.getString(app.contentResolver, KEY)
@@ -101,45 +97,20 @@ object MilletNoRestrict {
 
             val after = Settings.System.getString(app.contentResolver, KEY)
             val verifiedPackages = parse(after)
-            val gmsVerified = verifiedPackages.contains(GMS_PACKAGE)
-            val playStoreVerified = verifiedPackages.contains(PLAY_STORE_PACKAGE)
-            val selfVerified = verifiedPackages.contains(app.packageName)
-
-            if (!gmsVerified || !playStoreVerified || !selfVerified) {
+            if (!verifiedPackages.contains(GMS_PACKAGE) || !verifiedPackages.contains(PLAY_STORE_PACKAGE) || !verifiedPackages.contains(app.packageName)) {
                 return Result.VERIFY_FAILED
             }
 
             rememberLastGood(app, verifiedPackages)
             Result.ADDED
         } catch (t: Throwable) {
-            Log.e(TAG, "ensureGms FAILED error=" + errorOf(t), t)
             Result.FAILED
         }
     }
 
-    fun readRaw(context: Context): String {
-        return try {
-            val raw = Settings.System.getString(context.applicationContext.contentResolver, KEY)
-            raw ?: ""
-        } catch (t: Throwable) {
-            Log.w(TAG, "readRaw FAILED error=" + errorOf(t))
-            ""
-        }
-    }
-
-    private fun prefsContext(context: Context): Context {
-        val app = context.applicationContext
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            try {
-                return app.createDeviceProtectedStorageContext()
-            } catch (ignored: Throwable) {}
-        }
-        return app
-    }
-
     private fun readLastGood(context: Context): String? {
         return try {
-            val prefs = prefsContext(context).getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             prefs.getString(PREF_LAST_GOOD, null)
         } catch (t: Throwable) {
             null
@@ -150,11 +121,8 @@ object MilletNoRestrict {
         if (packages.isEmpty()) return
         val normalized = TextUtils.join(",", packages)
         try {
-            val prefs = prefsContext(context).getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            val old = prefs.getString(PREF_LAST_GOOD, null)
-            if (normalized != old) {
-                prefs.edit().putString(PREF_LAST_GOOD, normalized).apply()
-            }
+            val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            prefs.edit().putString(PREF_LAST_GOOD, normalized).apply()
         } catch (t: Throwable) {}
     }
 
@@ -167,10 +135,5 @@ object MilletNoRestrict {
             if (value.isNotEmpty()) out.add(value)
         }
         return out
-    }
-
-    private fun errorOf(t: Throwable?): String {
-        if (t == null) return "unknown"
-        return t.javaClass.simpleName + ":" + t.message
     }
 }
