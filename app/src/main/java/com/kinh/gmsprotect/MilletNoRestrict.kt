@@ -1,7 +1,6 @@
 package com.kinh.gmsprotect
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.os.Build
 import android.provider.Settings
 import android.text.TextUtils
@@ -77,11 +76,9 @@ object MilletNoRestrict {
             val hasGmsBefore = packages.contains(GMS_PACKAGE)
             val hasPlayStoreBefore = packages.contains(PLAY_STORE_PACKAGE)
             val hasSelfBefore = packages.contains(app.packageName)
-            Log.i(TAG, "before containsGms=$hasGmsBefore containsPlayStore=$hasPlayStoreBefore containsSelf=$hasSelfBefore count=${packages.size} value=" + safeValue(before))
 
             if (hasGmsBefore && hasPlayStoreBefore && hasSelfBefore) {
                 rememberLastGood(app, packages)
-                Log.i(TAG, "result=ALREADY_PRESENT")
                 return Result.ALREADY_PRESENT
             }
 
@@ -89,21 +86,16 @@ object MilletNoRestrict {
                 val cached = parse(readLastGood(app))
                 if (!cached.isEmpty()) {
                     packages.addAll(cached)
-                    Log.i(TAG, "restored lastGood count=${cached.size}")
                 }
             }
 
-            val addedGms = packages.add(GMS_PACKAGE)
-            val addedPlayStore = packages.add(PLAY_STORE_PACKAGE)
-            val addedSelf = packages.add(app.packageName)
+            packages.add(GMS_PACKAGE)
+            packages.add(PLAY_STORE_PACKAGE)
+            packages.add(app.packageName)
             val merged = TextUtils.join(",", packages)
-            Log.i(TAG, "addingGms=$addedGms addingPlayStore=$addedPlayStore addingSelf=$addedSelf newCount=${packages.size}")
 
             val writeAccepted = Settings.System.putString(app.contentResolver, KEY, merged)
-            Log.i(TAG, "putString accepted=$writeAccepted")
-
             if (!writeAccepted) {
-                Log.w(TAG, "result=FAILED reason=putString_false")
                 return Result.FAILED
             }
 
@@ -114,12 +106,10 @@ object MilletNoRestrict {
             val selfVerified = verifiedPackages.contains(app.packageName)
 
             if (!gmsVerified || !playStoreVerified || !selfVerified) {
-                Log.w(TAG, "result=VERIFY_FAILED gms=$gmsVerified playStore=$playStoreVerified self=$selfVerified")
                 return Result.VERIFY_FAILED
             }
 
             rememberLastGood(app, verifiedPackages)
-            Log.i(TAG, "result=ADDED")
             Result.ADDED
         } catch (t: Throwable) {
             Log.e(TAG, "ensureGms FAILED error=" + errorOf(t), t)
@@ -152,7 +142,6 @@ object MilletNoRestrict {
             val prefs = prefsContext(context).getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             prefs.getString(PREF_LAST_GOOD, null)
         } catch (t: Throwable) {
-            Log.w(TAG, "readLastGood FAILED error=" + errorOf(t))
             null
         }
     }
@@ -165,11 +154,8 @@ object MilletNoRestrict {
             val old = prefs.getString(PREF_LAST_GOOD, null)
             if (normalized != old) {
                 prefs.edit().putString(PREF_LAST_GOOD, normalized).apply()
-                Log.i(TAG, "lastGood saved count=${packages.size}")
             }
-        } catch (t: Throwable) {
-            Log.w(TAG, "rememberLastGood FAILED error=" + errorOf(t))
-        }
+        } catch (t: Throwable) {}
     }
 
     private fun parse(raw: String?): LinkedHashSet<String> {
@@ -181,12 +167,6 @@ object MilletNoRestrict {
             if (value.isNotEmpty()) out.add(value)
         }
         return out
-    }
-
-    private fun safeValue(value: String?): String {
-        if (value == null) return "<null>"
-        if (value.length <= 1200) return value
-        return value.substring(0, 1200) + "...(len=" + value.length + ")"
     }
 
     private fun errorOf(t: Throwable?): String {
