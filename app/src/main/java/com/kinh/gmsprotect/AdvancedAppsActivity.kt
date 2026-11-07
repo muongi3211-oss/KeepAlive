@@ -973,26 +973,24 @@ class AdvancedAppsActivity : Activity() {
             showDetail(pkg)
         }
 
-        search.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after) {}
-            // Thêm kiểu tường minh cho tham số value (Đã fix lỗi dòng 975)
-            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                val filter = s.toString().trim().lowercase(Locale.ROOT)
-                filtered.clear()
-                for (app in all) {
-                    if (app.label.lowercase(Locale.ROOT).contains(filter) || app.pkg.lowercase(Locale.ROOT).contains(filter)) {
-                        filtered.add(app)
-                    }
-                }
-                adapter.notifyDataSetChanged()
-                // Sử dụng size thay vì size() (Đã fix lỗi gọi size() như hàm)
-                note.text = if (filtered.isEmpty()) getString(R.string.adv_no_results)
-                else if (scan.limitedLauncherFallback) getString(R.string.adv_installed_apps_limited_list)
-                else getString(R.string.adv_picker_note, filtered.size)
-                list.setSelection(0)
+search.addTextChangedListener(object : TextWatcher {
+    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+        val filter = s?.toString()?.trim()?.lowercase(Locale.ROOT) ?: ""
+        filtered.clear()
+        for (app in all) {
+            if (app.label.lowercase(Locale.ROOT).contains(filter) || app.pkg.lowercase(Locale.ROOT).contains(filter)) {
+                filtered.add(app)
             }
-            override fun afterTextChanged(s: Editable) {}
-        })
+        }
+        adapter.notifyDataSetChanged()
+        note.text = if (filtered.isEmpty()) getString(R.string.adv_no_results)
+        else if (scan.limitedLauncherFallback) getString(R.string.adv_installed_apps_limited_list)
+        else getString(R.string.adv_picker_note, filtered.size)
+        list.setSelection(0)
+    }
+    override fun afterTextChanged(s: Editable?) {}
+})
         dialog.show()
     }
 
