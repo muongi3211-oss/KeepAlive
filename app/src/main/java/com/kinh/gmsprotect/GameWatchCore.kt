@@ -49,7 +49,8 @@ object GameWatchCore {
 
     fun contains(raw: String?, pkg: String): Boolean {
         if (TextUtils.isEmpty(raw)) return false
-        for (part in raw!!.split("_".toRegex()).dropLastWhile { it.isEmpty() }) {
+        // Sử dụng toán tử an toàn (?) để xử lý chuỗi raw có thể null
+        for (part in raw?.split("_".toRegex())?.dropLastWhile { it.isEmpty() } ?: emptyList()) {
             if (pkg == part.trim()) return true
         }
         return false
@@ -61,7 +62,8 @@ object GameWatchCore {
     private fun append(raw: String?, pkg: String): String {
         if (contains(raw, pkg)) return raw ?: pkg
         if (TextUtils.isEmpty(raw)) return pkg
-        return raw + (if (raw.endsWith("_")) "" else "_") + pkg
+        val safeRaw = raw ?: ""
+        return safeRaw + (if (safeRaw.endsWith("_")) "" else "_") + pkg
     }
 
     @Synchronized
