@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -32,7 +33,7 @@ class ActivityLogActivity : Activity() {
             text = getString(R.string.gamewatch_logs)
             textSize = 20f
             setTextColor(UiKit.TEXT)
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setTypeface(typeface, Typeface.BOLD)
         }
         header.addView(title, LinearLayout.LayoutParams(0, -2, 1f))
 
@@ -51,7 +52,7 @@ class ActivityLogActivity : Activity() {
 
         val scroll = ScrollView(this).apply {
             isFillViewport = true
-            isClipToPadding = false
+            clipToPadding = false
         }
         container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -66,7 +67,8 @@ class ActivityLogActivity : Activity() {
 
     private fun loadLogs() {
         container.removeAllViews()
-        val logs = GameWatchJournal.getAll(this)
+        // Sử dụng entries thay vì getAll cho GameWatchJournal
+        val logs = GameWatchJournal.entries(this)
         if (logs.isEmpty()) {
             val empty = TextView(this).apply {
                 text = getString(R.string.activity_log_empty)
@@ -88,30 +90,32 @@ class ActivityLogActivity : Activity() {
             val lp = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) }
 
             val tagText = TextView(this).apply {
-                text = log.tag
+                text = "[${log.kind}] ${log.code}" // Sử dụng code và kind thay cho tag
                 textSize = 11.5f
                 setTextColor(UiKit.PRIMARY)
-                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTypeface(typeface, Typeface.BOLD)
             }
             item.addView(tagText, matchWidth())
 
-            val msgText = TextView(this).apply {
-                text = log.message
-                textSize = 13f
-                setTextColor(UiKit.TEXT)
-                setPadding(0, dp(4), 0, 0)
+            if (log.detail.isNotEmpty()) {
+                val msgText = TextView(this).apply {
+                    text = log.detail // Sử dụng detail thay cho message
+                    textSize = 13f
+                    setTextColor(UiKit.TEXT)
+                    setPadding(0, dp(4), 0, 0)
+                }
+                item.addView(msgText, matchWidth())
             }
-            item.addView(msgText, matchWidth())
 
             container.addView(item, lp)
         }
     }
 
     private fun copyLogsToClipboard() {
-        val logs = GameWatchJournal.getAll(this)
+        val logs = GameWatchJournal.entries(this)
         val sb = StringBuilder()
         for (log in logs) {
-            sb.append("[${log.tag}] ${log.message}\n")
+            sb.append("[${log.kind}] ${log.code}: ${log.detail}\n")
         }
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("GMS Protect Logs", sb.toString()))
