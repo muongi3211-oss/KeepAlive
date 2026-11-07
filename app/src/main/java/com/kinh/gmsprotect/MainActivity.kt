@@ -249,7 +249,6 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(10), dp(18), dp(14))
         }
-        // Đã sửa thành ScrollView.LayoutParams để tránh crash ClassCastException
         scroll.addView(page, ScrollView.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
@@ -480,7 +479,10 @@ class MainActivity : Activity() {
         UiKit.applyBottomSystemInset(page)
         scroll.addView(page, ScrollView.LayoutParams(-1, -2))
         frame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
-        SettingsMotion.collapsingBar(this, frame, scroll, getString(R.string.app_name), null)
+        
+        // ĐÃ SỬA: Thay thế tham số null bằng lambda trống {} để tránh lỗi NullPointerException
+        SettingsMotion.collapsingBar(this, frame, scroll, getString(R.string.app_name)) {}
+        
         setContentView(frame)
 
         SettingsMotion.largeTitle(this, page, getString(R.string.app_name))
