@@ -1,5 +1,9 @@
+plugins {
+    id 'com.android.application'
+}
+
 android {
-    compileSdk 34 // Hoặc phiên bản SDK hiện tại của bạn
+    compileSdk 34
 
     defaultConfig {
         minSdk 24
@@ -19,10 +23,4 @@ android {
         checkReleaseBuilds false
         abortOnError false
     }
-
-    // Hoặc nếu bạn dùng phiên bản Android Gradle Plugin cũ hơn, hãy dùng khối này thay thế cho 'lint':
-    // lintOptions {
-    //     checkReleaseBuilds false
-    //     abortOnError false
-    // }
 }
