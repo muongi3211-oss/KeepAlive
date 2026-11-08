@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId "com.kinh.gmsprotect"
-        minSdk 24
+        minSdk 22
         targetSdk 34
         
         versionCode project.hasProperty('APK_VERSION_CODE') ? project.property('APK_VERSION_CODE').toInteger() : 445
