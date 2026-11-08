@@ -128,8 +128,8 @@ class AdvancedAppsActivity : Activity() {
     }
 
     private fun render() {
-        val content = this.content ?: return
-        content.removeAllViews()
+        val contentLayout = this.content ?: return
+        contentLayout.removeAllViews()
         gameRawSnapshot = null
         gameSnapshotReadable = false
         try {
@@ -156,44 +156,44 @@ class AdvancedAppsActivity : Activity() {
             if (current != null) {
                 collapsingHeader?.setTitle(getString(R.string.adv_detail_title))
                 collapsingHeader?.setCompactOnly(true)
-                content.addView(View(this), LinearLayout.LayoutParams(-1, dp(66)))
-                content.addView(buildAppDetail(current), spaceBottom(12))
+                contentLayout.addView(View(this), LinearLayout.LayoutParams(-1, dp(66)))
+                contentLayout.addView(buildAppDetail(current), spaceBottom(12))
                 return
             }
             detailPkg = null
         }
         collapsingHeader?.setTitle(getString(R.string.adv_title))
         collapsingHeader?.setCompactOnly(false)
-        SettingsMotion.largeTitle(this, content, getString(R.string.adv_title))
+        SettingsMotion.largeTitle(this, contentLayout, getString(R.string.adv_title))
 
-        content.addView(SettingsListUi.heading(this, getString(R.string.settings16_special_heading)), full())
+        contentLayout.addView(SettingsListUi.heading(this, getString(R.string.settings16_special_heading)), full())
         val specialGroup = SettingsListUi.group(this)
         specialGroup.addView(buildSpecialGmsRow(), full())
-        content.addView(specialGroup, spaceBottom(5))
+        contentLayout.addView(specialGroup, spaceBottom(5))
 
-        content.addView(SettingsListUi.heading(this, getString(R.string.settings16_user_apps_heading)), full())
+        contentLayout.addView(SettingsListUi.heading(this, getString(R.string.settings16_user_apps_heading)), full())
         val actionGroup = SettingsListUi.group(this)
         SettingsListUi.row(this, actionGroup, R.drawable.sg_ic_apps, getString(R.string.adv_add), getString(R.string.settings_add_desc), null, SettingsListUi.NEUTRAL) { onAddAppClicked() }
-        content.addView(actionGroup, spaceBottom(12))
+        contentLayout.addView(actionGroup, spaceBottom(12))
 
         if (!GameWatchCore.canWrite(this)) {
             val warning = SettingsListUi.group(this)
             SettingsListUi.row(this, warning, R.drawable.sg_ic_settings, getString(R.string.adv_open_access), getString(R.string.adv_write_required), getString(R.string.ui_watch_attention), SettingsListUi.BAD) { openWriteSettings() }
-            content.addView(warning, spaceBottom(12))
+            contentLayout.addView(warning, spaceBottom(12))
         }
 
         if (selected.isEmpty()) {
             val empty = UiKit.muted(this, getString(R.string.adv_empty), 14f).apply {
                 setPadding(dp(12), dp(25), dp(12), dp(25))
             }
-            content.addView(empty, full())
+            contentLayout.addView(empty, full())
         } else {
-            content.addView(SettingsListUi.separator(this), LinearLayout.LayoutParams(-1, dp(1)))
+            contentLayout.addView(SettingsListUi.separator(this), LinearLayout.LayoutParams(-1, dp(1)))
             val appGroup = SettingsListUi.group(this)
             for (e in selected) {
                 appGroup.addView(buildAppSummary(e), full())
             }
-            content.addView(appGroup, spaceBottom(12))
+            contentLayout.addView(appGroup, spaceBottom(12))
         }
 
         val infoToggle = UiKit.muted(this, getString(if (infoExpanded) R.string.ui_hide_help else R.string.ui_show_help), 13f).apply {
@@ -205,7 +205,7 @@ class AdvancedAppsActivity : Activity() {
             isClickable = true
             isFocusable = true
         }
-        content.addView(infoToggle, spaceBottom(4))
+        contentLayout.addView(infoToggle, spaceBottom(4))
 
         val help = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -232,7 +232,7 @@ class AdvancedAppsActivity : Activity() {
             12f
         ).apply { setPadding(dp(18), dp(12), dp(18), dp(18)) }
         help.addView(jobInfo, full())
-        content.addView(help, full())
+        contentLayout.addView(help, full())
 
         infoToggle.setOnClickListener {
             infoExpanded = !infoExpanded
