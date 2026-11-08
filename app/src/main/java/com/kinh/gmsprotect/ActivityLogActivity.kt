@@ -7,6 +7,7 @@ import android.content.Context
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
