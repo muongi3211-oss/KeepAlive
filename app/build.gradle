@@ -1,6 +1,6 @@
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android' // <--- THÊM PLUGIN KOTLIN VÀO ĐÂY
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
@@ -18,9 +18,19 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Đồng bộ phiên bản JVM target về 17 cho cả Java và Kotlin để tránh lỗi xung đột khi biên dịch
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
     buildTypes {
         release {
-            minifyEnabled false // Nếu sau này bạn bật true thì file proguard-rules.pro mới hoạt động
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -35,7 +45,5 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
-    
-    // <--- THÊM DÒNG NÀY ĐỂ ĐẢM BẢO KOTLIN RUNTIME HOẠT ĐỘNG ỔN ĐỊNH
     implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.0"
 }
