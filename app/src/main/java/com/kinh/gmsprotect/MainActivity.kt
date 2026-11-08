@@ -19,7 +19,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 
-class MainActivity : Activity() {
+class MainActivity : AppCompatActivity() {
     private var protectResult = GmsProtector.Result.FAILED
     private var onboardingStep = 0
     private var waitingAutostartSettingsReturn = false
