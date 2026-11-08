@@ -18,6 +18,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
     private var protectResult = GmsProtector.Result.FAILED
@@ -29,8 +30,8 @@ class MainActivity : AppCompatActivity() {
     private var googleServiceCheckRow: LinearLayout? = null
     private var recheckGoogleRowAfterPause = false
 
-    override fun onCreate(state: Bundle?) {
-        super.onCreate(state)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         try {
             window.statusBarColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) UiKit.BG else UiKit.PRIMARY_DARK
             window.navigationBarColor = UiKit.SURFACE
