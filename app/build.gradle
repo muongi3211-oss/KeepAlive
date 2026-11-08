@@ -9,9 +9,11 @@ android {
     defaultConfig {
         applicationId "com.kinh.gmsprotect"
         minSdk 24
-        targetSdk 34 // Hoặc 22 nếu bạn giữ nguyên cấu hình cũ
-        versionCode 445
-        versionName "2.0.445"
+        targetSdk 34
+        
+        // Đọc tự động version từ GitHub Actions hoặc dùng giá trị mặc định khi build local
+        versionCode project.hasProperty('APK_VERSION_CODE') ? project.property('APK_VERSION_CODE').toInteger() : 445
+        versionName project.hasProperty('APK_VERSION_NAME') ? project.property('APK_VERSION_NAME') : "2.0.445"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
