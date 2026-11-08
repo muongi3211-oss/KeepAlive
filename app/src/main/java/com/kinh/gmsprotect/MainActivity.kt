@@ -1,7 +1,5 @@
 package com.kinh.gmsprotect
 
-import android.app.Activity
-import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Intent
 import android.graphics.Typeface
@@ -108,8 +106,9 @@ class MainActivity : Activity() {
             return
         }
 
-        if (recheckGoogleRowAfterPause && isSetupDone() && googleServiceCheckRow != null && googleServiceCheckRow!!.isAttachedToWindow) {
-            GoogleServiceCheckUi.checkOnce(this, googleServiceCheckRow!!, protectResult)
+        val row = googleServiceCheckRow
+        if (recheckGoogleRowAfterPause && isSetupDone() && row != null && row.isAttachedToWindow) {
+            GoogleServiceCheckUi.checkOnce(this, row, protectResult)
         }
         recheckGoogleRowAfterPause = false
     }
