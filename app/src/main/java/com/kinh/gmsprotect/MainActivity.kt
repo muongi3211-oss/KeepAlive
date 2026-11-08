@@ -1,5 +1,6 @@
 package com.kinh.gmsprotect
 
+import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Intent
 import android.graphics.Typeface
@@ -12,6 +13,7 @@ import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
 import android.view.View
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -578,7 +580,7 @@ class MainActivity : AppCompatActivity() {
             .create()
         dialog.setOnShowListener {
             dialog.window?.setBackgroundDrawable(UiKit.rounded(UiKit.BG, 20, this@MainActivity))
-            val close = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            val close = dialog.getButton(AlertDialog.BUTTON_POSITIVE) as? Button
             close?.apply {
                 isAllCaps = false
                 setTextColor(UiKit.PRIMARY)
