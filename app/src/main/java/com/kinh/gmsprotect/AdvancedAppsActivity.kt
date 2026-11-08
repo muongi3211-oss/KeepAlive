@@ -882,7 +882,6 @@ class AdvancedAppsActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(5), dp(12), dp(8))
         }
-        // Sửa lỗi cú pháp size() thành thuộc tính size (Đã fix lỗi dòng 887)
         val note = UiKit.muted(
             this,
             if (scan.limitedLauncherFallback) getString(R.string.adv_installed_apps_limited_list) else getString(R.string.adv_picker_note, all.size),
@@ -927,13 +926,14 @@ class AdvancedAppsActivity : Activity() {
                         ellipsize = TextUtils.TruncateAt.END
                     }
                     names.addView(name, full())
-                    val pkg = UiKit.muted(this@AdvancedAppsActivity, "", 12.5f).apply {
+                    val pkgText = UiKit.muted(this@AdvancedAppsActivity, "", 12.5f).apply {
                         isSingleLine = true
                         ellipsize = TextUtils.TruncateAt.MIDDLE
                     }
-                    names.addView(pkg, full())
-                    box.addView(list, LinearLayout.LayoutParams(-1, dp(430)))
-                    h = PickerHolder(icon, name, pkg)
+                    names.addView(pkgText, full())
+                    row.addView(names, LinearLayout.LayoutParams(0, -2, 1f))
+                    
+                    h = PickerHolder(icon, name, pkgText)
                     row.tag = h
                     view = row
                 } else {
@@ -952,8 +952,8 @@ class AdvancedAppsActivity : Activity() {
             }
         }
         list.adapter = adapter
-        // Sửa lỗi ép kiểu số nguyên sang Float bằng cách thêm hậu tố f (Đã fix lỗi dòng 934)
         box.addView(list, LinearLayout.LayoutParams(-1, dp(430)))
+
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.adv_choose_app)
             .setView(box)
@@ -972,24 +972,24 @@ class AdvancedAppsActivity : Activity() {
             showDetail(pkg)
         }
 
-search.addTextChangedListener(object : TextWatcher {
-    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-        val filter = s?.toString()?.trim()?.lowercase(Locale.ROOT) ?: ""
-        filtered.clear()
-        for (app in all) {
-            if (app.label.lowercase(Locale.ROOT).contains(filter) || app.pkg.lowercase(Locale.ROOT).contains(filter)) {
-                filtered.add(app)
+        search.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val filter = s?.toString()?.trim()?.lowercase(Locale.ROOT) ?: ""
+                filtered.clear()
+                for (app in all) {
+                    if (app.label.lowercase(Locale.ROOT).contains(filter) || app.pkg.lowercase(Locale.ROOT).contains(filter)) {
+                        filtered.add(app)
+                    }
+                }
+                adapter.notifyDataSetChanged()
+                note.text = if (filtered.isEmpty()) getString(R.string.adv_no_results)
+                else if (scan.limitedLauncherFallback) getString(R.string.adv_installed_apps_limited_list)
+                else getString(R.string.adv_picker_note, filtered.size)
+                list.setSelection(0)
             }
-        }
-        adapter.notifyDataSetChanged()
-        note.text = if (filtered.isEmpty()) getString(R.string.adv_no_results)
-        else if (scan.limitedLauncherFallback) getString(R.string.adv_installed_apps_limited_list)
-        else getString(R.string.adv_picker_note, filtered.size)
-        list.setSelection(0)
-    }
-    override fun afterTextChanged(s: Editable?) {}
-})
+            override fun afterTextChanged(s: Editable?) {}
+        })
         dialog.show()
     }
 
