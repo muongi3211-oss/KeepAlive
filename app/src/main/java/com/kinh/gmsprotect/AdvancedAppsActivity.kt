@@ -140,7 +140,7 @@ class AdvancedAppsActivity : Activity() {
         milletRawSnapshot = null
         milletSnapshotReadable = false
         try {
-            milletRawSnapshot = Settings.System.getString(contentResolver, MilletNoRestrict.KEY)
+            milletRawSnapshot = Settings.System.getString(this.contentResolver, MilletNoRestrict.KEY)
             milletSnapshotReadable = true
         } catch (ignored: Throwable) {}
 
