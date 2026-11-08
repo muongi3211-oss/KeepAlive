@@ -13,7 +13,6 @@ import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
 import android.view.View
-import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -478,7 +477,7 @@ class MainActivity : AppCompatActivity() {
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         UiKit.applyBottomSystemInset(page)
         scroll.addView(page, ScrollView.LayoutParams(-1, -2))
-        frame.addView(scroll, LinearLayout.LayoutParams(-1, -1))
+        frame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
         
         SettingsMotion.collapsingBar(this, frame, scroll, getString(R.string.app_name)) {}
         
@@ -573,20 +572,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAboutDialog() {
-        val dialog = AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle(R.string.app_info)
             .setView(buildAppInfoCard())
             .setPositiveButton(R.string.close, null)
-            .create()
-        dialog.setOnShowListener {
-            dialog.window?.setBackgroundDrawable(UiKit.rounded(UiKit.BG, 20, this@MainActivity))
-            val close = dialog.getButton(AlertDialog.BUTTON_POSITIVE) as? Button
-            close?.apply {
-                isAllCaps = false
-                setTextColor(UiKit.PRIMARY)
-            }
-        }
-        dialog.show()
+            .show()
     }
 
     private fun addProtectionStatusRow(group: LinearLayout, labelRes: Int, success: Boolean, requestOnly: Boolean) {
