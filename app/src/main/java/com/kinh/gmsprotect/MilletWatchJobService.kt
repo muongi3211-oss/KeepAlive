@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import java.util.Arrays
 
@@ -13,7 +14,7 @@ class MilletWatchJobService : JobService() {
     override fun onStartJob(params: JobParameters?): Boolean {
         var repairResult: MilletNoRestrict.Result? = null
         try {
-            val before = MilletNoRestrict.readRaw(this)
+            val before = Settings.System.getString(contentResolver, MilletNoRestrict.KEY)
             val hasGmsBefore = containsPackage(before, MilletNoRestrict.GMS_PACKAGE)
             val hasPlayStoreBefore = containsPackage(before, MilletNoRestrict.PLAY_STORE_PACKAGE)
             val hasProtectorBefore = containsPackage(before, packageName)
@@ -27,7 +28,7 @@ class MilletWatchJobService : JobService() {
 
             if (!hasGmsBefore || !hasPlayStoreBefore || !hasProtectorBefore) {
                 repairResult = MilletNoRestrict.ensureGms(this)
-                val after = MilletNoRestrict.readRaw(this)
+                val after = Settings.System.getString(contentResolver, MilletNoRestrict.KEY)
                 val hasGmsAfter = containsPackage(after, MilletNoRestrict.GMS_PACKAGE)
                 val hasPlayStoreAfter = containsPackage(after, MilletNoRestrict.PLAY_STORE_PACKAGE)
                 val hasProtectorAfter = containsPackage(after, packageName)
