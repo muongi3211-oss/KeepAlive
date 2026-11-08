@@ -15,8 +15,10 @@ object GmsProtector {
     enum class Result { SENT, GMS_MISSING, NO_PERMISSION, FAILED }
     enum class HyperOsProtectionResult { SENT, GMS_MISSING, FAILED }
 
+    @JvmStatic
     fun protect(context: Context): Result = protect(context, null)
 
+    @JvmStatic
     fun protect(context: Context, recoveryFinished: Runnable?): Result {
         val app = context.applicationContext
         Log.i(TAG, "protect START package=" + app.packageName)
@@ -96,6 +98,7 @@ object GmsProtector {
         }
     }
 
+    @JvmStatic
     fun sendHyperOsProtectionRequest(context: Context): HyperOsProtectionResult {
         val app = context.applicationContext
         return try {
