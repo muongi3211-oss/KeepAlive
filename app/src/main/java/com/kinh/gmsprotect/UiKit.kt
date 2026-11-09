@@ -21,7 +21,8 @@ object UiKit {
     const val SUCCESS = 0xFF16875E.toInt()
     const val ERROR = 0xFFCA4A59.toInt()
 
-    fun dp(context: Context, value: Int): Int {
+    fun dp(context: Context?, value: Int): Int {
+        if (context == null) return value
         return try {
             (value * context.resources.displayMetrics.density + 0.5f).toInt()
         } catch (e: Throwable) {
@@ -29,7 +30,8 @@ object UiKit {
         }
     }
 
-    fun applyTopSystemInset(view: View) {
+    fun applyTopSystemInset(view: View?) {
+        if (view == null) return
         try {
             val left = view.paddingLeft
             val top = view.paddingTop
@@ -53,7 +55,8 @@ object UiKit {
         }
     }
 
-    fun applyBottomSystemInset(view: View) {
+    fun applyBottomSystemInset(view: View?) {
+        if (view == null) return
         try {
             val left = view.paddingLeft
             val top = view.paddingTop
@@ -77,16 +80,16 @@ object UiKit {
         }
     }
 
-    fun rounded(color: Int, radiusDp: Int, context: Context): GradientDrawable {
+    fun rounded(color: Int, radiusDp: Int, context: Context?): GradientDrawable {
         return rounded(color, radiusDp, context, null, 1)
     }
 
-    fun rounded(color: Int, radiusDp: Int, context: Context, strokeColor: Int?, strokeDp: Int): GradientDrawable {
+    fun rounded(color: Int, radiusDp: Int, context: Context?, strokeColor: Int?, strokeDp: Int): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             setColor(color)
             cornerRadius = dp(context, radiusDp).toFloat()
-            if (strokeColor != null) setStroke(dp(context, strokeDp), strokeColor)
+            if (strokeColor != null && context != null) setStroke(dp(context, strokeDp), strokeColor)
         }
     }
 
