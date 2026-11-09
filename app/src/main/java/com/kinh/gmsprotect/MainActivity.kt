@@ -249,7 +249,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(10), dp(18), dp(14))
         }
-        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(page, FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val heading = LinearLayout(this).apply {
@@ -477,7 +477,7 @@ class MainActivity : AppCompatActivity() {
         }
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         UiKit.applyBottomSystemInset(page)
-        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(page, FrameLayout.LayoutParams(-1, -2))
         frame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
         
         SettingsMotion.collapsingBar(this, frame, scroll, getString(R.string.app_name)) {}
