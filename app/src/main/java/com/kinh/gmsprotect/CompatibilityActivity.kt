@@ -66,7 +66,7 @@ class CompatibilityActivity : Activity() {
 
         SettingsListUi.row(
             this, group, R.drawable.sg_ic_settings,
-            getString(R.string.system_access_name),
+            getString(R.string.system_access_button),
             if (writeOk) getString(R.string.ui_status_verified) else getString(R.string.ui_status_missing),
             null,
             if (writeOk) SettingsListUi.GOOD else SettingsListUi.BAD,
