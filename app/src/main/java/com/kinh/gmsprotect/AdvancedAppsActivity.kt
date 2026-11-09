@@ -207,20 +207,20 @@ class AdvancedAppsActivity : Activity() {
         }
         contentLayout.addView(infoToggle, spaceBottom(4))
 
-        val helpLayout = LinearLayout(this).apply {
+        val helpContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = if (infoExpanded) View.VISIBLE else View.GONE
         }
-        helpLayout.addView(SettingsListUi.heading(this, getString(R.string.adv_help_status_heading)), full())
-        addHelpRow(helpLayout, R.drawable.sg_ic_verified_check, R.string.adv_help_pass_title, R.string.adv_help_pass_desc)
-        addHelpRow(helpLayout, R.drawable.sg_ic_status_error, R.string.adv_help_attention_title, R.string.adv_help_attention_desc)
-        addHelpRow(helpLayout, R.drawable.sg_ic_status_pending, R.string.adv_help_unknown_title, R.string.adv_help_unknown_desc)
-        addHelpRow(helpLayout, R.drawable.sg_ic_status_off, R.string.adv_help_off_title, R.string.adv_help_off_desc)
-        helpLayout.addView(SettingsListUi.heading(this, getString(R.string.adv_help_rule_heading)), full())
-        addHelpRow(helpLayout, R.drawable.sg_ic_status_info, R.string.adv_help_five_title, R.string.adv_help_five_desc)
-        addHelpRow(helpLayout, R.drawable.sg_ic_status_info, R.string.adv_help_mipush_title, R.string.adv_help_mipush_desc)
-        addHelpRow(helpLayout, R.drawable.sg_ic_status_info, R.string.adv_help_battery_title, R.string.adv_help_battery_desc)
-        addHelpRow(helpLayout, R.drawable.sg_ic_status_info, R.string.adv_help_watcher_title, R.string.adv_help_watcher_desc)
+        helpContainer.addView(SettingsListUi.heading(this, getString(R.string.adv_help_status_heading)), full())
+        addHelpRow(helpContainer, R.drawable.sg_ic_verified_check, R.string.adv_help_pass_title, R.string.adv_help_pass_desc)
+        addHelpRow(helpContainer, R.drawable.sg_ic_status_error, R.string.adv_help_attention_title, R.string.adv_help_attention_desc)
+        addHelpRow(helpContainer, R.drawable.sg_ic_status_pending, R.string.adv_help_unknown_title, R.string.adv_help_unknown_desc)
+        addHelpRow(helpContainer, R.drawable.sg_ic_status_off, R.string.adv_help_off_title, R.string.adv_help_off_desc)
+        helpContainer.addView(SettingsListUi.heading(this, getString(R.string.adv_help_rule_heading)), full())
+        addHelpRow(helpContainer, R.drawable.sg_ic_status_info, R.string.adv_help_five_title, R.string.adv_help_five_desc)
+        addHelpRow(helpContainer, R.drawable.sg_ic_status_info, R.string.adv_help_mipush_title, R.string.adv_help_mipush_desc)
+        addHelpRow(helpContainer, R.drawable.sg_ic_status_info, R.string.adv_help_battery_title, R.string.adv_help_battery_desc)
+        addHelpRow(helpContainer, R.drawable.sg_ic_status_info, R.string.adv_help_watcher_title, R.string.adv_help_watcher_desc)
 
         val jobInfo = UiKit.muted(
             this,
@@ -231,12 +231,12 @@ class AdvancedAppsActivity : Activity() {
             ),
             12f
         ).apply { setPadding(dp(18), dp(12), dp(18), dp(18)) }
-        helpLayout.addView(jobInfo, full())
-        contentLayout.addView(helpLayout, full())
+        helpContainer.addView(jobInfo, full())
+        contentLayout.addView(helpContainer, full())
 
         infoToggle.setOnClickListener {
             infoExpanded = !infoExpanded
-            helpLayout.visibility = if (infoExpanded) View.VISIBLE else View.GONE
+            helpContainer.visibility = if (infoExpanded) View.VISIBLE else View.GONE
             infoToggle.text = getString(if (infoExpanded) R.string.ui_hide_help else R.string.ui_show_help)
         }
     }
