@@ -12,8 +12,8 @@ android {
         minSdk 22
         targetSdk 34
         
-        versionCode project.hasProperty('APK_VERSION_CODE') ? project.property('APK_VERSION_CODE').toInteger() : 445
-        versionName project.hasProperty('APK_VERSION_NAME') ? project.property('APK_VERSION_NAME') : "2.0.445"
+        versionCode project.hasProperty('APK_VERSION_CODE') ? project.property('APK_VERSION_CODE').toInteger() : 516
+        versionName project.hasProperty('APK_VERSION_NAME') ? project.property('APK_VERSION_NAME') : "2.0.516"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
