@@ -251,18 +251,18 @@ class AdvancedAppsActivity : Activity() {
         val iconLp = LinearLayout.LayoutParams(dp(22), dp(22)).apply { rightMargin = dp(20) }
         row.addView(icon, iconLp)
 
-        val text = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val textLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val title = TextView(this).apply {
             text = getString(titleRes)
             textSize = 14.5f
             setTextColor(UiKit.TEXT)
         }
-        text.addView(title, full())
+        textLayout.addView(title, full())
         val description = UiKit.muted(this, getString(descriptionRes), 12.5f).apply {
             setPadding(0, dp(3), 0, 0)
         }
-        text.addView(description, full())
-        row.addView(text, LinearLayout.LayoutParams(0, -2, 1f))
+        textLayout.addView(description, full())
+        row.addView(textLayout, LinearLayout.LayoutParams(0, -2, 1f))
         container.addView(row, full())
     }
 
