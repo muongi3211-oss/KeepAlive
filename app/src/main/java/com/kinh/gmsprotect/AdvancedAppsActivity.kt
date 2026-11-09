@@ -33,7 +33,7 @@ import java.util.LinkedHashMap
 import java.util.Locale
 
 class AdvancedAppsActivity : Activity() {
-    private var content: LinearLayout? = null
+    private var mainContent: LinearLayout? = null
     private var mainScroll: ScrollView? = null
     private var collapsingHeader: SettingsMotion.CollapsingHeader? = null
     private var detailPkg: String? = null
@@ -116,9 +116,9 @@ class AdvancedAppsActivity : Activity() {
     private fun buildShell() {
         val frame = FrameLayout(this).apply { setBackgroundColor(UiKit.BG) }
         mainScroll = ScrollView(this).apply { isFillViewport = true }
-        content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        UiKit.applyBottomSystemInset(content!!)
-        mainScroll?.addView(content, FrameLayout.LayoutParams(-1, -2))
+        mainContent = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        UiKit.applyBottomSystemInset(mainContent!!)
+        mainScroll?.addView(mainContent, FrameLayout.LayoutParams(-1, -2))
         frame.addView(mainScroll, FrameLayout.LayoutParams(-1, -1))
         collapsingHeader = SettingsMotion.collapsingBar(this, frame, mainScroll!!, getString(R.string.adv_title)) {
             if (detailPkg != null) showList() else finish()
@@ -128,7 +128,7 @@ class AdvancedAppsActivity : Activity() {
     }
 
     private fun render() {
-        val contentLayout = this.content ?: return
+        val contentLayout = this.mainContent ?: return
         contentLayout.removeAllViews()
         gameRawSnapshot = null
         gameSnapshotReadable = false
@@ -140,7 +140,7 @@ class AdvancedAppsActivity : Activity() {
         milletRawSnapshot = null
         milletSnapshotReadable = false
         try {
-            milletRawSnapshot = Settings.System.getString(this.contentResolver, MilletNoRestrict.KEY)
+            milletRawSnapshot = Settings.System.getString(contentResolver, MilletNoRestrict.KEY)
             milletSnapshotReadable = true
         } catch (ignored: Throwable) {}
 
@@ -271,14 +271,14 @@ class AdvancedAppsActivity : Activity() {
         detailPkg = pkg
         render()
         mainScroll?.scrollTo(0, 0)
-        SettingsMotion.enter(content!!)
+        SettingsMotion.enter(mainContent!!)
     }
 
     private fun showList() {
         detailPkg = null
         render()
         mainScroll?.post { mainScroll?.scrollTo(0, previousScrollY) }
-        SettingsMotion.enter(content!!)
+        SettingsMotion.enter(mainContent!!)
     }
 
     private fun milletInSnapshot(packageName: String): Boolean {
