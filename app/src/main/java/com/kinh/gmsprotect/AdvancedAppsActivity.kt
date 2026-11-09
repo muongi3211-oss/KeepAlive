@@ -237,7 +237,7 @@ class AdvancedAppsActivity : Activity() {
         infoToggle.setOnClickListener {
             infoExpanded = !infoExpanded
             help.visibility = if (infoExpanded) View.VISIBLE else View.GONE
-            infoToggle.setText(if (infoExpanded) R.string.ui_hide_help else R.string.ui_show_help)
+            infoToggle.text = getString(if (infoExpanded) R.string.ui_hide_help else R.string.ui_show_help)
         }
     }
 
