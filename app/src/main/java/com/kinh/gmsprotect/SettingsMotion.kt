@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.RippleDrawable
 import android.view.Gravity
@@ -16,7 +15,7 @@ import android.widget.TextView
 import android.view.animation.DecelerateInterpolator
 
 object SettingsMotion {
-    private fun dp(c: Context, x: Int): Int = UiKit.dp(c, x)
+    private fun dp(c: Context?, x: Int): Int = UiKit.dp(c, x)
 
     fun ripple(c: Context): RippleDrawable {
         return RippleDrawable(
@@ -26,7 +25,8 @@ object SettingsMotion {
         )
     }
 
-    fun largeTitle(c: Context, page: LinearLayout, title: String) {
+    fun largeTitle(c: Context, page: LinearLayout?, title: String) {
+        if (page == null) return
         val label = TextView(c).apply {
             text = title
             setTextColor(UiKit.TEXT)
@@ -40,15 +40,15 @@ object SettingsMotion {
 
     class CollapsingHeader(
         private val context: Context,
-        private val title: TextView,
-        private val bar: LinearLayout,
-        private val scroll: ScrollView,
+        private val title: TextView?,
+        private val bar: LinearLayout?,
+        private val scroll: ScrollView?,
         private val hasBack: Boolean
     ) {
         private var compactOnly = false
 
         fun setTitle(value: String) {
-            title.text = value
+            title?.text = value
         }
 
         fun setCompactOnly(compact: Boolean) {
@@ -57,6 +57,7 @@ object SettingsMotion {
         }
 
         internal fun update() {
+            if (bar == null || title == null || scroll == null) return
             if (compactOnly) {
                 bar.visibility = View.VISIBLE
                 bar.alpha = 1f
@@ -85,12 +86,13 @@ object SettingsMotion {
     }
 
     fun collapsingBar(
-        activity: Activity,
-        frame: FrameLayout,
-        scroll: ScrollView,
+        activity: Activity?,
+        frame: FrameLayout?,
+        scroll: ScrollView?,
         title: String,
         back: View.OnClickListener?
-    ): CollapsingHeader {
+    ): CollapsingHeader? {
+        if (activity == null || frame == null || scroll == null) return null
         val bar = LinearLayout(activity).apply {
             gravity = Gravity.CENTER_VERTICAL
             orientation = LinearLayout.HORIZONTAL
