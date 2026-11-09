@@ -13,6 +13,7 @@ import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
 import android.view.View
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -208,7 +209,7 @@ class MainActivity : AppCompatActivity() {
             textSize = 23f
             setTypeface(typeface, Typeface.BOLD)
         }
-        header.addView(title)
+        header.addView(title, LinearLayout.LayoutParams(-1, -2))
 
         val sub = TextView(this).apply {
             text = getString(R.string.ui_short_header)
@@ -216,7 +217,7 @@ class MainActivity : AppCompatActivity() {
             textSize = 13f
             setPadding(0, dp(3), 0, 0)
         }
-        header.addView(sub)
+        header.addView(sub, LinearLayout.LayoutParams(-1, -2))
         return header
     }
 
@@ -224,7 +225,7 @@ class MainActivity : AppCompatActivity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(UiKit.BG)
-            addView(buildHeader(), matchWidth())
+            addView(buildHeader(), LinearLayout.LayoutParams(-1, -2))
         }
     }
 
@@ -262,11 +263,11 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), 0, 0, 0)
         }
-        headingCopy.addView(onboardingText(R.string.onboarding_overview_title, 18f, UiKit.TEXT, true), matchWidth())
+        headingCopy.addView(onboardingText(R.string.onboarding_overview_title, 18f, UiKit.TEXT, true), LinearLayout.LayoutParams(-1, -2))
         val summary = onboardingText(R.string.onboarding_overview_subtitle, 12.5f, UiKit.MUTED, false).apply {
             setPadding(0, dp(3), 0, 0)
         }
-        headingCopy.addView(summary, matchWidth())
+        headingCopy.addView(summary, LinearLayout.LayoutParams(-1, -2))
         heading.addView(headingCopy, LinearLayout.LayoutParams(0, -2, 1f))
         page.addView(heading, matchWidthWithBottom(dp(22)))
 
@@ -291,7 +292,7 @@ class MainActivity : AppCompatActivity() {
             setTextColor(UiKit.MUTED)
             textSize = 12.5f
         }
-        counter.addView(count)
+        counter.addView(count, LinearLayout.LayoutParams(-2, -2))
         page.addView(counter, matchWidthWithBottom(dp(7)))
 
         val permissionRows = LinearLayout(this).apply {
@@ -438,18 +439,18 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), 0, 0, 0)
         }
-        label.addView(onboardingText(titleRes, 14.5f, UiKit.TEXT, true), matchWidth())
+        label.addView(onboardingText(titleRes, 14.5f, UiKit.TEXT, true), LinearLayout.LayoutParams(-1, -2))
         val description = onboardingText(descriptionRes, 12f, UiKit.MUTED, false).apply {
             maxLines = 2
             setPadding(0, dp(3), 0, 0)
         }
-        label.addView(description, matchWidth())
+        label.addView(description, LinearLayout.LayoutParams(-1, -2))
 
         val labelRes = if (done) (if (independentlyVerified) R.string.onboarding_verified else R.string.onboarding_confirmed) else R.string.onboarding_pending
         val statusLabel = onboardingText(labelRes, 11.5f, if (done) (if (independentlyVerified) UiKit.SUCCESS else UiKit.MUTED) else UiKit.MUTED, false).apply {
             setPadding(0, dp(3), 0, 0)
         }
-        label.addView(statusLabel, matchWidth())
+        label.addView(statusLabel, LinearLayout.LayoutParams(-1, -2))
         row.addView(label, LinearLayout.LayoutParams(0, -2, 1f))
 
         val status = ImageView(this).apply {
@@ -465,7 +466,7 @@ class MainActivity : AppCompatActivity() {
         row.isClickable = true
         row.isFocusable = true
         row.setOnClickListener { showOnboarding(index) }
-        parent.addView(row, matchWidth())
+        parent.addView(row, LinearLayout.LayoutParams(-1, -2))
     }
 
     private fun showMainScreen() {
@@ -572,11 +573,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAboutDialog() {
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.app_info)
             .setView(buildAppInfoCard())
             .setPositiveButton(R.string.close, null)
-            .show()
+            .create()
+        dialog.setOnShowListener {
+            dialog.window?.setBackgroundDrawable(UiKit.rounded(UiKit.BG, 20, this@MainActivity))
+            val close = dialog.getButton(AlertDialog.BUTTON_POSITIVE) as? Button
+            close?.apply {
+                isAllCaps = false
+                setTextColor(UiKit.PRIMARY)
+            }
+        }
+        dialog.show()
     }
 
     private fun addProtectionStatusRow(group: LinearLayout, labelRes: Int, success: Boolean, requestOnly: Boolean) {
