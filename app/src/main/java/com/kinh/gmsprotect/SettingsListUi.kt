@@ -42,27 +42,26 @@ object SettingsListUi {
 
     fun row(
         c: Context,
-        group: LinearLayout?,
+        group: LinearLayout,
         title: String,
         subtitle: String?,
         status: String?,
         kind: Int,
         action: View.OnClickListener?
-    ): LinearLayout? {
+    ): LinearLayout {
         return row(c, group, 0, title, subtitle, status, kind, action)
     }
 
     fun row(
         c: Context,
-        group: LinearLayout?,
+        group: LinearLayout,
         iconRes: Int,
         title: String,
         subtitle: String?,
         status: String?,
         kind: Int,
         action: View.OnClickListener?
-    ): LinearLayout? {
-        if (group == null) return null
+    ): LinearLayout {
         val row = LinearLayout(c).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
