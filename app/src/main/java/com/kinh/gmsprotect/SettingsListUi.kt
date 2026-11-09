@@ -14,7 +14,7 @@ object SettingsListUi {
     const val NEUTRAL = 0
     const val INFO = 2
 
-    private fun dp(c: Context, x: Int): Int = UiKit.dp(c, x)
+    private fun dp(c: Context?, x: Int): Int = if (c != null) UiKit.dp(c, x) else x
 
     fun heading(c: Context, value: String): TextView {
         return TextView(c).apply {
@@ -33,8 +33,8 @@ object SettingsListUi {
         }
     }
 
-    fun divider(c: Context, box: LinearLayout) {
-        if (box.childCount == 0) return
+    fun divider(c: Context, box: LinearLayout?) {
+        if (box == null || box.childCount == 0) return
         val line = View(c).apply { setBackgroundColor(UiKit.BORDER) }
         val lp = LinearLayout.LayoutParams(-1, dp(c, 1)).apply { topMargin = dp(c, 1) }
         box.addView(line, lp)
@@ -42,26 +42,27 @@ object SettingsListUi {
 
     fun row(
         c: Context,
-        group: LinearLayout,
+        group: LinearLayout?,
         title: String,
         subtitle: String?,
         status: String?,
         kind: Int,
         action: View.OnClickListener?
-    ): LinearLayout {
+    ): LinearLayout? {
         return row(c, group, 0, title, subtitle, status, kind, action)
     }
 
     fun row(
         c: Context,
-        group: LinearLayout,
+        group: LinearLayout?,
         iconRes: Int,
         title: String,
         subtitle: String?,
         status: String?,
         kind: Int,
         action: View.OnClickListener?
-    ): LinearLayout {
+    ): LinearLayout? {
+        if (group == null) return null
         val row = LinearLayout(c).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
