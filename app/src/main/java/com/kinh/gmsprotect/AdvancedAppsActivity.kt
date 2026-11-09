@@ -620,21 +620,21 @@ class AdvancedAppsActivity : Activity() {
     }
 
     private fun inspect(entry: AdvancedAppStore.Entry): AdvancedAppStatusReader.Snapshot {
-    return try {
-        AdvancedAppStatusReader.read(this, entry, gameRawSnapshot, gameSnapshotReadable, milletRawSnapshot, milletSnapshotReadable)
-    } catch (e: Throwable) {
-        val fallbackStatus = AdvancedAppStatusReader.Status(AdvancedAppStatusReader.ATTENTION, 0)
-        AdvancedAppStatusReader.Snapshot(
-            false,
-            fallbackStatus,
-            fallbackStatus,
-            fallbackStatus,
-            fallbackStatus,
-            fallbackStatus,
-            fallbackStatus
-        )
+        return try {
+            AdvancedAppStatusReader.read(this, entry, gameRawSnapshot, gameSnapshotReadable, milletRawSnapshot, milletSnapshotReadable)
+        } catch (e: Throwable) {
+            val fallbackStatus = AdvancedAppStatusReader.Status(AdvancedAppStatusReader.ATTENTION, 0)
+            AdvancedAppStatusReader.Snapshot(
+                false,
+                fallbackStatus,
+                fallbackStatus,
+                fallbackStatus,
+                fallbackStatus,
+                fallbackStatus,
+                fallbackStatus
+            )
+        }
     }
-}
 
     private fun addStatusRow(
         group: LinearLayout,
