@@ -1006,6 +1006,7 @@ class AdvancedAppsActivity : Activity() {
             }
             startActivity(intent)
         } catch (ignored: Throwable) {
+            // Chuyển hướng an toàn (Fallback) sang App Info chuẩn hệ thống nếu Activity ẩn MIUI bị thiếu
             openAppDetails(pkg)
         }
     }
@@ -1022,6 +1023,7 @@ class AdvancedAppsActivity : Activity() {
                 val direct = Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
                 startActivity(direct)
             } catch (ignored: Throwable) {
+                // Chuyển hướng an toàn (Fallback)
                 openAppDetails(pkg)
             }
         }
