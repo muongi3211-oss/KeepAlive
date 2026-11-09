@@ -879,12 +879,12 @@ class AdvancedAppsActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(5), dp(12), dp(8))
         }
-        val note = UiKit.muted(
+        val pickerNote = UiKit.muted(
             this,
             if (scan.limitedLauncherFallback) getString(R.string.adv_installed_apps_limited_list) else getString(R.string.adv_picker_note, all.size),
             12.5f
         )
-        box.addView(note, spaceBottom(5))
+        box.addView(pickerNote, spaceBottom(5))
 
         val search = EditText(this).apply {
             isSingleLine = true
@@ -980,7 +980,7 @@ class AdvancedAppsActivity : Activity() {
                     }
                 }
                 adapter.notifyDataSetChanged()
-                note.text = if (filtered.isEmpty()) getString(R.string.adv_no_results)
+                pickerNote.text = if (filtered.isEmpty()) getString(R.string.adv_no_results)
                 else if (scan.limitedLauncherFallback) getString(R.string.adv_installed_apps_limited_list)
                 else getString(R.string.adv_picker_note, filtered.size)
                 list.setSelection(0)
