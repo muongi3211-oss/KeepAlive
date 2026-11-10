@@ -105,6 +105,8 @@ class MainActivity : AppCompatActivity() {
 
         if (waitingMiuiPermissionsReturn) {
             waitingMiuiPermissionsReturn = false
+            // Đánh dấu đã xem qua bảng cấp quyền MIUI để chuyển sang bước tiếp theo
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("miui_perm_confirmed", true).apply()
             continueSetupFlow()
             return
         }
@@ -134,7 +136,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Tích hợp bước mở bảng cấp quyền MIUI (Other Permissions) giống hệt ảnh gốc
+        // Tự động mở bảng "Cấp quyền khác" (MIUI Other Permissions) ngay trong lần mở đầu tiên
         val miuiPermConfirmed = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("miui_perm_confirmed", false)
         if (!miuiPermConfirmed && !isSetupDone()) {
             openMiuiPermissionsModal()
@@ -157,6 +159,7 @@ class MainActivity : AppCompatActivity() {
     private fun openMiuiPermissionsModal() {
         try {
             waitingMiuiPermissionsReturn = true
+            // Intent mở trực tiếp bảng "Cấp quyền khác" (Other Permissions) trên ROM MIUI / HyperOS giống hệt ảnh gốc
             val intent = Intent("miui.intent.action.APP_PERM_EDITOR").apply {
                 setPackage("com.miui.securitycenter")
                 putExtra("extra_pkgname", packageName)
@@ -591,6 +594,8 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.settings_protection)
             .setView(details)
             .setNeutralButton(R.string.retry) { _, _ ->
+                // Ép buộc ghi dữ liệu vào danh sách trắng MILLET và chạy lại bảo vệ khi bấm Thử lại
+                MilletNoRestrict.ensureGms(this)
                 protectResult = GmsProtector.protect(this)
                 showMainScreen()
             }
