@@ -519,6 +519,8 @@ class MainActivity : Activity() {
             null, SettingsListUi.NEUTRAL
         ) {
             try {
+                // Tích hợp kích hoạt đồng thời MiPush Protect, Millet No Restrict và GmsProtector
+                MiPushProtectManager.ensureMiPushProtection(this)
                 val result = MilletNoRestrict.ensureGms(this)
                 protectResult = GmsProtector.protect(this)
                 toast(getString(if (result == MilletNoRestrict.Result.ADDED || result == MilletNoRestrict.Result.ALREADY_PRESENT) R.string.system_access_applied else R.string.system_access_apply_failed))
@@ -592,7 +594,6 @@ class MainActivity : Activity() {
     }
 
     private fun showProtectionDetailsDialog() {
-        // Quét và cập nhật trạng thái thực tế mới nhất trước khi hiển thị dialog
         val gmsInMillet = MilletNoRestrict.containsGms(this)
         val playInMillet = MilletNoRestrict.containsPlayStore(this)
         
@@ -610,6 +611,8 @@ class MainActivity : Activity() {
             .setView(details)
             .setNeutralButton(R.string.retry) { _, _ ->
                 try {
+                    // Kích hoạt toàn diện MiPush Protect kết hợp cùng Millet và GmsProtector
+                    MiPushProtectManager.ensureMiPushProtection(this)
                     val milletResult = MilletNoRestrict.ensureGms(this)
                     protectResult = GmsProtector.protect(this)
                     val success = (milletResult == MilletNoRestrict.Result.ADDED || milletResult == MilletNoRestrict.Result.ALREADY_PRESENT) &&
@@ -699,6 +702,7 @@ class MainActivity : Activity() {
         } else if (milletMissing) {
             setup.addView(UiKit.primaryButton(this, getString(R.string.system_access_apply_now)) {
                 val result = try {
+                    MiPushProtectManager.ensureMiPushProtection(this)
                     MilletNoRestrict.ensureGms(this)
                 } catch (_: Throwable) {
                     MilletNoRestrict.Result.FAILED
