@@ -49,8 +49,7 @@ class MainActivity : Activity() {
                 View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         }
 
-        // ĐÃ TẮT TỰ ĐỘNG CHẠY NẶNG KHI VỪA MỞ APP ĐỂ TRÁNH VĂNG (FORCE CLOSE)
-        // Mọi tính năng bảo vệ được đưa về trạng thái chờ kích hoạt thủ công.
+        // Đưa tất cả tính năng bảo vệ về trạng thái tắt/chờ kích hoạt thủ công khi khởi động
         protectResult = GmsProtector.Result.FAILED
 
         try {
@@ -166,9 +165,6 @@ class MainActivity : Activity() {
 
     private fun checkWriteSettingsAfterReturn(attempt: Int) {
         if (MilletNoRestrict.canWrite(this)) {
-            try {
-                MilletNoRestrict.ensureGms(this)
-            } catch (_: Throwable) {}
             continueSetupFlow()
             return
         }
@@ -186,12 +182,6 @@ class MainActivity : Activity() {
     }
 
     private fun finishSetup() {
-        try {
-            MilletNoRestrict.ensureGms(this)
-            protectResult = GmsProtector.protect(this)
-        } catch (_: Throwable) {
-            protectResult = GmsProtector.Result.FAILED
-        }
         setSetupDone(true)
         showMainScreen()
     }
@@ -529,13 +519,18 @@ class MainActivity : Activity() {
             getString(R.string.settings14_checking),
             null, SettingsListUi.NEUTRAL
         ) {
+            // Khi người dùng bấm vào dòng trạng thái GMS, thực hiện kích hoạt thủ công áp dụng danh sách trắng
+            try {
+                val result = MilletNoRestrict.ensureGms(this)
+                protectResult = GmsProtector.protect(this)
+                toast(getString(if (result == MilletNoRestrict.Result.ADDED || result == MilletNoRestrict.Result.ALREADY_PRESENT) R.string.system_access_applied else R.string.system_access_apply_failed))
+            } catch (_: Throwable) {}
             showProtectionDetailsDialog()
         }
         googleServiceRow.contentDescription = getString(R.string.settings_gms_service_title) + ". " + getString(R.string.settings_protection_details_desc)
         googleServiceCheckRow = googleServiceRow
         recheckGoogleRowAfterPause = false
         
-        // CHỈ CHẠY KIỂM TRA TRẠNG THÁI KHI GIAO DIỆN ĐÃ ĐƯỢC VẼ AN TOÀN
         try {
             GoogleServiceCheckUi.checkOnce(this, googleServiceRow, protectResult)
         } catch (_: Throwable) {}
@@ -610,7 +605,9 @@ class MainActivity : Activity() {
             .setView(details)
             .setNeutralButton(R.string.retry) { _, _ ->
                 try {
+                    val result = MilletNoRestrict.ensureGms(this)
                     protectResult = GmsProtector.protect(this)
+                    toast(getString(if (result == MilletNoRestrict.Result.ADDED || result == MilletNoRestrict.Result.ALREADY_PRESENT) R.string.system_access_applied else R.string.system_access_apply_failed))
                 } catch (_: Throwable) {}
                 showMainScreen()
             }
