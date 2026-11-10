@@ -49,35 +49,34 @@ class MainActivity : Activity() {
                 View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         }
 
-        protectResult = GmsProtector.protect(this)
-        LegacyBackgroundCleanup.runOnce(this)
+        // ĐÃ TẮT TỰ ĐỘNG CHẠY NẶNG KHI VỪA MỞ APP ĐỂ TRÁNH VĂNG (FORCE CLOSE)
+        // Mọi tính năng bảo vệ được đưa về trạng thái chờ kích hoạt thủ công.
+        protectResult = GmsProtector.Result.FAILED
 
-        if (GameWatchCore.isEnabled(this)) {
-            GameWatchCore.ensureTargets(this, "APP_OPEN")
-        }
-        AdvancedAppProtector.maintain(this, "APP_OPEN")
-        if (GameWatchScheduler.shouldWatch(this)) GameWatchScheduler.ensure(this, "APP_OPEN")
+        try {
+            LegacyBackgroundCleanup.runOnce(this)
+        } catch (_: Throwable) {}
 
         if (isSetupDone()) {
             showMainScreen()
         } else {
-            continueSetupFlow()
+            showOnboarding(0)
         }
     }
 
     override fun onPause() {
-        GameWatchEvidence.noteUi(this, false)
+        try {
+            GameWatchEvidence.noteUi(this, false)
+        } catch (_: Throwable) {}
         recheckGoogleRowAfterPause = googleServiceCheckRow != null
         super.onPause()
     }
 
     override fun onResume() {
         super.onResume()
-        GameWatchEvidence.noteUi(this, true)
-        if (GameWatchCore.isEnabled(this)) {
-            GameWatchCore.ensureTargets(this, "APP_RESUME")
-        }
-        if (GameWatchScheduler.shouldWatch(this)) GameWatchScheduler.ensure(this, "APP_RESUME")
+        try {
+            GameWatchEvidence.noteUi(this, true)
+        } catch (_: Throwable) {}
 
         if (waitingAdvancedScreenReturn) {
             waitingAdvancedScreenReturn = false
@@ -107,7 +106,9 @@ class MainActivity : Activity() {
         if (recheckGoogleRowAfterPause && isSetupDone() &&
             googleServiceCheckRow != null && googleServiceCheckRow!!.isAttachedToWindow
         ) {
-            GoogleServiceCheckUi.checkOnce(this, googleServiceCheckRow!!, protectResult)
+            try {
+                GoogleServiceCheckUi.checkOnce(this, googleServiceCheckRow!!, protectResult)
+            } catch (_: Throwable) {}
         }
         recheckGoogleRowAfterPause = false
     }
@@ -165,7 +166,9 @@ class MainActivity : Activity() {
 
     private fun checkWriteSettingsAfterReturn(attempt: Int) {
         if (MilletNoRestrict.canWrite(this)) {
-            MilletNoRestrict.ensureGms(this)
+            try {
+                MilletNoRestrict.ensureGms(this)
+            } catch (_: Throwable) {}
             continueSetupFlow()
             return
         }
@@ -183,8 +186,12 @@ class MainActivity : Activity() {
     }
 
     private fun finishSetup() {
-        MilletNoRestrict.ensureGms(this)
-        protectResult = GmsProtector.protect(this)
+        try {
+            MilletNoRestrict.ensureGms(this)
+            protectResult = GmsProtector.protect(this)
+        } catch (_: Throwable) {
+            protectResult = GmsProtector.Result.FAILED
+        }
         setSetupDone(true)
         showMainScreen()
     }
@@ -527,7 +534,11 @@ class MainActivity : Activity() {
         googleServiceRow.contentDescription = getString(R.string.settings_gms_service_title) + ". " + getString(R.string.settings_protection_details_desc)
         googleServiceCheckRow = googleServiceRow
         recheckGoogleRowAfterPause = false
-        GoogleServiceCheckUi.checkOnce(this, googleServiceRow, protectResult)
+        
+        // CHỈ CHẠY KIỂM TRA TRẠNG THÁI KHI GIAO DIỆN ĐÃ ĐƯỢC VẼ AN TOÀN
+        try {
+            GoogleServiceCheckUi.checkOnce(this, googleServiceRow, protectResult)
+        } catch (_: Throwable) {}
 
         SettingsListUi.row(
             this, protection, R.drawable.sg_ic_apps,
@@ -598,7 +609,9 @@ class MainActivity : Activity() {
             .setTitle(R.string.settings_protection)
             .setView(details)
             .setNeutralButton(R.string.retry) { _, _ ->
-                protectResult = GmsProtector.protect(this)
+                try {
+                    protectResult = GmsProtector.protect(this)
+                } catch (_: Throwable) {}
                 showMainScreen()
             }
             .setPositiveButton(R.string.close, null)
@@ -678,8 +691,16 @@ class MainActivity : Activity() {
             setup.addView(UiKit.primaryButton(this, getString(R.string.system_access_button)) { openWriteSettingsAccess() }, matchWidthWithBottom(dp(9)))
         } else if (milletMissing) {
             setup.addView(UiKit.primaryButton(this, getString(R.string.system_access_apply_now)) {
-                val result = MilletNoRestrict.ensureGms(this)
-                protectResult = GmsProtector.protect(this)
+                val result = try {
+                    MilletNoRestrict.ensureGms(this)
+                } catch (_: Throwable) {
+                    MilletNoRestrict.Result.FAILED
+                }
+                protectResult = try {
+                    GmsProtector.protect(this)
+                } catch (_: Throwable) {
+                    GmsProtector.Result.FAILED
+                }
                 toast(getString(if (result == MilletNoRestrict.Result.ADDED || result == MilletNoRestrict.Result.ALREADY_PRESENT) R.string.system_access_applied else R.string.system_access_apply_failed))
                 showMainScreen()
             }, matchWidthWithBottom(dp(9)))
