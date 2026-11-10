@@ -2,7 +2,6 @@ package com.kinh.gmsprotect
 
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
@@ -11,16 +10,15 @@ import java.util.LinkedHashSet
 object MiPushProtectManager {
     private const val TAG = "MiPushProtectManager"
     
-    // Khóa hệ thống phổ biến cho danh sách dịch vụ đẩy/MiPush trên một số biến thể MIUI/HyperOS
+    // Khai báo hằng số action broadcast để AdvancedAppProtector gọi không bị lỗi Unresolved reference
+    const val ACTION_REFRESH_MIPUSH = "com.xiaomi.mipush.RECEIVE_MESSAGE"
+    
     private const val MIPUSH_KEY = "mipush_no_restrict_list"
-    private const val ALTERNATIVE_MIPUSH_KEY = "xiaomi_push_protected_apps"
 
     fun ensureMiPushProtection(context: Context): Boolean {
         val app = context.applicationContext
         return try {
             val resolver = app.contentResolver
-            
-            // 1. Thao tác với Settings System/Secure nếu ROM hỗ trợ ghi trực tiếp
             val currentPrimary = Settings.Secure.getString(resolver, MIPUSH_KEY) ?: ""
             val packages = parsePackages(currentPrimary)
             
@@ -38,15 +36,14 @@ object MiPushProtectManager {
                 } catch (_: Throwable) {}
             }
 
-            // 2. Gửi lệnh kích hoạt qua Intent Broadcast đặc trưng của MiPush Framework
-            val broadcastIntent = Intent("com.xiaomi.mipush.RECEIVE_MESSAGE").apply {
+            val broadcastIntent = Intent(ACTION_REFRESH_MIPUSH).apply {
                 setPackage("com.xiaomi.xmsf")
                 putExtra("miipush_payload_package", app.packageName)
                 putExtra("protect_gms", true)
             }
             app.sendBroadcast(broadcastIntent)
 
-            Log.i(TAG, "MiPush Protect list updated successfully for GMS and Self.")
+            Log.i(TAG, "MiPush Protect list updated successfully.")
             true
         } catch (t: Throwable) {
             Log.w(TAG, "ensureMiPushProtection FAILED: ${t.message}")
@@ -61,6 +58,6 @@ object MiPushProtectManager {
             val value = token.trim()
             if (value.isNotEmpty()) out.add(value)
         }
-        return out
+        out
     }
 }
