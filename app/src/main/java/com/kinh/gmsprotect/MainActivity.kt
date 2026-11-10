@@ -1,8 +1,11 @@
 package com.kinh.gmsprotect
 
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -29,7 +32,7 @@ class MainActivity : AppCompatActivity() {
     private var waitingWriteSettingsReturn = false
     private var waitingBatterySettingsReturn = false
     private var waitingAdvancedScreenReturn = false
-    private var waitingMiuiPermissionsReturn = false
+    private var donatePromptCheckedThisSession = false
     private var googleServiceCheckRow: LinearLayout? = null
     private var recheckGoogleRowAfterPause = false
 
@@ -43,24 +46,23 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) flags = flags or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
             window.decorView.systemUiVisibility = flags
 
-            val miuiPermConfirmed = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("miui_perm_confirmed", false)
-            if (!miuiPermConfirmed && !isSetupDone()) {
-                openMiuiPermissionsModal()
-                return
+            // Chạy bảo vệ MiPush mỗi lần mở ứng dụng
+            protectResult = GmsProtector.protect(this)
+            
+            // Dọn dẹp tiến trình cũ và lên lịch định kỳ MilletWatch
+            LegacyBackgroundCleanup.runOnce(this)
+            MilletWatchScheduler.schedule(this)
+
+            if (GameWatchCore.isEnabled(this)) {
+                GameWatchCore.ensureTargets(this, "APP_OPEN")
+            }
+            AdvancedAppProtector.maintain(this, "APP_OPEN")
+            if (GameWatchScheduler.shouldWatch(this)) {
+                GameWatchScheduler.ensure(this, "APP_OPEN")
             }
 
             if (isSetupDone()) {
-                try {
-                    protectResult = GmsProtector.protect(this)
-                    if (GameWatchCore.isEnabled(this)) {
-                        GameWatchCore.ensureTargets(this, "APP_OPEN")
-                    }
-                    if (GameWatchScheduler.shouldWatch(this)) {
-                        GameWatchScheduler.ensure(this, "APP_OPEN")
-                    }
-                } catch (t: Throwable) {
-                    Log.w("MainActivity", "Background protection tasks skipped safely", t)
-                }
+                recordReturningLaunchForDonate()
                 showMainScreen()
             } else {
                 continueSetupFlow()
@@ -109,13 +111,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (waitingMiuiPermissionsReturn) {
-            waitingMiuiPermissionsReturn = false
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("miui_perm_confirmed", true).apply()
-            continueSetupFlow()
-            return
-        }
-
         if (waitingBatterySettingsReturn) {
             waitingBatterySettingsReturn = false
             if (isSetupDone()) showMainScreen()
@@ -141,12 +136,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val miuiPermConfirmed = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("miui_perm_confirmed", false)
-        if (!miuiPermConfirmed && !isSetupDone()) {
-            openMiuiPermissionsModal()
-            return
-        }
-
         if (!MilletNoRestrict.canWrite(this)) {
             showOnboarding(1)
             return
@@ -158,33 +147,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         finishSetup()
-    }
-
-    private fun openMiuiPermissionsModal() {
-        waitingMiuiPermissionsReturn = true
-        val intentsToTry = arrayOf(
-            Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.permissions.AppPermissionsEditorActivity"))
-                .putExtra("extra_pkgname", packageName),
-            Intent("miui.intent.action.APP_PERM_EDITOR").apply {
-                setPackage("com.miui.securitycenter")
-                putExtra("extra_pkgname", packageName)
-            },
-            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
-        )
-
-        var launched = false
-        for (intent in intentsToTry) {
-            try {
-                startActivity(intent)
-                launched = true
-                break
-            } catch (_: Throwable) {}
-        }
-
-        if (!launched) {
-            waitingMiuiPermissionsReturn = false
-            continueSetupFlow()
-        }
     }
 
     private fun checkAutostartAfterReturn(attempt: Int) {
@@ -239,7 +201,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun setSetupDone(done: Boolean) {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        prefs.edit().putBoolean(KEY_SETUP_DONE, done).apply()
+        val editor = prefs.edit().putBoolean(KEY_SETUP_DONE, done)
+        if (done && prefs.getLong(KEY_DONATE_START_MS, 0L) == 0L) {
+            editor.putLong(KEY_DONATE_START_MS, System.currentTimeMillis())
+            editor.putInt(KEY_DONATE_LAUNCH_COUNT, Math.max(1, prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0)))
+        }
+        editor.apply()
+    }
+
+    private fun recordReturningLaunchForDonate() {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val launches = prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0)
+        prefs.edit().putInt(KEY_DONATE_LAUNCH_COUNT, launches + 1).apply()
     }
 
     private fun buildHeader(): View {
@@ -322,7 +295,7 @@ class MainActivity : AppCompatActivity() {
         for (i in 0..2) {
             val segment = View(this)
             val color = if (complete[i]) UiKit.SUCCESS else if (i == onboardingStep) UiKit.PRIMARY else UiKit.BORDER
-            segment.background = UiKit.rounded(color, 4, this@MainActivity)
+            segment.background = UiKit.rounded(color, 4, this)
             val lp = LinearLayout.LayoutParams(0, dp(5), 1f)
             if (i > 0) lp.leftMargin = dp(7)
             progress.addView(segment, lp)
@@ -344,7 +317,7 @@ class MainActivity : AppCompatActivity() {
 
         val permissionRows = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = UiKit.rounded(UiKit.BG, 16, this@MainActivity)
+            background = UiKit.rounded(UiKit.BG, 16, this)
         }
         addOnboardingRow(permissionRows, 0, R.drawable.sg_ic_power, R.string.onboarding_autostart_name, R.string.onboarding_autostart_desc, complete[0], autostart == XiaomiSetupState.AutostartState.ALLOWED)
         onboardingDivider(permissionRows)
@@ -373,7 +346,7 @@ class MainActivity : AppCompatActivity() {
             gravity = Gravity.TOP
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(11), dp(10), dp(11), dp(10))
-            background = UiKit.rounded(UiKit.PRIMARY_SOFT, 12, this@MainActivity)
+            background = UiKit.rounded(UiKit.PRIMARY_SOFT, 12, this)
         }
         val hintIcon = ImageView(this).apply {
             setImageResource(R.drawable.sg_ic_info)
@@ -400,9 +373,6 @@ class MainActivity : AppCompatActivity() {
                     waitingAutostartSettingsReturn = true
                     openAutostartSettings()
                 }, matchWidth())
-                actions.addView(UiKit.secondaryButton(this, "Mở cấp quyền khác (MIUI)") {
-                    openMiuiPermissionsModal()
-                }, matchWidthWithTop(dp(9)))
                 if (autostart == XiaomiSetupState.AutostartState.UNKNOWN) {
                     actions.addView(UiKit.secondaryButton(this, getString(R.string.autostart_manual_continue)) {
                         getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("autostart_manual_confirmed", true).apply()
@@ -480,7 +450,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(5), dp(10), dp(5), dp(10))
             minimumHeight = dp(76)
-            background = if (onboardingStep == index) UiKit.rounded(0xFFEBEDF4.toInt(), 13, this@MainActivity) else SettingsMotion.ripple(this@MainActivity)
+            background = if (onboardingStep == index) UiKit.rounded(0xFFEBEDF4.toInt(), 13, this) else SettingsMotion.ripple(this)
         }
         val icon = onboardingIcon(iconRes, 42, 22, false)
         row.addView(icon, LinearLayout.LayoutParams(dp(42), dp(42)))
@@ -531,14 +501,13 @@ class MainActivity : AppCompatActivity() {
         frame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
         
         SettingsMotion.collapsingBar(this, frame, scroll, getString(R.string.app_name)) {}
-        
         setContentView(frame)
 
         SettingsMotion.largeTitle(this, page, getString(R.string.app_name))
 
         val verify = SettingsListUi.group(this)
         SettingsListUi.row(this, verify, R.drawable.sg_ic_check, getString(R.string.settings13_self_check), getString(R.string.settings13_self_check_desc), null, SettingsListUi.NEUTRAL) {
-            startActivity(Intent(this@MainActivity, CompatibilityActivity::class.java))
+            startActivity(Intent(this, CompatibilityActivity::class.java))
         }
         page.addView(verify, matchWidth())
         addMicrogSeparator(page)
@@ -575,16 +544,20 @@ class MainActivity : AppCompatActivity() {
             this, tools, R.drawable.sg_ic_battery, getString(R.string.settings_battery_short),
             getString(if (doze) R.string.ui_status_verified else R.string.ui_status_missing), null, if (doze) SettingsListUi.GOOD else SettingsListUi.BAD
         ) {
-            if (!BatterySetupState.isIgnoringBatteryOptimizations(this@MainActivity)) requestAndroidBatteryExemption()
+            if (!BatterySetupState.isIgnoringBatteryOptimizations(this)) requestAndroidBatteryExemption()
             else showAndroidBatteryInfo()
         }
         SettingsListUi.row(this, tools, R.drawable.sg_ic_history, getString(R.string.gamewatch_logs), getString(R.string.settings_history_desc), null, SettingsListUi.NEUTRAL) {
-            startActivity(Intent(this@MainActivity, ActivityLogActivity::class.java))
+            startActivity(Intent(this, ActivityLogActivity::class.java))
+        }
+        SettingsListUi.row(this, tools, R.drawable.sg_ic_heart, getString(R.string.donate_title), null, null, SettingsListUi.NEUTRAL) {
+            showDonateDialog()
         }
         SettingsListUi.row(this, tools, R.drawable.sg_ic_info, getString(R.string.app_info), null, null, SettingsListUi.NEUTRAL) {
             showAboutDialog()
         }
         page.addView(tools, matchWidth())
+        page.post { maybeShowDonatePrompt() }
     }
 
     private fun addMicrogSeparator(page: LinearLayout) {
@@ -607,7 +580,6 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.settings_protection)
             .setView(details)
             .setNeutralButton(R.string.retry) { _, _ ->
-                MilletNoRestrict.ensureGms(this)
                 protectResult = GmsProtector.protect(this)
                 showMainScreen()
             }
@@ -630,7 +602,7 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(R.string.close, null)
             .create()
         dialog.setOnShowListener {
-            dialog.window?.setBackgroundDrawable(UiKit.rounded(UiKit.BG, 20, this@MainActivity))
+            dialog.window?.setBackgroundDrawable(UiKit.rounded(UiKit.BG, 20, this))
             val close = dialog.getButton(AlertDialog.BUTTON_POSITIVE) as? Button
             close?.apply {
                 isAllCaps = false
@@ -702,6 +674,40 @@ class MainActivity : AppCompatActivity() {
         return setup
     }
 
+    private fun maybeShowDonatePrompt() {
+        if (donatePromptCheckedThisSession || !isSetupDone() || isFinishing()) return
+        donatePromptCheckedThisSession = true
+
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        val start = prefs.getLong(KEY_DONATE_START_MS, 0L)
+        val launches = prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0)
+        val lastPrompt = prefs.getLong(KEY_DONATE_LAST_PROMPT_MS, 0L)
+        val promptCount = prefs.getInt(KEY_DONATE_PROMPT_COUNT, 0)
+
+        if (start <= 0L) {
+            prefs.edit().putLong(KEY_DONATE_START_MS, now).apply()
+            return
+        }
+        if (now - start < DONATE_FIRST_DELAY_MS) return
+        if (launches < DONATE_MIN_LAUNCHES) return
+        if (promptCount >= DONATE_MAX_AUTO_PROMPTS) return
+        if (lastPrompt > 0L && now - lastPrompt < DONATE_REPEAT_DELAY_MS) return
+
+        val days = Math.max(7L, (now - start) / DAY_MS)
+        prefs.edit()
+            .putLong(KEY_DONATE_LAST_PROMPT_MS, now)
+            .putInt(KEY_DONATE_PROMPT_COUNT, promptCount + 1)
+            .apply()
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.donate_reminder_title)
+            .setMessage(getString(R.string.donate_reminder_message, days))
+            .setPositiveButton(R.string.donate_button) { _, _ -> showDonateDialog() }
+            .setNegativeButton(R.string.donate_later, null)
+            .show()
+    }
+
     private fun openManagedApps() {
         waitingAdvancedScreenReturn = true
         startActivity(Intent(this, AdvancedAppsActivity::class.java))
@@ -710,6 +716,9 @@ class MainActivity : AppCompatActivity() {
     private fun buildAppInfoCard(): View {
         val content = SettingsListUi.group(this).apply { setPadding(0, dp(4), 0, dp(8)) }
         SettingsListUi.row(this, content, R.drawable.sg_ic_info, getString(R.string.about_developer_label), getString(R.string.developer), null, SettingsListUi.NEUTRAL, null)
+        SettingsListUi.row(this, content, R.drawable.ic_facebook, getString(R.string.facebook), null, null, SettingsListUi.NEUTRAL) {
+            openFacebookProfile()
+        }
 
         val note = UiKit.muted(this, getString(R.string.about_note), 13f).apply {
             setLineSpacing(dp(2).toFloat(), 1.02f)
@@ -719,17 +728,118 @@ class MainActivity : AppCompatActivity() {
         return content
     }
 
+    private fun showDonateDialog() {
+        val usdtEvm = "0x4cC35bE54c358146E7b71E58f965532193848FDd"
+        val usdtTrc20 = "TD8fkqHy5cGQU3tFf7Qi7AeeqrAWi6e9Rm"
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(22), dp(10), dp(22), dp(12))
+        }
+
+        val thanks = TextView(this).apply {
+            setText(R.string.donate_thanks)
+            textSize = 14f
+            setTextColor(UiKit.TEXT)
+            gravity = Gravity.CENTER
+        }
+        content.addView(thanks, matchWidthWithBottom(dp(14)))
+
+        val qr = ImageView(this).apply {
+            setImageResource(R.drawable.donate_qr)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            adjustViewBounds = true
+            background = UiKit.rounded(Color.WHITE, 16, this@MainActivity)
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+        }
+        content.addView(qr, LinearLayout.LayoutParams(dp(240), dp(240)))
+
+        val hint = UiKit.muted(this, getString(R.string.donate_qr_hint), 12f).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(12), 0, dp(12))
+        }
+        content.addView(hint, matchWidth())
+
+        val cryptoTitle = TextView(this).apply {
+            setText(R.string.donate_usdt)
+            textSize = 13f
+            setTextColor(UiKit.TEXT)
+            setTypeface(typeface, Typeface.BOLD)
+        }
+        content.addView(cryptoTitle, matchWidth())
+        content.addView(buildCryptoAddressRow("USDT - EVM", usdtEvm), matchWidthWithTop(dp(8)))
+        content.addView(buildCryptoAddressRow("USDT - TRC20", usdtTrc20), matchWidthWithTop(dp(8)))
+
+        val warning = UiKit.muted(this, getString(R.string.donate_network_warning), 10.5f).apply {
+            setPadding(0, dp(9), 0, 0)
+        }
+        content.addView(warning, matchWidth())
+
+        val scroll = ScrollView(this).apply {
+            addView(content, ScrollView.LayoutParams(-1, -2))
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.donate_dialog_title)
+            .setView(scroll)
+            .setPositiveButton(R.string.close, null)
+            .show()
+    }
+
+    private fun buildCryptoAddressRow(network: String, address: String): View {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(11), dp(9), dp(9), dp(9))
+            background = UiKit.rounded(0xFFF8F7FF.toInt(), 12, this@MainActivity, UiKit.BORDER, 1)
+        }
+
+        val label = TextView(this).apply {
+            text = network
+            textSize = 12.5f
+            setTextColor(UiKit.TEXT)
+            setTypeface(typeface, Typeface.BOLD)
+        }
+        box.addView(label, matchWidth())
+
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(5), 0, 0)
+        }
+
+        val value = TextView(this).apply {
+            text = address
+            textSize = 12.5f
+            setTextColor(UiKit.MUTED)
+            setTextIsSelectable(true)
+            setTypeface(Typeface.MONOSPACE)
+        }
+        row.addView(value, LinearLayout.LayoutParams(0, -2, 1f))
+
+        val copy = UiKit.secondaryButton(this, getString(R.string.copy)) {
+            val cm = getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager
+            cm?.setPrimaryClip(ClipData.newPlainText(network, address))
+            toast(getString(R.string.copied_address, network))
+        }
+        val copyLp = LinearLayout.LayoutParams(dp(82), dp(42)).apply { leftMargin = dp(8) }
+        row.addView(copy, copyLp)
+        box.addView(row, matchWidth())
+        return box
+    }
+
     private fun openWriteSettingsAccess() {
         waitingWriteSettingsReturn = true
         try {
-            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName"))
+            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            }
             startActivity(intent)
             return
-        } catch (ignored: Throwable) {}
+        } catch (_: Throwable) {}
 
         try {
             startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS))
-        } catch (ignored: Throwable) {
+        } catch (_: Throwable) {
             waitingWriteSettingsReturn = false
             openAppDetails(getString(R.string.system_access_settings_fallback))
         }
@@ -743,12 +853,14 @@ class MainActivity : AppCompatActivity() {
         }
         waitingBatterySettingsReturn = true
         try {
-            val request = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
+            val request = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = Uri.parse("package:$packageName")
+            }
             startActivity(request)
-        } catch (ignored: Throwable) {
+        } catch (_: Throwable) {
             try {
                 startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-            } catch (ignoredAgain: Throwable) {
+            } catch (_: Throwable) {
                 waitingBatterySettingsReturn = false
                 toast(getString(R.string.battery_request_unavailable))
             }
@@ -758,7 +870,6 @@ class MainActivity : AppCompatActivity() {
     private fun openAutostartSettings() {
         val action = Intent("miui.intent.action.OP_AUTO_START").apply { setPackage("com.miui.securitycenter") }
         val direct = componentIntent("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
-
         if (!tryIntents(arrayOf(action, direct))) {
             waitingAutostartSettingsReturn = false
             openAppDetails(getString(R.string.settings_hint_autostart))
@@ -774,7 +885,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 startActivity(intent)
                 return true
-            } catch (ignored: Throwable) {}
+            } catch (_: Throwable) {}
         }
         return false
     }
@@ -783,8 +894,16 @@ class MainActivity : AppCompatActivity() {
         try {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
             toast(hint)
-        } catch (ignored: Throwable) {
-            try { startActivity(Intent(Settings.ACTION_SETTINGS)) } catch (ignoredAgain: Throwable) {}
+        } catch (_: Throwable) {
+            try { startActivity(Intent(Settings.ACTION_SETTINGS)) } catch (_: Throwable) {}
+        }
+    }
+
+    private fun openFacebookProfile() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.facebook.com/mrhankytb")))
+        } catch (_: Throwable) {
+            toast(getString(R.string.facebook_failed))
         }
     }
 
@@ -798,5 +917,15 @@ class MainActivity : AppCompatActivity() {
         private const val PREFS = "setup_v1"
         private const val KEY_SETUP_DONE = "setup_done"
         private const val KEY_BATTERY_USER_CONFIRMED = "battery_user_confirmed_v1"
+        private const val KEY_DONATE_START_MS = "donate_start_ms"
+        private const val KEY_DONATE_LAUNCH_COUNT = "donate_launch_count"
+        private const val KEY_DONATE_LAST_PROMPT_MS = "donate_last_prompt_ms"
+        private const val KEY_DONATE_PROMPT_COUNT = "donate_prompt_count"
+
+        private const val DAY_MS = 24L * 60L * 60L * 1000L
+        private const val DONATE_FIRST_DELAY_MS = 7L * DAY_MS
+        private const val DONATE_REPEAT_DELAY_MS = 30L * DAY_MS
+        private const val DONATE_MIN_LAUNCHES = 3
+        private const val DONATE_MAX_AUTO_PROMPTS = 3
     }
 }
