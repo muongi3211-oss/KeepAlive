@@ -4,32 +4,19 @@ import android.app.job.JobInfo
 import android.app.job.JobScheduler
 import android.content.ComponentName
 import android.content.Context
-import android.os.Build
 
 object GameWatchScheduler {
-
     fun ensure(context: Context, reason: String) {
         try {
             val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler ?: return
             val componentName = ComponentName(context, GameWatchJobService::class.java)
-            
             val builder = JobInfo.Builder(1001, componentName).apply {
-                // Tận dụng sự kiện khởi động lại và kết nối mạng để check/vá tự động
                 setPersisted(true)
                 setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                // Giãn cách thời gian thực thi cực thưa để tiết kiệm pin tuyệt đối (ví dụ: chạy ngầm nhẹ mỗi vài tiếng hoặc theo sự kiện)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    setPeriodic(4 * 60 * 60 * 1000L, JobInfo.flexibilityMillisNotSpecified)
-                } else {
-                    setPeriodic(4 * 60 * 60 * 1000L)
-                }
+                setPeriodic(4 * 60 * 60 * 1000L)
             }
-
             scheduler.schedule(builder.build())
-            AdvancedAppProtector.log(context, "JobScheduler scheduled: $reason")
-        } catch (e: Throwable) {
-            android.util.Log.e("GameWatchScheduler", "Error scheduling job", e)
-        }
+        } catch (_: Throwable) {}
     }
 
     fun cancel(context: Context) {
