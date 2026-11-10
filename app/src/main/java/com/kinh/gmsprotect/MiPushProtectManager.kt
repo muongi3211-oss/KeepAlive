@@ -10,7 +10,7 @@ import java.util.LinkedHashSet
 object MiPushProtectManager {
     private const val TAG = "MiPushProtectManager"
     
-    // Khai báo hằng số action broadcast để AdvancedAppProtector gọi không bị lỗi Unresolved reference
+    // Khai báo hằng số public ACTION_REFRESH_MIPUSH để AdvancedAppProtector truy cập
     const val ACTION_REFRESH_MIPUSH = "com.xiaomi.mipush.RECEIVE_MESSAGE"
     
     private const val MIPUSH_KEY = "mipush_no_restrict_list"
@@ -58,6 +58,6 @@ object MiPushProtectManager {
             val value = token.trim()
             if (value.isNotEmpty()) out.add(value)
         }
-        out
+        return out // Đã bổ sung từ khóa 'return'
     }
 }
