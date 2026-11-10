@@ -9,11 +9,15 @@ object GmsProtector {
 
     fun protect(context: Context): Result {
         return try {
-            // Kiểm tra xem dịch vụ GMS có thực sự được cài đặt trên máy hay không
+            // Kiểm tra GMS có tồn tại trên thiết bị không
             context.packageManager.getPackageInfo(GameWatchCore.GMS, 0)
             
-            // Kích hoạt tín hiệu MiPush / làm mới kết nối nền theo cơ chế chuẩn
+            // 1. Thực hiện ghi GMS và Play Store vào danh sách MILLET của HyperOS
+            MilletNoRestrict.ensureGms(context)
+            
+            // 2. Kích hoạt tín hiệu thông báo nền MiPush / Greezer
             GameWatchCore.refreshMiPush(context)
+            
             Result.SENT
         } catch (_: Throwable) {
             Result.GMS_MISSING
