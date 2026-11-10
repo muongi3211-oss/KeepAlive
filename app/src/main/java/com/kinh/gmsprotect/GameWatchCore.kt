@@ -2,17 +2,32 @@ package com.kinh.gmsprotect
 
 import android.content.Context
 import android.content.Intent
+import android.provider.Settings
 
 object GameWatchCore {
     const val GMS = "com.google.android.gms"
     const val GMS_PACKAGE = "com.google.android.gms"
 
-    // Các kiểu kết quả check trạng thái tương thích
+    // Định nghĩa enum Result dùng cho giao diện check trạng thái
     enum class Result {
         VERIFIED, ATTENTION, PENDING, OFF
     }
 
+    fun canWrite(context: Context): Boolean {
+        return try {
+            Settings.System.canWrite(context)
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    fun isEnabled(context: Context): Boolean = true
+
     fun ensureTargets(context: Context, reason: String) {
+        AdvancedAppProtector.maintain(context, reason)
+    }
+
+    fun ensureGms(context: Context, reason: String) {
         AdvancedAppProtector.maintain(context, reason)
     }
 
@@ -49,19 +64,9 @@ object GameWatchCore {
         } catch (_: Throwable) {}
     }
 
-    fun canWrite(context: Context): Boolean {
-        return try {
-            android.provider.Settings.System.canWrite(context)
-        } catch (_: Throwable) {
-            false
-        }
-    }
-
-    fun isEnabled(context: Context): Boolean = true
-
     fun raw(context: Context): String? {
         return try {
-            android.provider.Settings.System.getString(context.contentResolver, "game_booster_allowed_packages")
+            Settings.System.getString(context.contentResolver, "game_booster_allowed_packages")
         } catch (_: Throwable) {
             null
         }
@@ -70,5 +75,17 @@ object GameWatchCore {
     fun contains(raw: String?, pkg: String): Boolean {
         if (raw == null) return false
         return raw.contains(pkg)
+    }
+
+    fun containsGms(raw: String?): Boolean {
+        return contains(raw, GMS)
+    }
+
+    fun containsPlayStore(raw: String?): Boolean {
+        return contains(raw, MilletNoRestrict.PLAY_STORE_PACKAGE)
+    }
+
+    fun containsSelf(context: Context, raw: String?): Boolean {
+        return contains(raw, context.packageName)
     }
 }
