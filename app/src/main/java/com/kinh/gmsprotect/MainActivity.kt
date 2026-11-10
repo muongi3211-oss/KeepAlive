@@ -258,7 +258,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(10), dp(18), dp(14))
         }
-        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(page, FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val heading = LinearLayout(this).apply {
