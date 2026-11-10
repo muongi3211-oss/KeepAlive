@@ -6,48 +6,13 @@ import android.content.Intent
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        val action = intent?.action
-        if (Intent.ACTION_LOCKED_BOOT_COMPLETED == action ||
-            Intent.ACTION_BOOT_COMPLETED == action ||
-            Intent.ACTION_USER_UNLOCKED == action ||
-            Intent.ACTION_MY_PACKAGE_REPLACED == action
-        ) {
-            val pending = goAsync()
-            try {
-                // CHỐT AN TOÀN: Nếu ứng dụng chưa hoàn tất thiết lập (setup_done = false),
-                // tuyệt đối không cho phép các dịch vụ ngầm chạy tự động khi khởi động máy.
-                val prefs = context.getSharedPreferences("setup_v1", Context.MODE_PRIVATE)
-                val isSetupDone = prefs.getBoolean("setup_done", false)
-                if (!isSetupDone) {
-                    pending.finish()
-                    return
-                }
-
-                if (Intent.ACTION_LOCKED_BOOT_COMPLETED != action && GameWatchCore.isEnabled(context)) {
-                    val targetsReady = GameWatchCore.ensureTargets(context, "BOOT_$action")
-                    val jobReady = GameWatchScheduler.ensure(context, "BOOT_$action")
-                    if (Intent.ACTION_BOOT_COMPLETED == action || Intent.ACTION_USER_UNLOCKED == action) {
-                        GameWatchEvidence.noteBoot(context, targetsReady && jobReady)
-                    }
-                }
-                if (Intent.ACTION_LOCKED_BOOT_COMPLETED != action) {
-                    try {
-                        AdvancedAppProtector.maintain(context, "BOOT_$action")
-                        if (GameWatchScheduler.shouldWatch(context)) {
-                            GameWatchScheduler.ensure(context, "BOOT_ADV_$action")
-                        }
-                    } catch (ignored: Throwable) {}
-                }
-                if (Intent.ACTION_LOCKED_BOOT_COMPLETED != action) {
-                    LegacyBackgroundCleanup.runOnce(context)
-                }
-                GmsProtector.protect(context) {
-                    MilletWatchScheduler.schedule(context)
-                    pending.finish()
-                }
-            } catch (t: Throwable) {
-                pending.finish()
+        try {
+            if (intent?.action == Intent.ACTION_BOOT_COMPLETED) {
+                GameWatchCore.ensureTargets(context, "BOOT_COMPLETED")
+                GameWatchCore.protect(context, "BOOT_COMPLETED")
+                GameWatchCore.schedule(context, "BOOT_COMPLETED")
+                MilletWatchScheduler.ensure(context, "BOOT_COMPLETED")
             }
-        }
+        } catch (_: Throwable) {}
     }
 }
