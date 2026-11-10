@@ -589,7 +589,7 @@ class MainActivity : Activity() {
         page.addView(SettingsListUi.separator(this), lp)
     }
 
-    private fun showProtectionDetailsDialog() {
+        private fun showProtectionDetailsDialog() {
         val details = SettingsListUi.group(this).apply { setPadding(dp(2), dp(8), dp(2), dp(6)) }
         val gmsInMillet = MilletNoRestrict.containsGms(this)
         val playInMillet = MilletNoRestrict.containsPlayStore(this)
@@ -600,15 +600,22 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(10), dp(20), dp(8))
         }
         details.addView(explanation, matchWidth())
+        
         AlertDialog.Builder(this)
             .setTitle(R.string.settings_protection)
             .setView(details)
             .setNeutralButton(R.string.retry) { _, _ ->
+                // THỰC THI THỰC TẾ: Ghi danh sách trắng Millet và gửi broadcast MiPush (Greezer Signal)
                 try {
-                    val result = MilletNoRestrict.ensureGms(this)
+                    val milletResult = MilletNoRestrict.ensureGms(this)
                     protectResult = GmsProtector.protect(this)
-                    toast(getString(if (result == MilletNoRestrict.Result.ADDED || result == MilletNoRestrict.Result.ALREADY_PRESENT) R.string.system_access_applied else R.string.system_access_apply_failed))
-                } catch (_: Throwable) {}
+                    val success = (milletResult == MilletNoRestrict.Result.ADDED || milletResult == MilletNoRestrict.Result.ALREADY_PRESENT) &&
+                                  (protectResult == GmsProtector.Result.SENT)
+                    toast(getString(if (success) R.string.system_access_applied else R.string.system_access_apply_failed))
+                } catch (t: Throwable) {
+                    protectResult = GmsProtector.Result.FAILED
+                    toast("Lỗi thực thi: ${t.message}")
+                }
                 showMainScreen()
             }
             .setPositiveButton(R.string.close, null)
