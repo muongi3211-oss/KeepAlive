@@ -53,7 +53,12 @@ object AdvancedAppProtector {
     }
 
     fun ensureGame(c: Context, targets: List<String>, reason: String): Boolean {
-        return GameWatchCore.ensurePackages(c, targets, reason)
+        return try {
+            GameWatchCore.ensureTargets(c, reason)
+            true
+        } catch (_: Throwable) {
+            false
+        }
     }
 
     fun gameStatus(c: Context, pkg: String): String {
