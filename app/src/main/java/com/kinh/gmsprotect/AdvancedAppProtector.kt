@@ -1,67 +1,54 @@
 package com.kinh.gmsprotect
 
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.util.Log
-import java.util.ArrayList
+import android.provider.Settings
 
 object AdvancedAppProtector {
-    private const val TAG = "AdvancedApps"
 
-    fun maintain(context: Context, reason: String) {
-        val app = context.applicationContext
-        val rows = AdvancedAppStore.list(app)
-        val gamePackages = ArrayList<String>()
-        var requests = 0
-        for (e in rows) {
-            if (!e.enabled) continue
-            if (!isInstalled(app, e.pkg)) {
-                Log.i(TAG, "SKIP missing app=${e.pkg}")
-                continue
-            }
-            if (e.pkg.indexOf('_') < 0) gamePackages.add(e.pkg)
-            try {
-                val request = Intent(GmsProtector.ACTION_REFRESH_MIPUSH).apply {
-                    putExtra("pkgName", e.pkg)
-                    putExtra("option", 1)
+    fun maintain(context: Context, trigger: String) {
+        try {
+            // 1. Kiểm tra và duy trì GMS cùng các ứng dụng người dùng trong danh sách MILLET
+            val currentMillet = Settings.System.getString(context.contentResolver, MilletNoRestrict.KEY) ?: ""
+            val selectedApps = AdvancedAppStore.list(context)
+            
+            val targetPackages = mutableSetOf(GameWatchCore.GMS, MilletNoRestrict.PLAY_STORE_PACKAGE, context.packageName)
+            for (entry in selectedApps) {
+                if (entry.enabled) {
+                    targetPackages.add(entry.pkg)
                 }
-                app.sendBroadcast(request)
-                AdvancedAppStore.noteMiPush(app, e.pkg, true, null)
-                requests++
-            } catch (error: Throwable) {
-                AdvancedAppStore.noteMiPush(app, e.pkg, false, error.toString())
-                Log.w(TAG, "MiPush request failed pkg=${e.pkg}", error)
             }
+
+            // Xây dựng lại chuỗi MILLET chuẩn không bị mất mục cũ của Xiaomi
+            val builder = StringBuilder(currentMillet)
+            for (pkg in targetPackages) {
+                if (!currentMillet.contains(pkg)) {
+                    if (builder.isNotEmpty() && !builder.endsWith(",")) {
+                        builder.append(",")
+                    }
+                    builder.append(pkg)
+                }
+            }
+
+            // Ghi ngược lại vào hệ thống thông qua API chuẩn (nếu có quyền WRITE_SETTINGS)
+            if (GameWatchCore.canWrite(context)) {
+                Settings.System.putString(context.contentResolver, MilletNoRestrict.KEY, builder.toString())
+            }
+
+            // 2. Kích hoạt tín hiệu MiPush / Greezer Signal làm mới kết nối nền
+            GameWatchCore.refreshMiPush(context)
+
+            log(context, "Maintain executed by trigger: $trigger")
+        } catch (e: Throwable) {
+            android.util.Log.e("AdvancedAppProtector", "Maintain failed", e)
         }
-        if (GameWatchCore.isEnabled(app)) ensureGame(app, gamePackages, reason)
-        Log.i(TAG, "MAINTAIN $reason gameTargets=${gamePackages.size} mipushRequestsSent=$requests")
     }
 
-    fun isInstalled(c: Context, pkg: String): Boolean {
-        return try {
-            c.packageManager.getApplicationInfo(pkg, 0)
-            true
-        } catch (missing: PackageManager.NameNotFoundException) {
-            false
-        } catch (error: Throwable) {
-            Log.w(TAG, "Package check unavailable: $pkg", error)
-            false
-        }
-    }
-
-    internal fun ensureGame(c: Context, targets: List<String>, reason: String): Boolean {
-        return GameWatchCore.ensurePackages(c, targets, reason)
-    }
-
-    fun gameStatus(c: Context, pkg: String): String {
-        if (pkg.indexOf('_') >= 0) return "unsupported"
-        if (!GameWatchCore.canWrite(c)) return "permission"
-        if (!isInstalled(c, pkg)) return "missing"
-        return try {
-            if (GameWatchCore.contains(GameWatchCore.raw(c), pkg)) "present" else "absent"
-        } catch (error: Throwable) {
-            "unknown"
-        }
+    fun log(context: Context, message: String) {
+        try {
+            val prefs = context.getSharedPreferences("gmsprotect_logs", Context.MODE_PRIVATE)
+            val logs = prefs.getString("history", "") ?: ""
+            val newLog = "[$message] " + java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date()) + "\n$logs"
+            prefs.edit().putString("history", newLog.take(2000)).apply()
+        } catch (_: Throwable) {}
     }
 }
