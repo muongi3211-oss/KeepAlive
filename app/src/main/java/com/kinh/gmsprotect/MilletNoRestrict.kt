@@ -10,7 +10,10 @@ import java.util.LinkedHashSet
 object MilletNoRestrict {
     private const val TAG = "MilletNoRestrict"
 
+    // Tên khóa chính từ APK gốc và hằng số Fallback cho một số biến thể ROM HyperOS
     const val KEY = "MILLET_NO_RESTRICT_APP"
+    private const val FALLBACK_KEY = "millet_no_restrict_app"
+
     val GMS_PACKAGE: String = GmsProtector.GMS_PACKAGE
     const val PLAY_STORE_PACKAGE = "com.android.vending"
 
@@ -42,8 +45,10 @@ object MilletNoRestrict {
 
     fun canRead(context: Context): Boolean {
         return try {
-            Settings.System.getString(context.applicationContext.contentResolver, KEY)
-            true
+            val resolver = context.applicationContext.contentResolver
+            val rawPrimary = Settings.System.getString(resolver, KEY)
+            val rawFallback = Settings.System.getString(resolver, FALLBACK_KEY)
+            rawPrimary != null || rawFallback != null
         } catch (t: Throwable) {
             Log.w(TAG, "canRead FAILED error=" + errorOf(t))
             false
@@ -60,7 +65,7 @@ object MilletNoRestrict {
 
     private fun containsPackage(context: Context, packageName: String, logName: String): Boolean {
         return try {
-            val raw = Settings.System.getString(context.applicationContext.contentResolver, KEY)
+            val raw = readRawInternal(context)
             parse(raw).contains(packageName)
         } catch (t: Throwable) {
             Log.w(TAG, "$logName FAILED error=" + errorOf(t))
@@ -79,7 +84,10 @@ object MilletNoRestrict {
 
         try {
             val resolver = app.contentResolver
-            val before = Settings.System.getString(resolver, KEY)
+            val beforePrimary = Settings.System.getString(resolver, KEY)
+            val beforeFallback = Settings.System.getString(resolver, FALLBACK_KEY)
+            val before = if (!beforePrimary.isNullOrEmpty()) beforePrimary else (beforeFallback ?: "")
+            
             val packages = parse(before)
             val hasGmsBefore = packages.contains(GMS_PACKAGE)
             val hasPlayStoreBefore = packages.contains(PLAY_STORE_PACKAGE)
@@ -108,15 +116,18 @@ object MilletNoRestrict {
             val merged = TextUtils.join(",", packages)
             Log.i(TAG, "addingGms=$addedGms addingPlayStore=$addedPlayStore addingSelf=$addedSelf newCount=${packages.size}")
 
-            val writeAccepted = Settings.System.putString(resolver, KEY, merged)
-            Log.i(TAG, "putString accepted=$writeAccepted")
+            // Ghi đồng thời vào cả hai tên khóa để tránh bỏ sót biến thể ROM
+            val writePrimary = Settings.System.putString(resolver, KEY, merged)
+            val writeFallback = Settings.System.putString(resolver, FALLBACK_KEY, merged)
+            val writeAccepted = writePrimary || writeFallback
+            Log.i(TAG, "putString accepted=$writeAccepted (primary=$writePrimary, fallback=$writeFallback)")
 
             if (!writeAccepted) {
                 Log.w(TAG, "result=FAILED reason=putString_false")
                 return Result.FAILED
             }
 
-            val after = Settings.System.getString(resolver, KEY)
+            val after = readRawInternal(app)
             val verifiedPackages = parse(after)
             val gmsVerified = verifiedPackages.contains(GMS_PACKAGE)
             val playStoreVerified = verifiedPackages.contains(PLAY_STORE_PACKAGE)
@@ -137,10 +148,15 @@ object MilletNoRestrict {
         }
     }
 
-    fun readRaw(context: Context): String {
+    fun readRaw(context: Context): String = readRawInternal(context)
+
+    private fun readRawInternal(context: Context): String {
         return try {
-            val raw = Settings.System.getString(context.applicationContext.contentResolver, KEY)
-            raw ?: ""
+            val resolver = context.applicationContext.contentResolver
+            val primary = Settings.System.getString(resolver, KEY)
+            if (!primary.isNullOrEmpty()) return primary
+            val fallback = Settings.System.getString(resolver, FALLBACK_KEY)
+            fallback ?: ""
         } catch (t: Throwable) {
             Log.w(TAG, "readRaw FAILED error=" + errorOf(t))
             ""
