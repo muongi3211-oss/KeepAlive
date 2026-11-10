@@ -1,95 +1,210 @@
 package com.kinh.gmsprotect
 
 import android.content.Context
-import android.content.Intent
+import android.os.Build
 import android.provider.Settings
+import android.text.TextUtils
 import android.util.Log
+import java.util.LinkedHashSet
 
 object MilletNoRestrict {
-    const val KEY = "millet_no_restrict_app"
-    const val GMS_PACKAGE = "com.google.android.gms"
+    private const val TAG = "MilletNoRestrict"
+
+    const val KEY = "MILLET_NO_RESTRICT_APP"
+    val GMS_PACKAGE: String = GmsProtector.GMS_PACKAGE
     const val PLAY_STORE_PACKAGE = "com.android.vending"
 
+    private const val PREFS = "millet_no_restrict_state"
+    private const val PREF_LAST_GOOD = "last_good_$KEY"
+
     enum class Result {
-        ADDED, ALREADY_PRESENT, FAILED, NO_PERMISSION
+        ALREADY_PRESENT,
+        ADDED,
+        NO_PERMISSION,
+        VERIFY_FAILED,
+        FAILED
     }
 
     fun canWrite(context: Context): Boolean {
         return try {
-            Settings.System.canWrite(context)
-        } catch (_: Throwable) {
+            val app = context.applicationContext
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                app.checkCallingOrSelfPermission(android.Manifest.permission.WRITE_SETTINGS) ==
+                        android.content.pm.PackageManager.PERMISSION_GRANTED
+            } else {
+                Settings.System.canWrite(app)
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "canWrite FAILED error=" + errorOf(t))
             false
         }
     }
 
-    fun contains(context: Context, pkg: String): Boolean {
+    fun canRead(context: Context): Boolean {
         return try {
-            val raw = Settings.System.getString(context.contentResolver, KEY) ?: ""
-            raw.split(",").any { it.trim() == pkg }
-        } catch (_: Throwable) {
+            Settings.System.getString(context.applicationContext.contentResolver, KEY)
+            true
+        } catch (t: Throwable) {
+            Log.w(TAG, "canRead FAILED error=" + errorOf(t))
             false
         }
     }
 
-    fun containsGms(context: Context): Boolean = contains(context, GMS_PACKAGE)
+    fun containsGms(context: Context): Boolean = containsPackage(context, GMS_PACKAGE, "containsGms")
 
-    fun containsPlayStore(context: Context): Boolean = contains(context, PLAY_STORE_PACKAGE)
+    fun containsPlayStore(context: Context): Boolean = containsPackage(context, PLAY_STORE_PACKAGE, "containsPlayStore")
 
-    fun containsSelf(context: Context): Boolean = contains(context, context.packageName)
+    fun containsSelf(context: Context): Boolean = containsPackage(context, context.applicationContext.packageName, "containsSelf")
+
+    fun containsPackage(context: Context, packageName: String): Boolean = containsPackage(context, packageName, "containsPackage")
+
+    private fun containsPackage(context: Context, packageName: String, logName: String): Boolean {
+        return try {
+            val raw = Settings.System.getString(context.applicationContext.contentResolver, KEY)
+            parse(raw).contains(packageName)
+        } catch (t: Throwable) {
+            Log.w(TAG, "$logName FAILED error=" + errorOf(t))
+            false
+        }
+    }
 
     fun ensureGms(context: Context): Result {
+        val app = context.applicationContext
+        val writeAllowed = canWrite(app)
+        Log.i(TAG, "ensureGms canWrite=$writeAllowed")
+
+        if (!writeAllowed) {
+            return Result.NO_PERMISSION
+        }
+
         try {
-            if (!canWrite(context)) {
-                return Result.NO_PERMISSION
+            val resolver = app.contentResolver
+            val before = Settings.System.getString(resolver, KEY)
+            val packages = parse(before)
+            val hasGmsBefore = packages.contains(GMS_PACKAGE)
+            val hasPlayStoreBefore = packages.contains(PLAY_STORE_PACKAGE)
+            val hasSelfBefore = packages.contains(app.packageName)
+            Log.i(TAG, "before containsGms=$hasGmsBefore containsPlayStore=$hasPlayStoreBefore containsSelf=$hasSelfBefore count=${packages.size} value=${safeValue(before)}")
+
+            if (hasGmsBefore && hasPlayStoreBefore && hasSelfBefore) {
+                rememberLastGood(app, packages)
+                Log.i(TAG, "result=ALREADY_PRESENT")
+                return Result.ALREADY_PRESENT
             }
 
-            val resolver = context.contentResolver
-            val current = Settings.System.getString(resolver, KEY) ?: ""
-            
-            // Các định danh mục tiêu bắt buộc phải có trong whitelist cấp thấp của Xiaomi
-            val targets = listOf(
-                GMS_PACKAGE,
-                PLAY_STORE_PACKAGE,
-                context.packageName
-            )
-
-            val set = current.split(",")
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-                .toMutableSet()
-
-            var modified = false
-            for (pkg in targets) {
-                if (!set.contains(pkg)) {
-                    set.add(pkg)
-                    modified = true
+            if (packages.isEmpty()) {
+                val cached = parse(readLastGood(app))
+                if (!cached.isEmpty()) {
+                    packages.addAll(cached)
+                    Log.i(TAG, "restored lastGood count=${cached.size}")
+                } else {
+                    Log.i(TAG, "lastGood unavailable; starting from empty list")
                 }
             }
 
-            val newString = set.joinToString(",")
-            val success = Settings.System.putString(resolver, KEY, newString)
+            val addedGms = packages.add(GMS_PACKAGE)
+            val addedPlayStore = packages.add(PLAY_STORE_PACKAGE)
+            val addedSelf = packages.add(app.packageName)
+            val merged = TextUtils.join(",", packages)
+            Log.i(TAG, "addingGms=$addedGms addingPlayStore=$addedPlayStore addingSelf=$addedSelf newCount=${packages.size}")
 
-            if (success) {
-                // Kích hoạt đồng bộ hóa tín hiệu MiPush nền (Cơ chế gốc kích hoạt broadcast khẩn cấp)
-                triggerMiPushSync(context)
-                return if (modified) Result.ADDED else Result.ALREADY_PRESENT
+            val writeAccepted = Settings.System.putString(resolver, KEY, merged)
+            Log.i(TAG, "putString accepted=$writeAccepted")
+
+            if (!writeAccepted) {
+                Log.w(TAG, "result=FAILED reason=putString_false")
+                return Result.FAILED
             }
-            
-            return Result.FAILED
-        } catch (e: Throwable) {
-            Log.e("MilletNoRestrict", "Failed to ensure GMS in whitelist", e)
+
+            val after = Settings.System.getString(resolver, KEY)
+            val verifiedPackages = parse(after)
+            val gmsVerified = verifiedPackages.contains(GMS_PACKAGE)
+            val playStoreVerified = verifiedPackages.contains(PLAY_STORE_PACKAGE)
+            val selfVerified = verifiedPackages.contains(app.packageName)
+            Log.i(TAG, "after containsGms=$gmsVerified containsPlayStore=$playStoreVerified containsSelf=$selfVerified value=${safeValue(after)}")
+
+            if (!gmsVerified || !playStoreVerified || !selfVerified) {
+                Log.w(TAG, "result=VERIFY_FAILED gms=$gmsVerified playStore=$playStoreVerified self=$selfVerified")
+                return Result.VERIFY_FAILED
+            }
+
+            rememberLastGood(app, verifiedPackages)
+            Log.i(TAG, "result=ADDED")
+            return Result.ADDED
+        } catch (t: Throwable) {
+            Log.e(TAG, "ensureGms FAILED error=" + errorOf(t), t)
             return Result.FAILED
         }
     }
 
-    private fun triggerMiPushSync(context: Context) {
+    fun readRaw(context: Context): String {
+        return try {
+            val raw = Settings.System.getString(context.applicationContext.contentResolver, KEY)
+            raw ?: ""
+        } catch (t: Throwable) {
+            Log.w(TAG, "readRaw FAILED error=" + errorOf(t))
+            ""
+        }
+    }
+
+    private fun prefsContext(context: Context): Context {
+        val app = context.applicationContext
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                return app.createDeviceProtectedStorageContext()
+            } catch (_: Throwable) {}
+        }
+        return app
+    }
+
+    private fun readLastGood(context: Context): String? {
+        return try {
+            val prefs = prefsContext(context).getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            prefs.getString(PREF_LAST_GOOD, null)
+        } catch (t: Throwable) {
+            Log.w(TAG, "readLastGood FAILED error=" + errorOf(t))
+            null
+        }
+    }
+
+    private fun rememberLastGood(context: Context, packages: LinkedHashSet<String>?) {
+        if (packages == null || packages.isEmpty()) return
+        val normalized = TextUtils.join(",", packages)
         try {
-            // Gửi broadcast chuẩn mô phỏng tín hiệu MiPush để hệ thống nhận diện và nạp lại policy ngay lập tức
-            val intent = Intent("com.xiaomi.mipush.RECEIVE_MESSAGE").apply {
-                setPackage(GMS_PACKAGE)
-                putExtra("mipush_payload_type", 0)
+            val prefs = prefsContext(context).getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val old = prefs.getString(PREF_LAST_GOOD, null)
+            if (normalized != old) {
+                prefs.edit().putString(PREF_LAST_GOOD, normalized).apply()
+                Log.i(TAG, "lastGood saved count=${packages.size}")
             }
-            context.sendBroadcast(intent)
-        } catch (_: Throwable) {}
+        } catch (t: Throwable) {
+            Log.w(TAG, "rememberLastGood FAILED error=" + errorOf(t))
+        }
+    }
+
+    private fun parse(raw: String?): LinkedHashSet<String> {
+        val out = LinkedHashSet<String>()
+        if (raw.isNullOrBlank()) return out
+
+        val normalized = raw.replace(';', ',')
+            .replace('\n', ',')
+            .replace('\t', ',')
+
+        for (token in normalized.split(",")) {
+            val value = token.trim()
+            if (value.isNotEmpty()) out.add(value)
+        }
+        return out
+    }
+
+    private fun safeValue(value: String?): String {
+        if (value == null) return "<null>"
+        if (value.length <= 1200) return value
+        return value.substring(0, 1200) + "...(" + value.length + " chars)"
+    }
+
+    private fun errorOf(t: Throwable?): String {
+        if (t == null) return "unknown"
+        return t.javaClass.simpleName + ":" + t.message
     }
 }
