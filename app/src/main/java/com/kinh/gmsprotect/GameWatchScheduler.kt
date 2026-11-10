@@ -4,65 +4,54 @@ import android.app.job.JobInfo
 import android.app.job.JobScheduler
 import android.content.ComponentName
 import android.content.Context
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 
 object GameWatchScheduler {
-    const val JOB_ID = 0x47414D45
 
-    private fun get(c: Context): JobScheduler? {
-        return c.applicationContext.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
+    fun ensure(context: Context, reason: String) {
+        try {
+            val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler ?: return
+            val componentName = ComponentName(context, GameWatchJobService::class.java)
+            
+            val builder = JobInfo.Builder(1001, componentName).apply {
+                // Tận dụng sự kiện khởi động lại và kết nối mạng để check/vá tự động
+                setPersisted(true)
+                setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                // Giãn cách thời gian thực thi cực thưa để tiết kiệm pin tuyệt đối (ví dụ: chạy ngầm nhẹ mỗi vài tiếng hoặc theo sự kiện)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    setPeriodic(4 * 60 * 60 * 1000L, JobInfo.flexibilityMillisNotSpecified)
+                } else {
+                    setPeriodic(4 * 60 * 60 * 1000L)
+                }
+            }
+
+            scheduler.schedule(builder.build())
+            AdvancedAppProtector.log(context, "JobScheduler scheduled: $reason")
+        } catch (e: Throwable) {
+            android.util.Log.e("GameWatchScheduler", "Error scheduling job", e)
+        }
     }
 
-    fun shouldWatch(c: Context): Boolean = GameWatchCore.isEnabled(c)
+    fun cancel(context: Context) {
+        try {
+            val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
+            scheduler?.cancel(1001)
+        } catch (_: Throwable) {}
+    }
 
-    fun isPending(c: Context): Boolean {
-        if (Build.VERSION.SDK_INT < 24) return false
+    fun shouldWatch(context: Context): Boolean {
         return try {
-            val s = get(c)
-            s != null && s.getPendingJob(JOB_ID) != null
-        } catch (ex: Throwable) {
-            GameWatchJournal.add(c, "WATCH", "isPending error: $ex")
+            AdvancedAppStore.list(context).isNotEmpty() || GameWatchCore.isEnabled(context)
+        } catch (_: Throwable) {
             false
         }
     }
 
-    fun keepOrCancel(c: Context) {
-        if (shouldWatch(c)) ensure(c, "KEEP_ADVANCED")
-        else cancel(c)
-    }
-
-    fun cancel(c: Context) {
-        try {
-            val s = get(c)
-            s?.cancel(JOB_ID)
-        } catch (ex: Throwable) {
-            GameWatchJournal.add(c, "WATCH", "cancel error: $ex")
-        }
-    }
-
-    fun ensure(c: Context, reason: String): Boolean = schedule(c, reason, false)
-
-    fun rearm(c: Context): Boolean = schedule(c, "JOB_REARM", true)
-
-    @Synchronized
-    private fun schedule(c: Context, reason: String, replace: Boolean): Boolean {
-        if (Build.VERSION.SDK_INT < 24 || !shouldWatch(c)) return false
-        val js = get(c) ?: return false
-        if (!replace && isPending(c)) return true
+    fun isPending(context: Context): Boolean {
         return try {
-            val uri = Settings.System.getUriFor(GameWatchCore.KEY)
-            val job = JobInfo.Builder(JOB_ID, ComponentName(c, GameWatchJobService::class.java))
-                .addTriggerContentUri(JobInfo.TriggerContentUri(uri, 0))
-                .setTriggerContentUpdateDelay(1000L)
-                .setTriggerContentMaxDelay(5000L)
-                .build()
-            val ok = js.schedule(job) == JobScheduler.RESULT_SUCCESS
-            GameWatchJournal.add(c, "WATCH", "schedule=$ok reason=$reason id=$JOB_ID")
-            ok
-        } catch (ex: Throwable) {
-            GameWatchJournal.add(c, "WATCH", "schedule error=$ex")
+            val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
+            scheduler?.allPendingJobs?.any { it.id == 1001 } == true
+        } catch (_: Throwable) {
             false
         }
     }
