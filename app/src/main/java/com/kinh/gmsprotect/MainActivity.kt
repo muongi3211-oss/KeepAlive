@@ -29,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     private var waitingWriteSettingsReturn = false
     private var waitingBatterySettingsReturn = false
     private var waitingAdvancedScreenReturn = false
+    private var waitingMiuiPermissionsReturn = false
     private var googleServiceCheckRow: LinearLayout? = null
     private var recheckGoogleRowAfterPause = false
 
@@ -102,6 +103,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        if (waitingMiuiPermissionsReturn) {
+            waitingMiuiPermissionsReturn = false
+            continueSetupFlow()
+            return
+        }
+
         if (waitingBatterySettingsReturn) {
             waitingBatterySettingsReturn = false
             if (isSetupDone()) showMainScreen()
@@ -127,6 +134,13 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        // Tích hợp bước mở bảng cấp quyền MIUI (Other Permissions) giống hệt ảnh gốc
+        val miuiPermConfirmed = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("miui_perm_confirmed", false)
+        if (!miuiPermConfirmed && !isSetupDone()) {
+            openMiuiPermissionsModal()
+            return
+        }
+
         if (!MilletNoRestrict.canWrite(this)) {
             showOnboarding(1)
             return
@@ -138,6 +152,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         finishSetup()
+    }
+
+    private fun openMiuiPermissionsModal() {
+        try {
+            waitingMiuiPermissionsReturn = true
+            val intent = Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                setPackage("com.miui.securitycenter")
+                putExtra("extra_pkgname", packageName)
+            }
+            startActivity(intent)
+        } catch (_: Throwable) {
+            waitingMiuiPermissionsReturn = false
+            try {
+                val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                startActivity(fallback)
+            } catch (_: Throwable) {}
+        }
     }
 
     private fun checkAutostartAfterReturn(attempt: Int) {
@@ -353,6 +384,9 @@ class MainActivity : AppCompatActivity() {
                     waitingAutostartSettingsReturn = true
                     openAutostartSettings()
                 }, matchWidth())
+                actions.addView(UiKit.secondaryButton(this, "Mở cấp quyền khác (MIUI)") {
+                    openMiuiPermissionsModal()
+                }, matchWidthWithTop(dp(9)))
                 if (autostart == XiaomiSetupState.AutostartState.UNKNOWN) {
                     actions.addView(UiKit.secondaryButton(this, getString(R.string.autostart_manual_continue)) {
                         getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("autostart_manual_confirmed", true).apply()
