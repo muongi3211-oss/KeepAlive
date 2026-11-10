@@ -49,7 +49,6 @@ class MainActivity : Activity() {
                 View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         }
 
-        // Đưa tất cả tính năng bảo vệ về trạng thái tắt/chờ kích hoạt thủ công khi khởi động
         protectResult = GmsProtector.Result.FAILED
 
         try {
@@ -519,7 +518,6 @@ class MainActivity : Activity() {
             getString(R.string.settings14_checking),
             null, SettingsListUi.NEUTRAL
         ) {
-            // Khi người dùng bấm vào dòng trạng thái GMS, thực hiện kích hoạt thủ công áp dụng danh sách trắng
             try {
                 val result = MilletNoRestrict.ensureGms(this)
                 protectResult = GmsProtector.protect(this)
@@ -572,7 +570,11 @@ class MainActivity : Activity() {
             getString(R.string.gamewatch_logs), getString(R.string.settings_history_desc),
             null, SettingsListUi.NEUTRAL
         ) {
-            startActivity(Intent(this@MainActivity, ActivityLogActivity::class.java))
+            try {
+                startActivity(Intent(this@MainActivity, ActivityLogActivity::class.java))
+            } catch (_: Throwable) {
+                toast("Nhật ký hoạt động chưa sẵn sàng.")
+            }
         }
         SettingsListUi.row(
             this, tools, R.drawable.sg_ic_info,
@@ -589,10 +591,12 @@ class MainActivity : Activity() {
         page.addView(SettingsListUi.separator(this), lp)
     }
 
-        private fun showProtectionDetailsDialog() {
-        val details = SettingsListUi.group(this).apply { setPadding(dp(2), dp(8), dp(2), dp(6)) }
+    private fun showProtectionDetailsDialog() {
+        // Quét và cập nhật trạng thái thực tế mới nhất trước khi hiển thị dialog
         val gmsInMillet = MilletNoRestrict.containsGms(this)
         val playInMillet = MilletNoRestrict.containsPlayStore(this)
+        
+        val details = SettingsListUi.group(this).apply { setPadding(dp(2), dp(8), dp(2), dp(6)) }
         addProtectionStatusRow(details, R.string.dashboard_gms, gmsInMillet, false)
         addProtectionStatusRow(details, R.string.dashboard_greezer, protectResult == GmsProtector.Result.SENT, true)
         addProtectionStatusRow(details, R.string.dashboard_play_store, playInMillet, false)
@@ -605,7 +609,6 @@ class MainActivity : Activity() {
             .setTitle(R.string.settings_protection)
             .setView(details)
             .setNeutralButton(R.string.retry) { _, _ ->
-                // THỰC THI THỰC TẾ: Ghi danh sách trắng Millet và gửi broadcast MiPush (Greezer Signal)
                 try {
                     val milletResult = MilletNoRestrict.ensureGms(this)
                     protectResult = GmsProtector.protect(this)
@@ -720,7 +723,12 @@ class MainActivity : Activity() {
 
     private fun openManagedApps() {
         waitingAdvancedScreenReturn = true
-        startActivity(Intent(this, AdvancedAppsActivity::class.java))
+        try {
+            startActivity(Intent(this, AdvancedAppsActivity::class.java))
+        } catch (_: Throwable) {
+            waitingAdvancedScreenReturn = false
+            toast("Không thể mở Quản lý ứng dụng nâng cao.")
+        }
     }
 
     private fun buildAppInfoCard(): View {
