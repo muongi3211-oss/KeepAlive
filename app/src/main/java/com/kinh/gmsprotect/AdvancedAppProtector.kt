@@ -4,10 +4,8 @@ import android.content.Context
 import android.provider.Settings
 
 object AdvancedAppProtector {
-
     fun maintain(context: Context, trigger: String) {
         try {
-            // 1. Kiểm tra và duy trì GMS cùng các ứng dụng người dùng trong danh sách MILLET
             val currentMillet = Settings.System.getString(context.contentResolver, MilletNoRestrict.KEY) ?: ""
             val selectedApps = AdvancedAppStore.list(context)
             
@@ -18,7 +16,6 @@ object AdvancedAppProtector {
                 }
             }
 
-            // Xây dựng lại chuỗi MILLET chuẩn không bị mất mục cũ của Xiaomi
             val builder = StringBuilder(currentMillet)
             for (pkg in targetPackages) {
                 if (!currentMillet.contains(pkg)) {
@@ -29,14 +26,11 @@ object AdvancedAppProtector {
                 }
             }
 
-            // Ghi ngược lại vào hệ thống thông qua API chuẩn (nếu có quyền WRITE_SETTINGS)
             if (GameWatchCore.canWrite(context)) {
                 Settings.System.putString(context.contentResolver, MilletNoRestrict.KEY, builder.toString())
             }
 
-            // 2. Kích hoạt tín hiệu MiPush / Greezer Signal làm mới kết nối nền
             GameWatchCore.refreshMiPush(context)
-
             log(context, "Maintain executed by trigger: $trigger")
         } catch (e: Throwable) {
             android.util.Log.e("AdvancedAppProtector", "Maintain failed", e)
