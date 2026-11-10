@@ -17,7 +17,7 @@ import android.widget.TextView
 object GoogleServiceCheckUi {
     private const val MIN_VISIBLE_SPINNER_MS = 900L
 
-    enum class Outcome { VERIFIED_REQUEST_SENT, REQUEST_FAILED, ATTENTION, GMS_MISSING }
+    private enum class Outcome { VERIFIED_REQUEST_SENT, REQUEST_FAILED, ATTENTION, GMS_MISSING }
 
     fun checkOnce(
         activity: Activity,
@@ -47,52 +47,36 @@ object GoogleServiceCheckUi {
         val app = activity.applicationContext
         val started = SystemClock.uptimeMillis()
         val main = Handler(Looper.getMainLooper())
-        
-        // Quét trạng thái thực tế của thiết bị trên luồng nền để tránh đơ giao diện
+
         Thread({
-            val outcome = readRealDeviceOutcome(app, requestResult)
+            val outcome = readOutcome(app, requestResult)
             val wait = Math.max(0L, MIN_VISIBLE_SPINNER_MS - (SystemClock.uptimeMillis() - started))
-            main.post {
+            main.postDelayed({
                 if (activity.isFinishing ||
                     (Build.VERSION.SDK_INT >= 17 && activity.isDestroyed) ||
                     !row.isAttachedToWindow || row.tag !== spinner
-                ) return@post
+                ) return@postDelayed
                 render(activity, row, spinner, subtitle, outcome)
-            }
-        }, "GMS-Realtime-Check").start()
+            }, wait)
+        }, "GMS-UI-Check").start()
     }
 
-    private fun readRealDeviceOutcome(app: Context, requestResult: GmsProtector.Result): Outcome {
+    private fun readOutcome(app: Context, requestResult: GmsProtector.Result): Outcome {
         if (requestResult == GmsProtector.Result.GMS_MISSING) return Outcome.GMS_MISSING
         return try {
-            // Kiểm tra thực tế xem GMS có thực sự tồn tại trong hệ thống máy không
-            val gmsInstalled = try {
-                app.packageManager.getPackageInfo(GameWatchCore.GMS, 0)
-                true
-            } catch (_: Throwable) {
-                false
+            val millet = MilletNoRestrict.containsGms(app) &&
+                    MilletNoRestrict.containsPlayStore(app) &&
+                    MilletNoRestrict.containsSelf(app)
+            val watch = !MilletWatchScheduler.isSupported() || MilletWatchScheduler.isScheduled(app)
+            var game = true
+            if (GameWatchCore.isEnabled(app)) {
+                val raw = GameWatchCore.raw(app)
+                game = GameWatchCore.contains(raw, GameWatchCore.GMS) &&
+                        GameWatchCore.contains(raw, app.packageName) &&
+                        GameWatchScheduler.isPending(app)
             }
-            if (!gmsInstalled) return Outcome.GMS_MISSING
-
-            // Đọc thực tế từ chuỗi cài đặt hệ thống Settings.System (millet_no_restrict_app)
-            val milletGms = MilletNoRestrict.containsGms(app)
-            val milletPlay = MilletNoRestrict.containsPlayStore(app)
-            val milletSelf = MilletNoRestrict.containsSelf(app)
-            
-            // Kiểm tra quyền ghi hệ thống thực tế
-            val canWrite = MilletNoRestrict.canWrite(app)
-
-            // Nếu chưa được ghi vào danh sách trắng thực tế hoặc chưa cấp quyền -> Báo Attention (Chưa tối ưu)
-            if (!canWrite || !milletGms || !milletPlay || !milletSelf) {
-                return Outcome.ATTENTION
-            }
-
-            // Nếu đã khớp hoàn toàn trạng thái thực tế trên hệ thống
-            if (requestResult == GmsProtector.Result.SENT) {
-                Outcome.VERIFIED_REQUEST_SENT
-            } else {
-                Outcome.REQUEST_FAILED
-            }
+            if (!millet || !watch || !game) return Outcome.ATTENTION
+            if (requestResult == GmsProtector.Result.SENT) Outcome.VERIFIED_REQUEST_SENT else Outcome.REQUEST_FAILED
         } catch (_: Throwable) {
             Outcome.ATTENTION
         }
@@ -115,7 +99,6 @@ object GoogleServiceCheckUi {
         }
         subtitle.setText(textRes)
         subtitle.setTextColor(if (ok) UiKit.MUTED else UiKit.ERROR)
-        
         val image = ImageView(activity).apply {
             setImageResource(if (ok) R.drawable.sg_ic_verified_check else R.drawable.sg_ic_check_attention)
             scaleType = ImageView.ScaleType.FIT_CENTER
