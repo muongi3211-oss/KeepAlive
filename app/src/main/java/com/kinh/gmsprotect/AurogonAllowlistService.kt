@@ -10,6 +10,7 @@ class AurogonAllowlistService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
             GameWatchCore.ensureTargets(applicationContext, "AurogonAllowlistService")
+            GameWatchCore.schedule(applicationContext, "AurogonAllowlistService")
         } catch (_: Throwable) {}
         return START_STICKY
     }
