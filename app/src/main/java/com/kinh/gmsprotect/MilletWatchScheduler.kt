@@ -4,63 +4,55 @@ import android.app.job.JobInfo
 import android.app.job.JobScheduler
 import android.content.ComponentName
 import android.content.Context
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
-import android.util.Log
 
-object MilletWatchScheduler {
-    const val TAG = "MILLET_WATCH"
-    private const val JOB_ID = 0x47534D57
+object GameWatchScheduler {
 
-    fun schedule(context: Context): Boolean {
-        val app = context.applicationContext
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            Log.i(TAG, "SCHEDULE unsupported sdk=" + Build.VERSION.SDK_INT)
-            return false
-        }
-
-        return try {
-            val scheduler = app.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
-            if (scheduler == null) {
-                Log.w(TAG, "SCHEDULE failed reason=no_JobScheduler")
-                return false
+    fun ensure(context: Context, reason: String) {
+        try {
+            val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler ?: return
+            val componentName = ComponentName(context, GameWatchJobService::class.java)
+            
+            val builder = JobInfo.Builder(1001, componentName).apply {
+                // Tận dụng sự kiện khởi động lại và kết nối mạng để check/vá tự động
+                setPersisted(true)
+                setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                // Giãn cách thời gian thực thi cực thưa để tiết kiệm pin tuyệt đối (ví dụ: chạy ngầm nhẹ mỗi vài tiếng hoặc theo sự kiện)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    setPeriodic(4 * 60 * 60 * 1000L, JobInfo.flexibilityMillisNotSpecified)
+                } else {
+                    setPeriodic(4 * 60 * 60 * 1000L)
+                }
             }
 
-            val uri = Settings.System.getUriFor(MilletNoRestrict.KEY)
-            val job = JobInfo.Builder(JOB_ID, ComponentName(app, MilletWatchJobService::class.java))
-                .addTriggerContentUri(JobInfo.TriggerContentUri(uri, 0))
-                .setTriggerContentUpdateDelay(1_000L)
-                .setTriggerContentMaxDelay(5_000L)
-                .build()
-
-            val result = scheduler.schedule(job)
-            val ok = result == JobScheduler.RESULT_SUCCESS
-            Log.i(TAG, "SCHEDULE result=" + (if (ok) "SUCCESS" else "FAILURE") + " jobId=$JOB_ID uri=$uri")
-            ok
-        } catch (t: Throwable) {
-            Log.e(TAG, "SCHEDULE exception=" + errorOf(t), t)
-            false
+            scheduler.schedule(builder.build())
+            AdvancedAppProtector.log(context, "JobScheduler scheduled: $reason")
+        } catch (e: Throwable) {
+            android.util.Log.e("GameWatchScheduler", "Error scheduling job", e)
         }
     }
 
-    fun isSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+    fun cancel(context: Context) {
+        try {
+            val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
+            scheduler?.cancel(1001)
+        } catch (_: Throwable) {}
+    }
 
-    fun isScheduled(context: Context): Boolean {
-        if (!isSupported()) return false
+    fun shouldWatch(context: Context): Boolean {
         return try {
-            val scheduler = context.applicationContext.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
-            scheduler?.getPendingJob(JOB_ID) != null
-        } catch (t: Throwable) {
-            Log.w(TAG, "isScheduled failed error=" + errorOf(t))
+            AdvancedAppStore.list(context).isNotEmpty() || GameWatchCore.isEnabled(context)
+        } catch (_: Throwable) {
             false
         }
     }
 
-    internal fun jobId(): Int = JOB_ID
-
-    private fun errorOf(t: Throwable?): String {
-        if (t == null) return "unknown"
-        return t.javaClass.simpleName + ":" + t.message
+    fun isPending(context: Context): Boolean {
+        return try {
+            val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
+            scheduler?.allPendingJobs?.any { it.id == 1001 } == true
+        } catch (_: Throwable) {
+            false
+        }
     }
 }
