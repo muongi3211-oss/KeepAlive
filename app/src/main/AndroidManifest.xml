@@ -43,6 +43,18 @@
             android:exported="false"
             android:resizeableActivity="true" />
 
+        <!-- BỔ SUNG: Khai báo AdvancedAppsActivity để khắc phục lỗi văng khi mở Quản lý ứng dụng nâng cao -->
+        <activity
+            android:name=".AdvancedAppsActivity"
+            android:exported="false"
+            android:resizeableActivity="true" />
+
+        <!-- BỔ SUNG: Khai báo ActivityLogActivity để khắc phục lỗi văng khi mở Nhật ký hoạt động -->
+        <activity
+            android:name=".ActivityLogActivity"
+            android:exported="false"
+            android:resizeableActivity="true" />
+
         <!-- Sửa exported="false" cho JobService an toàn tuyệt đối -->
         <service
             android:name=".MilletWatchJobService"
