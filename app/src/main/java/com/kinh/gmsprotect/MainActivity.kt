@@ -33,7 +33,7 @@ class MainActivity : AppCompatActivity() {
     private var googleServiceCheckRow: LinearLayout? = null
     private var recheckGoogleRowAfterPause = false
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
             window.statusBarColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) UiKit.BG else UiKit.PRIMARY_DARK
@@ -42,6 +42,13 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags = flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) flags = flags or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
             window.decorView.systemUiVisibility = flags
+
+            // Ưu tiên hiển thị bảng cấp quyền MIUI/HyperOS ngay lập tức trong lần mở đầu tiên trước mọi tiến trình khác
+            val miuiPermConfirmed = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("miui_perm_confirmed", false)
+            if (!miuiPermConfirmed && !isSetupDone()) {
+                openMiuiPermissionsModal()
+                return
+            }
 
             if (isSetupDone()) {
                 try {
@@ -66,6 +73,86 @@ class MainActivity : AppCompatActivity() {
             } catch (_: Throwable) {
                 finish()
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        try {
+            GameWatchEvidence.noteUi(this, true)
+            if (GameWatchCore.isEnabled(this)) {
+                GameWatchCore.ensureTargets(this, "APP_RESUME")
+            }
+            if (GameWatchScheduler.shouldWatch(this)) GameWatchScheduler.ensure(this, "APP_RESUME")
+        } catch (_: Throwable) {}
+
+        if (waitingAdvancedScreenReturn) {
+            waitingAdvancedScreenReturn = false
+            if (isSetupDone()) showMainScreen()
+            return
+        }
+
+        if (waitingAutostartSettingsReturn) {
+            waitingAutostartSettingsReturn = false
+            checkAutostartAfterReturn(0)
+            return
+        }
+
+        if (waitingWriteSettingsReturn) {
+            waitingWriteSettingsReturn = false
+            checkWriteSettingsAfterReturn(0)
+            return
+        }
+
+        if (waitingMiuiPermissionsReturn) {
+            waitingMiuiPermissionsReturn = false
+            // Đánh dấu đã tương tác với bảng quyền MIUI để chuyển sang bước tiếp theo
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("miui_perm_confirmed", true).apply()
+            continueSetupFlow()
+            return
+        }
+
+        if (waitingBatterySettingsReturn) {
+            waitingBatterySettingsReturn = false
+            if (isSetupDone()) showMainScreen()
+            else showOnboarding(2)
+            return
+        }
+
+        val row = googleServiceCheckRow
+        if (recheckGoogleRowAfterPause && isSetupDone() && row != null && row.isAttachedToWindow) {
+            GoogleServiceCheckUi.checkOnce(this, row, protectResult)
+        }
+        recheckGoogleRowAfterPause = false
+    }
+
+    private fun openMiuiPermissionsModal() {
+        waitingMiuiPermissionsReturn = true
+        val intentsToTry = arrayOf(
+            // 1. Intent chuẩn chỉ định Component cho HyperOS/MIUI Security Center
+            Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.permissions.AppPermissionsEditorActivity"))
+                .putExtra("extra_pkgname", packageName),
+            // 2. Intent action thay thế trên một số phiên bản MIUI cũ hơn
+            Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                setPackage("com.miui.securitycenter")
+                putExtra("extra_pkgname", packageName)
+            },
+            // 3. Fallback mở màn hình thông tin ứng dụng hệ thống
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+        )
+
+        var launched = false
+        for (intent in intentsToTry) {
+            try {
+                startActivity(intent)
+                launched = true
+                break
+            } catch (_: Throwable) {}
+        }
+
+        if (!launched) {
+            waitingMiuiPermissionsReturn = false
+            continueSetupFlow()
         }
     }
 
