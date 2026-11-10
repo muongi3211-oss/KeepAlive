@@ -1,9 +1,11 @@
 package com.kinh.gmsprotect
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -13,7 +15,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
@@ -23,75 +24,77 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
+    companion object {
+        private const val PREFS = "setup_v1"
+        private const val KEY_SETUP_DONE = "setup_done"
+        private const val KEY_BATTERY_USER_CONFIRMED = "battery_user_confirmed_v1"
+        private const val KEY_DONATE_START_MS = "donate_start_ms"
+        private const val KEY_DONATE_LAUNCH_COUNT = "donate_launch_count"
+        private const val KEY_DONATE_LAST_PROMPT_MS = "donate_last_prompt_ms"
+        private const val KEY_DONATE_PROMPT_COUNT = "donate_prompt_count"
+
+        private const val DAY_MS = 24L * 60L * 60L * 1000L
+        private const val DONATE_FIRST_DELAY_MS = 7L * DAY_MS
+        private const val DONATE_REPEAT_DELAY_MS = 30L * DAY_MS
+        private const val DONATE_MIN_LAUNCHES = 3
+        private const val DONATE_MAX_AUTO_PROMPTS = 3
+    }
+
     private var protectResult = GmsProtector.Result.FAILED
     private var onboardingStep = 0
     private var waitingAutostartSettingsReturn = false
     private var waitingWriteSettingsReturn = false
     private var waitingBatterySettingsReturn = false
-    private var waitingAdvancedScreenReturn = false
     private var donatePromptCheckedThisSession = false
+    private var waitingAdvancedScreenReturn = false
     private var googleServiceCheckRow: LinearLayout? = null
     private var recheckGoogleRowAfterPause = false
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        try {
-            window.statusBarColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) UiKit.BG else UiKit.PRIMARY_DARK
-            window.navigationBarColor = UiKit.SURFACE
-            var flags = 0
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags = flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) flags = flags or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-            window.decorView.systemUiVisibility = flags
+    override fun onCreate(state: Bundle?) {
+        super.onCreate(state)
+        window.statusBarColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) UiKit.BG else UiKit.PRIMARY_DARK
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        }
+        window.navigationBarColor = UiKit.SURFACE
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            window.decorView.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        }
 
-            // Chạy bảo vệ MiPush mỗi lần mở ứng dụng
-            protectResult = GmsProtector.protect(this)
-            
-            // Dọn dẹp tiến trình cũ và lên lịch định kỳ MilletWatch
-            LegacyBackgroundCleanup.runOnce(this)
-            MilletWatchScheduler.schedule(this)
+        protectResult = GmsProtector.protect(this)
+        LegacyBackgroundCleanup.runOnce(this)
 
-            if (GameWatchCore.isEnabled(this)) {
-                GameWatchCore.ensureTargets(this, "APP_OPEN")
-            }
-            AdvancedAppProtector.maintain(this, "APP_OPEN")
-            if (GameWatchScheduler.shouldWatch(this)) {
-                GameWatchScheduler.ensure(this, "APP_OPEN")
-            }
+        MilletWatchScheduler.schedule(this)
+        if (GameWatchCore.isEnabled(this)) {
+            GameWatchCore.ensureTargets(this, "APP_OPEN")
+        }
+        AdvancedAppProtector.maintain(this, "APP_OPEN")
+        if (GameWatchScheduler.shouldWatch(this)) GameWatchScheduler.ensure(this, "APP_OPEN")
 
-            if (isSetupDone()) {
-                recordReturningLaunchForDonate()
-                showMainScreen()
-            } else {
-                continueSetupFlow()
-            }
-        } catch (e: Throwable) {
-            Log.e("MainActivity", "Critical crash prevented in onCreate", e)
-            try {
-                showMainScreen()
-            } catch (_: Throwable) {
-                finish()
-            }
+        if (isSetupDone()) {
+            recordReturningLaunchForDonate()
+            showMainScreen()
+        } else {
+            continueSetupFlow()
         }
     }
 
     override fun onPause() {
-        try { GameWatchEvidence.noteUi(this, false) } catch (_: Throwable) {}
+        GameWatchEvidence.noteUi(this, false)
         recheckGoogleRowAfterPause = googleServiceCheckRow != null
         super.onPause()
     }
 
     override fun onResume() {
         super.onResume()
-        try {
-            GameWatchEvidence.noteUi(this, true)
-            if (GameWatchCore.isEnabled(this)) {
-                GameWatchCore.ensureTargets(this, "APP_RESUME")
-            }
-            if (GameWatchScheduler.shouldWatch(this)) GameWatchScheduler.ensure(this, "APP_RESUME")
-        } catch (_: Throwable) {}
+        GameWatchEvidence.noteUi(this, true)
+        if (GameWatchCore.isEnabled(this)) {
+            GameWatchCore.ensureTargets(this, "APP_RESUME")
+        }
+        if (GameWatchScheduler.shouldWatch(this)) GameWatchScheduler.ensure(this, "APP_RESUME")
 
         if (waitingAdvancedScreenReturn) {
             waitingAdvancedScreenReturn = false
@@ -118,16 +121,18 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val row = googleServiceCheckRow
-        if (recheckGoogleRowAfterPause && isSetupDone() && row != null && row.isAttachedToWindow) {
-            GoogleServiceCheckUi.checkOnce(this, row, protectResult)
+        if (recheckGoogleRowAfterPause && isSetupDone() &&
+            googleServiceCheckRow != null && googleServiceCheckRow!!.isAttachedToWindow
+        ) {
+            GoogleServiceCheckUi.checkOnce(this, googleServiceCheckRow!!, protectResult)
         }
         recheckGoogleRowAfterPause = false
     }
 
     private fun continueSetupFlow() {
         val autostart = XiaomiSetupState.getAutostartState(this)
-        val autostartManuallyConfirmed = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("autostart_manual_confirmed", false)
+        val autostartManuallyConfirmed = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getBoolean("autostart_manual_confirmed", false)
 
         if (autostart == XiaomiSetupState.AutostartState.DENIED ||
             (autostart == XiaomiSetupState.AutostartState.UNKNOWN && !autostartManuallyConfirmed && !isSetupDone())
@@ -152,14 +157,17 @@ class MainActivity : AppCompatActivity() {
     private fun checkAutostartAfterReturn(attempt: Int) {
         val state = XiaomiSetupState.getAutostartState(this)
         if (state == XiaomiSetupState.AutostartState.ALLOWED) {
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("autostart_manual_confirmed", true).apply()
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                .putBoolean("autostart_manual_confirmed", true).apply()
             continueSetupFlow()
             return
         }
+
         if (state == XiaomiSetupState.AutostartState.UNKNOWN) {
             showOnboarding(0)
             return
         }
+
         if (attempt < 2) {
             val delayMs = if (attempt == 0) 450L else 900L
             Handler(Looper.getMainLooper()).postDelayed({
@@ -167,6 +175,7 @@ class MainActivity : AppCompatActivity() {
             }, delayMs)
             return
         }
+
         showOnboarding(0)
         toast(getString(R.string.autostart_not_enabled))
     }
@@ -177,6 +186,7 @@ class MainActivity : AppCompatActivity() {
             continueSetupFlow()
             return
         }
+
         if (attempt < 2) {
             val delayMs = if (attempt == 0) 500L else 1000L
             Handler(Looper.getMainLooper()).postDelayed({
@@ -184,6 +194,7 @@ class MainActivity : AppCompatActivity() {
             }, delayMs)
             return
         }
+
         showOnboarding(1)
         toast(getString(R.string.system_access_not_granted))
     }
@@ -195,9 +206,13 @@ class MainActivity : AppCompatActivity() {
         showMainScreen()
     }
 
-    private fun isSetupDone(): Boolean = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(KEY_SETUP_DONE, false)
+    private fun isSetupDone(): Boolean {
+        return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(KEY_SETUP_DONE, false)
+    }
 
-    private fun isBatteryUserConfirmed(): Boolean = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(KEY_BATTERY_USER_CONFIRMED, false)
+    private fun isBatteryUserConfirmed(): Boolean {
+        return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(KEY_BATTERY_USER_CONFIRMED, false)
+    }
 
     private fun setSetupDone(done: Boolean) {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
@@ -229,7 +244,7 @@ class MainActivity : AppCompatActivity() {
             textSize = 23f
             setTypeface(typeface, Typeface.BOLD)
         }
-        header.addView(title, LinearLayout.LayoutParams(-1, -2))
+        header.addView(title)
 
         val sub = TextView(this).apply {
             text = getString(R.string.ui_short_header)
@@ -237,7 +252,7 @@ class MainActivity : AppCompatActivity() {
             textSize = 13f
             setPadding(0, dp(3), 0, 0)
         }
-        header.addView(sub, LinearLayout.LayoutParams(-1, -2))
+        header.addView(sub)
         return header
     }
 
@@ -245,16 +260,18 @@ class MainActivity : AppCompatActivity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(UiKit.BG)
-            addView(buildHeader(), LinearLayout.LayoutParams(-1, -2))
+            addView(buildHeader(), matchWidth())
         }
     }
 
     private fun showOnboarding(step: Int) {
         onboardingStep = Math.max(0, Math.min(2, step))
         val autostart = XiaomiSetupState.getAutostartState(this)
-        val autostartManual = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("autostart_manual_confirmed", false)
+        val autostartManual = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getBoolean("autostart_manual_confirmed", false)
         val complete = booleanArrayOf(
-            autostart == XiaomiSetupState.AutostartState.ALLOWED || (autostart == XiaomiSetupState.AutostartState.UNKNOWN && autostartManual),
+            autostart == XiaomiSetupState.AutostartState.ALLOWED ||
+                    (autostart == XiaomiSetupState.AutostartState.UNKNOWN && autostartManual),
             MilletNoRestrict.canWrite(this),
             isBatteryUserConfirmed()
         )
@@ -269,7 +286,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(10), dp(18), dp(14))
         }
-        scroll.addView(page, FrameLayout.LayoutParams(-1, -2))
+        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val heading = LinearLayout(this).apply {
@@ -283,11 +300,11 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), 0, 0, 0)
         }
-        headingCopy.addView(onboardingText(R.string.onboarding_overview_title, 18f, UiKit.TEXT, true), LinearLayout.LayoutParams(-1, -2))
+        headingCopy.addView(onboardingText(R.string.onboarding_overview_title, 18f, UiKit.TEXT, true), matchWidth())
         val summary = onboardingText(R.string.onboarding_overview_subtitle, 12.5f, UiKit.MUTED, false).apply {
             setPadding(0, dp(3), 0, 0)
         }
-        headingCopy.addView(summary, LinearLayout.LayoutParams(-1, -2))
+        headingCopy.addView(summary, matchWidth())
         heading.addView(headingCopy, LinearLayout.LayoutParams(0, -2, 1f))
         page.addView(heading, matchWidthWithBottom(dp(22)))
 
@@ -312,33 +329,43 @@ class MainActivity : AppCompatActivity() {
             setTextColor(UiKit.MUTED)
             textSize = 12.5f
         }
-        counter.addView(count, LinearLayout.LayoutParams(-2, -2))
+        counter.addView(count)
         page.addView(counter, matchWidthWithBottom(dp(7)))
 
         val permissionRows = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = UiKit.rounded(UiKit.BG, 16, this)
+            background = UiKit.rounded(UiKit.BG, 16, this@MainActivity)
         }
-        addOnboardingRow(permissionRows, 0, R.drawable.sg_ic_power, R.string.onboarding_autostart_name, R.string.onboarding_autostart_desc, complete[0], autostart == XiaomiSetupState.AutostartState.ALLOWED)
+        addOnboardingRow(permissionRows, 0, R.drawable.sg_ic_power,
+            R.string.onboarding_autostart_name, R.string.onboarding_autostart_desc,
+            complete[0], autostart == XiaomiSetupState.AutostartState.ALLOWED)
         onboardingDivider(permissionRows)
-        addOnboardingRow(permissionRows, 1, R.drawable.sg_ic_settings, R.string.onboarding_system_name, R.string.onboarding_system_desc, complete[1], true)
+        addOnboardingRow(permissionRows, 1, R.drawable.sg_ic_settings,
+            R.string.onboarding_system_name, R.string.onboarding_system_desc,
+            complete[1], true)
         onboardingDivider(permissionRows)
-        addOnboardingRow(permissionRows, 2, R.drawable.sg_ic_battery, R.string.onboarding_battery_name, R.string.onboarding_battery_desc, complete[2], false)
+        addOnboardingRow(permissionRows, 2, R.drawable.sg_ic_battery,
+            R.string.onboarding_battery_name, R.string.onboarding_battery_desc,
+            complete[2], false)
         page.addView(permissionRows, matchWidthWithBottom(dp(15)))
 
         val stepLabel = onboardingText(R.string.onboarding_instruction_label, 12.5f, UiKit.PRIMARY, true)
         page.addView(stepLabel, matchWidthWithBottom(dp(6)))
+
         val explanation = onboardingText(
-            if (onboardingStep == 0) R.string.autostart_body_auto else if (onboardingStep == 1) R.string.system_access_message_auto else R.string.battery_hyperos_check_limited,
-            12.5f,
-            UiKit.MUTED,
-            false
+            if (onboardingStep == 0) R.string.autostart_body_auto
+            else if (onboardingStep == 1) R.string.system_access_message_auto
+            else R.string.battery_hyperos_check_limited,
+            12.5f, UiKit.MUTED, false
         ).apply { setLineSpacing(dp(2).toFloat(), 1f) }
         page.addView(explanation, matchWidthWithBottom(dp(12)))
 
         if (onboardingStep == 2) {
             val exempt = BatterySetupState.isIgnoringBatteryOptimizations(this)
-            val androidBattery = onboardingText(if (exempt) R.string.battery_doze_granted else R.string.battery_doze_missing, 12f, if (exempt) UiKit.SUCCESS else UiKit.MUTED, false)
+            val androidBattery = onboardingText(
+                if (exempt) R.string.battery_doze_granted else R.string.battery_doze_missing,
+                12f, if (exempt) UiKit.SUCCESS else UiKit.MUTED, false
+            )
             page.addView(androidBattery, matchWidthWithBottom(dp(10)))
         }
 
@@ -346,7 +373,7 @@ class MainActivity : AppCompatActivity() {
             gravity = Gravity.TOP
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(11), dp(10), dp(11), dp(10))
-            background = UiKit.rounded(UiKit.PRIMARY_SOFT, 12, this)
+            background = UiKit.rounded(UiKit.PRIMARY_SOFT, 12, this@MainActivity)
         }
         val hintIcon = ImageView(this).apply {
             setImageResource(R.drawable.sg_ic_info)
@@ -375,7 +402,8 @@ class MainActivity : AppCompatActivity() {
                 }, matchWidth())
                 if (autostart == XiaomiSetupState.AutostartState.UNKNOWN) {
                     actions.addView(UiKit.secondaryButton(this, getString(R.string.autostart_manual_continue)) {
-                        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("autostart_manual_confirmed", true).apply()
+                        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                            .putBoolean("autostart_manual_confirmed", true).apply()
                         continueSetupFlow()
                     }, matchWidthWithTop(dp(9)))
                 }
@@ -407,7 +435,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmOnboardingBattery() {
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(KEY_BATTERY_USER_CONFIRMED, true).apply()
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+            .putBoolean(KEY_BATTERY_USER_CONFIRMED, true).apply()
         continueSetupFlow()
     }
 
@@ -437,20 +466,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun addOnboardingRow(
-        parent: LinearLayout,
-        index: Int,
-        iconRes: Int,
-        titleRes: Int,
-        descriptionRes: Int,
-        done: Boolean,
-        independentlyVerified: Boolean
+        parent: LinearLayout, index: Int, iconRes: Int,
+        titleRes: Int, descriptionRes: Int, done: Boolean, independentlyVerified: Boolean
     ) {
         val row = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(5), dp(10), dp(5), dp(10))
             minimumHeight = dp(76)
-            background = if (onboardingStep == index) UiKit.rounded(0xFFEBEDF4.toInt(), 13, this) else SettingsMotion.ripple(this)
+            background = if (onboardingStep == index) UiKit.rounded(0xFFEBEDF4.toInt(), 13, this@MainActivity)
+            else SettingsMotion.ripple(this@MainActivity)
         }
         val icon = onboardingIcon(iconRes, 42, 22, false)
         row.addView(icon, LinearLayout.LayoutParams(dp(42), dp(42)))
@@ -459,18 +484,20 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), 0, 0, 0)
         }
-        label.addView(onboardingText(titleRes, 14.5f, UiKit.TEXT, true), LinearLayout.LayoutParams(-1, -2))
+        label.addView(onboardingText(titleRes, 14.5f, UiKit.TEXT, true), matchWidth())
+
         val description = onboardingText(descriptionRes, 12f, UiKit.MUTED, false).apply {
             maxLines = 2
             setPadding(0, dp(3), 0, 0)
         }
-        label.addView(description, LinearLayout.LayoutParams(-1, -2))
+        label.addView(description, matchWidth())
 
         val labelRes = if (done) (if (independentlyVerified) R.string.onboarding_verified else R.string.onboarding_confirmed) else R.string.onboarding_pending
-        val statusLabel = onboardingText(labelRes, 11.5f, if (done) (if (independentlyVerified) UiKit.SUCCESS else UiKit.MUTED) else UiKit.MUTED, false).apply {
-            setPadding(0, dp(3), 0, 0)
-        }
-        label.addView(statusLabel, LinearLayout.LayoutParams(-1, -2))
+        val statusLabel = onboardingText(
+            labelRes, 11.5f,
+            if (done) (if (independentlyVerified) UiKit.SUCCESS else UiKit.MUTED) else UiKit.MUTED, false
+        ).apply { setPadding(0, dp(3), 0, 0) }
+        label.addView(statusLabel, matchWidth())
         row.addView(label, LinearLayout.LayoutParams(0, -2, 1f))
 
         val status = ImageView(this).apply {
@@ -486,7 +513,7 @@ class MainActivity : AppCompatActivity() {
         row.isClickable = true
         row.isFocusable = true
         row.setOnClickListener { showOnboarding(index) }
-        parent.addView(row, LinearLayout.LayoutParams(-1, -2))
+        parent.addView(row, matchWidth())
     }
 
     private fun showMainScreen() {
@@ -497,24 +524,32 @@ class MainActivity : AppCompatActivity() {
         }
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         UiKit.applyBottomSystemInset(page)
-        scroll.addView(page, FrameLayout.LayoutParams(-1, -2))
+        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
         frame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
-        
-        SettingsMotion.collapsingBar(this, frame, scroll, getString(R.string.app_name)) {}
+        SettingsMotion.collapsingBar(this, frame, scroll, getString(R.string.app_name), null)
         setContentView(frame)
 
         SettingsMotion.largeTitle(this, page, getString(R.string.app_name))
 
         val verify = SettingsListUi.group(this)
-        SettingsListUi.row(this, verify, R.drawable.sg_ic_check, getString(R.string.settings13_self_check), getString(R.string.settings13_self_check_desc), null, SettingsListUi.NEUTRAL) {
-            startActivity(Intent(this, CompatibilityActivity::class.java))
+        SettingsListUi.row(
+            this, verify, R.drawable.sg_ic_check,
+            getString(R.string.settings13_self_check),
+            getString(R.string.settings13_self_check_desc), null, SettingsListUi.NEUTRAL
+        ) {
+            startActivity(Intent(this@MainActivity, CompatibilityActivity::class.java))
         }
         page.addView(verify, matchWidth())
         addMicrogSeparator(page)
 
         page.addView(SettingsListUi.heading(this, getString(R.string.settings13_google_section)), matchWidth())
         val protection = SettingsListUi.group(this)
-        val googleServiceRow = SettingsListUi.row(this, protection, R.drawable.sg_ic_shield, getString(R.string.settings_gms_service_title), getString(R.string.settings14_checking), null, SettingsListUi.NEUTRAL) {
+        val googleServiceRow = SettingsListUi.row(
+            this, protection, R.drawable.sg_ic_shield,
+            getString(R.string.settings_gms_service_title),
+            getString(R.string.settings14_checking),
+            null, SettingsListUi.NEUTRAL
+        ) {
             showProtectionDetailsDialog()
         }
         googleServiceRow.contentDescription = getString(R.string.settings_gms_service_title) + ". " + getString(R.string.settings_protection_details_desc)
@@ -522,7 +557,12 @@ class MainActivity : AppCompatActivity() {
         recheckGoogleRowAfterPause = false
         GoogleServiceCheckUi.checkOnce(this, googleServiceRow, protectResult)
 
-        SettingsListUi.row(this, protection, R.drawable.sg_ic_apps, getString(R.string.ui_section_apps), getString(R.string.adv_main_desc, 1 + AdvancedAppStore.activeCount(this)), null, SettingsListUi.NEUTRAL) {
+        SettingsListUi.row(
+            this, protection, R.drawable.sg_ic_apps,
+            getString(R.string.ui_section_apps),
+            getString(R.string.adv_main_desc, 1 + AdvancedAppStore.activeCount(this)),
+            null, SettingsListUi.NEUTRAL
+        ) {
             openManagedApps()
         }
         page.addView(protection, matchWidth())
@@ -541,19 +581,33 @@ class MainActivity : AppCompatActivity() {
         val tools = SettingsListUi.group(this)
         val doze = BatterySetupState.isIgnoringBatteryOptimizations(this)
         SettingsListUi.row(
-            this, tools, R.drawable.sg_ic_battery, getString(R.string.settings_battery_short),
-            getString(if (doze) R.string.ui_status_verified else R.string.ui_status_missing), null, if (doze) SettingsListUi.GOOD else SettingsListUi.BAD
+            this, tools, R.drawable.sg_ic_battery,
+            getString(R.string.settings_battery_short),
+            getString(if (doze) R.string.ui_status_verified else R.string.ui_status_missing),
+            null, if (doze) SettingsListUi.GOOD else SettingsListUi.BAD
         ) {
-            if (!BatterySetupState.isIgnoringBatteryOptimizations(this)) requestAndroidBatteryExemption()
+            if (!BatterySetupState.isIgnoringBatteryOptimizations(this@MainActivity)) requestAndroidBatteryExemption()
             else showAndroidBatteryInfo()
         }
-        SettingsListUi.row(this, tools, R.drawable.sg_ic_history, getString(R.string.gamewatch_logs), getString(R.string.settings_history_desc), null, SettingsListUi.NEUTRAL) {
-            startActivity(Intent(this, ActivityLogActivity::class.java))
+        SettingsListUi.row(
+            this, tools, R.drawable.sg_ic_history,
+            getString(R.string.gamewatch_logs), getString(R.string.settings_history_desc),
+            null, SettingsListUi.NEUTRAL
+        ) {
+            startActivity(Intent(this@MainActivity, ActivityLogActivity::class.java))
         }
-        SettingsListUi.row(this, tools, R.drawable.sg_ic_heart, getString(R.string.donate_title), null, null, SettingsListUi.NEUTRAL) {
+        SettingsListUi.row(
+            this, tools, R.drawable.sg_ic_heart,
+            getString(R.string.donate_title), null, null,
+            SettingsListUi.NEUTRAL
+        ) {
             showDonateDialog()
         }
-        SettingsListUi.row(this, tools, R.drawable.sg_ic_info, getString(R.string.app_info), null, null, SettingsListUi.NEUTRAL) {
+        SettingsListUi.row(
+            this, tools, R.drawable.sg_ic_info,
+            getString(R.string.app_info), null, null,
+            SettingsListUi.NEUTRAL
+        ) {
             showAboutDialog()
         }
         page.addView(tools, matchWidth())
@@ -602,7 +656,7 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(R.string.close, null)
             .create()
         dialog.setOnShowListener {
-            dialog.window?.setBackgroundDrawable(UiKit.rounded(UiKit.BG, 20, this))
+            dialog.window?.setBackgroundDrawable(UiKit.rounded(UiKit.BG, 20, this@MainActivity))
             val close = dialog.getButton(AlertDialog.BUTTON_POSITIVE) as? Button
             close?.apply {
                 isAllCaps = false
@@ -613,7 +667,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun addProtectionStatusRow(group: LinearLayout, labelRes: Int, success: Boolean, requestOnly: Boolean) {
-        val statusRes = if (requestOnly) (if (success) R.string.ui_status_sent else R.string.settings105_mipush_not_sent) else if (success) R.string.ui_status_verified else R.string.ui_status_missing
+        val statusRes = if (requestOnly) (if (success) R.string.ui_status_sent else R.string.settings105_mipush_not_sent)
+        else if (success) R.string.ui_status_verified else R.string.ui_status_missing
         val iconRes = if (success) R.drawable.sg_ic_verified_check else R.drawable.sg_ic_status_error
         val row = SettingsListUi.row(this, group, iconRes, getString(labelRes), getString(statusRes), null, if (success) SettingsListUi.GOOD else SettingsListUi.BAD, null)
         (row.getChildAt(0) as ImageView).clearColorFilter()
@@ -675,7 +730,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun maybeShowDonatePrompt() {
-        if (donatePromptCheckedThisSession || !isSetupDone() || isFinishing()) return
+        if (donatePromptCheckedThisSession || !isSetupDone() || isFinishing) return
         donatePromptCheckedThisSession = true
 
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
@@ -716,9 +771,7 @@ class MainActivity : AppCompatActivity() {
     private fun buildAppInfoCard(): View {
         val content = SettingsListUi.group(this).apply { setPadding(0, dp(4), 0, dp(8)) }
         SettingsListUi.row(this, content, R.drawable.sg_ic_info, getString(R.string.about_developer_label), getString(R.string.developer), null, SettingsListUi.NEUTRAL, null)
-        SettingsListUi.row(this, content, R.drawable.ic_facebook, getString(R.string.facebook), null, null, SettingsListUi.NEUTRAL) {
-            openFacebookProfile()
-        }
+        SettingsListUi.row(this, content, R.drawable.ic_facebook, getString(R.string.facebook), null, null, SettingsListUi.NEUTRAL) { openFacebookProfile() }
 
         val note = UiKit.muted(this, getString(R.string.about_note), 13f).apply {
             setLineSpacing(dp(2).toFloat(), 1.02f)
@@ -739,7 +792,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val thanks = TextView(this).apply {
-            setText(R.string.donate_thanks)
+            text = getString(R.string.donate_thanks)
             textSize = 14f
             setTextColor(UiKit.TEXT)
             gravity = Gravity.CENTER
@@ -762,7 +815,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(hint, matchWidth())
 
         val cryptoTitle = TextView(this).apply {
-            setText(R.string.donate_usdt)
+            text = getString(R.string.donate_usdt)
             textSize = 13f
             setTextColor(UiKit.TEXT)
             setTypeface(typeface, Typeface.BOLD)
@@ -776,9 +829,7 @@ class MainActivity : AppCompatActivity() {
         }
         content.addView(warning, matchWidth())
 
-        val scroll = ScrollView(this).apply {
-            addView(content, ScrollView.LayoutParams(-1, -2))
-        }
+        val scroll = ScrollView(this).apply { addView(content, ScrollView.LayoutParams(-1, -2)) }
         AlertDialog.Builder(this)
             .setTitle(R.string.donate_dialog_title)
             .setView(scroll)
@@ -870,6 +921,7 @@ class MainActivity : AppCompatActivity() {
     private fun openAutostartSettings() {
         val action = Intent("miui.intent.action.OP_AUTO_START").apply { setPackage("com.miui.securitycenter") }
         val direct = componentIntent("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
+
         if (!tryIntents(arrayOf(action, direct))) {
             waitingAutostartSettingsReturn = false
             openAppDetails(getString(R.string.settings_hint_autostart))
@@ -907,25 +959,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun toast(value: String) { Toast.makeText(this, value, Toast.LENGTH_SHORT).show() }
-    private fun dp(value: Int): Int = UiKit.dp(this, value)
-    private fun matchWidth(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(-1, -2)
-    private fun matchWidthWithBottom(bottom: Int): LinearLayout.LayoutParams = matchWidth().apply { bottomMargin = bottom }
-    private fun matchWidthWithTop(top: Int): LinearLayout.LayoutParams = matchWidth().apply { topMargin = top }
-
-    companion object {
-        private const val PREFS = "setup_v1"
-        private const val KEY_SETUP_DONE = "setup_done"
-        private const val KEY_BATTERY_USER_CONFIRMED = "battery_user_confirmed_v1"
-        private const val KEY_DONATE_START_MS = "donate_start_ms"
-        private const val KEY_DONATE_LAUNCH_COUNT = "donate_launch_count"
-        private const val KEY_DONATE_LAST_PROMPT_MS = "donate_last_prompt_ms"
-        private const val KEY_DONATE_PROMPT_COUNT = "donate_prompt_count"
-
-        private const val DAY_MS = 24L * 60L * 60L * 1000L
-        private const val DONATE_FIRST_DELAY_MS = 7L * DAY_MS
-        private const val DONATE_REPEAT_DELAY_MS = 30L * DAY_MS
-        private const val DONATE_MIN_LAUNCHES = 3
-        private const val DONATE_MAX_AUTO_PROMPTS = 3
+    private fun toast(value: String) {
+        Toast.makeText(this, value, Toast.LENGTH_SHORT).show()
     }
+
+    private fun dp(value: Int): Int = UiKit.dp(this, value)
+
+    private fun matchWidth(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(-1, -2)
+
+    private fun matchWidthWithBottom(bottom: Int): LinearLayout.LayoutParams =
+        matchWidth().apply { bottomMargin = bottom }
+
+    private fun matchWidthWithTop(top: Int): LinearLayout.LayoutParams =
+        matchWidth().apply { topMargin = top }
 }
