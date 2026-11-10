@@ -2,8 +2,6 @@ package com.kinh.gmsprotect
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Intent
 import android.graphics.Typeface
@@ -498,7 +496,7 @@ class MainActivity : Activity() {
         }
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         UiKit.applyBottomSystemInset(page)
-        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(page, LinearLayout.LayoutParams(-1, -2))
         frame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
         SettingsMotion.collapsingBar(this, frame, scroll, getString(R.string.app_name), null)
         setContentView(frame)
