@@ -4,11 +4,8 @@ import android.view.ViewGroup.LayoutParams
 import android.widget.LinearLayout.LayoutParams
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Intent
-import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -18,7 +15,6 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -31,16 +27,6 @@ class MainActivity : Activity() {
         private const val PREFS = "setup_v1"
         private const val KEY_SETUP_DONE = "setup_done"
         private const val KEY_BATTERY_USER_CONFIRMED = "battery_user_confirmed_v1"
-        private const val KEY_DONATE_START_MS = "donate_start_ms"
-        private const val KEY_DONATE_LAUNCH_COUNT = "donate_launch_count"
-        private const val KEY_DONATE_LAST_PROMPT_MS = "donate_last_prompt_ms"
-        private const val KEY_DONATE_PROMPT_COUNT = "donate_prompt_count"
-
-        private const val DAY_MS = 24L * 60L * 60L * 1000L
-        private const val DONATE_FIRST_DELAY_MS = 7L * DAY_MS
-        private const val DONATE_REPEAT_DELAY_MS = 30L * DAY_MS
-        private const val DONATE_MIN_LAUNCHES = 3
-        private const val DONATE_MAX_AUTO_PROMPTS = 3
     }
 
     private var protectResult = GmsProtector.Result.FAILED
@@ -48,7 +34,6 @@ class MainActivity : Activity() {
     private var waitingAutostartSettingsReturn = false
     private var waitingWriteSettingsReturn = false
     private var waitingBatterySettingsReturn = false
-    private var donatePromptCheckedThisSession = false
     private var waitingAdvancedScreenReturn = false
     // UI only: replay the check animation when the app returns from background.
     private var googleServiceCheckRow: LinearLayout? = null
@@ -91,7 +76,6 @@ class MainActivity : Activity() {
         }
 
         if (isSetupDone()) {
-            recordReturningLaunchForDonate()
             showMainScreen()
         } else {
             continueSetupFlow()
@@ -245,19 +229,8 @@ class MainActivity : Activity() {
     }
 
     private fun setSetupDone(done: Boolean) {
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val editor = prefs.edit().putBoolean(KEY_SETUP_DONE, done)
-        if (done && prefs.getLong(KEY_DONATE_START_MS, 0L) == 0L) {
-            editor.putLong(KEY_DONATE_START_MS, System.currentTimeMillis())
-            editor.putInt(KEY_DONATE_LAUNCH_COUNT, Math.max(1, prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0)))
-        }
-        editor.apply()
-    }
-
-    private fun recordReturningLaunchForDonate() {
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val launches = prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0)
-        prefs.edit().putInt(KEY_DONATE_LAUNCH_COUNT, launches + 1).apply()
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+            .putBoolean(KEY_SETUP_DONE, done).apply()
     }
 
     private fun buildHeader(): View {
@@ -272,7 +245,7 @@ class MainActivity : Activity() {
             text = getString(R.string.app_name)
             setTextColor(UiKit.TEXT)
             textSize = 23f
-            setTypeface(this.typeFace, Typeface.BOLD)
+            typeface = Typeface.DEFAULT_BOLD
         }
         header.addView(title)
 
@@ -294,8 +267,6 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Single-screen setup overview. Only UI/navigation lives here; the existing
-     * Xiaomi AppOp, WRITE_SETTINGS and battery confirmation rules stay unchanged. */
     private fun showOnboarding(step: Int) {
         onboardingStep = Math.max(0, Math.min(2, step))
         val autostart = XiaomiSetupState.getAutostartState(this)
@@ -312,7 +283,7 @@ class MainActivity : Activity() {
         val root = shell()
         val scroll = ScrollView(this).apply {
             isFillViewport = true
-            isClipToPadding = false
+            clipToPadding = false
         }
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -321,7 +292,6 @@ class MainActivity : Activity() {
         scroll.addView(page, ScrollView.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        // Overview heading: a centered vector icon, never font-dependent glyphs.
         val heading = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -395,7 +365,6 @@ class MainActivity : Activity() {
         )
         page.addView(permissionRows, matchWidthWithBottom(dp(15)))
 
-        // Explain just the selected permission, not three large separate dialogs.
         val stepLabel = onboardingText(R.string.onboarding_instruction_label, 12.5f, UiKit.PRIMARY, true)
         page.addView(stepLabel, matchWidthWithBottom(dp(6)))
         val explanation = onboardingText(
@@ -433,7 +402,6 @@ class MainActivity : Activity() {
         hint.addView(hintText, hintLp)
         page.addView(hint, matchWidth())
 
-        // Action area sticks to the bottom; permission rows remain scrollable.
         val actions = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(10), dp(18), dp(14))
@@ -518,8 +486,6 @@ class MainActivity : Activity() {
     }
 
     private fun confirmOnboardingBattery() {
-        // This is only the user's confirmation of Xiaomi PowerKeeper choice.
-        // Do not claim the vendor-private setting was verified by Android.
         getSharedPreferences(PREFS, MODE_PRIVATE).edit()
             .putBoolean(KEY_BATTERY_USER_CONFIRMED, true).apply()
         continueSetupFlow()
@@ -530,7 +496,7 @@ class MainActivity : Activity() {
             setText(res)
             textSize = size
             setTextColor(color)
-            if (bold) setTypeface(this.typeFace, Typeface.BOLD)
+            if (bold) typeface = Typeface.DEFAULT_BOLD
         }
     }
 
@@ -622,14 +588,13 @@ class MainActivity : Activity() {
         parent.addView(row, matchWidth())
     }
 
-    /** microG-inspired settings screen: large title collapses as list scrolls. */
     private fun showMainScreen() {
         val frame = FrameLayout(this).apply {
             setBackgroundColor(UiKit.BG)
         }
         val scroll = ScrollView(this).apply {
             isFillViewport = true
-            isClipToPadding = false
+            clipToPadding = false
         }
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -641,9 +606,7 @@ class MainActivity : Activity() {
         setContentView(frame)
 
         SettingsMotion.largeTitle(this, page, getString(R.string.app_name))
-        // The visible Google Play Services row runs a one-shot status read after
-        // protection setup. Animation never implies MiPush acceptance or FCM uptime.
-        // microG first row: explicit diagnostic action; no passive row secretly changes settings.
+        
         val verify = SettingsListUi.group(this)
         SettingsListUi.row(
             this, verify, R.drawable.sg_ic_check,
@@ -666,19 +629,15 @@ class MainActivity : Activity() {
         ) {
             showProtectionDetailsDialog()
         }
-        // The GMS row is an interactive entry: tap it to inspect the live
-        // protection state. GMS remains mandatory and is not user-toggleable.
         googleServiceRow.contentDescription = getString(R.string.settings_gms_service_title) +
                 ". " + getString(R.string.settings_protection_details_desc)
-        // Spinner -> verified tick / attention icon. No polling, no background service.
+        
         googleServiceCheckRow = googleServiceRow
         recheckGoogleRowAfterPause = false
         GoogleServiceCheckUi.checkOnce(this, googleServiceRow, protectResult)
         SettingsListUi.row(
             this, protection, R.drawable.sg_ic_apps,
             getString(R.string.ui_section_apps),
-            // The built-in, read-only GMS protection is the first protected app.
-            // User entries remain the only editable apps and enabled=false is excluded.
             getString(R.string.adv_main_desc, 1 + AdvancedAppStore.activeCount(this)),
             null, SettingsListUi.NEUTRAL
         ) {
@@ -721,13 +680,6 @@ class MainActivity : Activity() {
             startActivity(Intent(this, ActivityLogActivity::class.java))
         }
         SettingsListUi.row(
-            this, tools, R.drawable.sg_ic_heart,
-            getString(R.string.donate_title), null, null,
-            SettingsListUi.NEUTRAL
-        ) {
-            showDonateDialog()
-        }
-        SettingsListUi.row(
             this, tools, R.drawable.sg_ic_info,
             getString(R.string.app_info), null, null,
             SettingsListUi.NEUTRAL
@@ -735,8 +687,6 @@ class MainActivity : Activity() {
             showAboutDialog()
         }
         page.addView(tools, matchWidth())
-        // Existing donation rules untouched, and shown only on normal app launch.
-        page.post { maybeShowDonatePrompt() }
     }
 
     private fun addMicrogSeparator(page: LinearLayout) {
@@ -746,7 +696,6 @@ class MainActivity : Activity() {
         page.addView(SettingsListUi.separator(this), lp)
     }
 
-    /** Single flat Settings dialog; verification is read-only until Retry is tapped. */
     private fun showProtectionDetailsDialog() {
         val details = SettingsListUi.group(this).apply {
             setPadding(dp(2), dp(8), dp(2), dp(6))
@@ -754,7 +703,6 @@ class MainActivity : Activity() {
         val gmsInMillet = MilletNoRestrict.containsGms(this)
         val playInMillet = MilletNoRestrict.containsPlayStore(this)
         addProtectionStatusRow(details, R.string.dashboard_gms, gmsInMillet, false)
-        // A successful broadcast confirms dispatch, not Xiaomi's acceptance.
         addProtectionStatusRow(
             details, R.string.dashboard_greezer,
             protectResult == GmsProtector.Result.SENT, true
@@ -790,7 +738,6 @@ class MainActivity : Activity() {
             .setPositiveButton(R.string.close, null)
             .create()
         dialog.setOnShowListener {
-            // Match the flat Settings background: rounded corners, no card border.
             dialog.window?.setBackgroundDrawable(UiKit.rounded(UiKit.BG, 20, this))
             val close = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
             close?.apply {
@@ -816,8 +763,6 @@ class MainActivity : Activity() {
             getString(labelRes), getString(statusRes),
             null, if (success) SettingsListUi.GOOD else SettingsListUi.BAD, null
         )
-        // Status vectors already encode verified / error colors; do not tint both
-        // the colored circle and white symbol with the generic grey icon filter.
         (row.getChildAt(0) as ImageView).clearColorFilter()
     }
 
@@ -845,7 +790,7 @@ class MainActivity : Activity() {
             text = getString(R.string.setup)
             textSize = 15f
             setTextColor(UiKit.TEXT)
-            setTypeface(this.typeFace, Typeface.BOLD)
+            typeface = Typeface.DEFAULT_BOLD
         }
         setup.addView(setupTitle, matchWidthWithBottom(dp(8)))
 
@@ -904,52 +849,16 @@ class MainActivity : Activity() {
         return setup
     }
 
-    private fun maybeShowDonatePrompt() {
-        if (donatePromptCheckedThisSession || !isSetupDone() || isFinishing) return
-        donatePromptCheckedThisSession = true
-
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val now = System.currentTimeMillis()
-        val start = prefs.getLong(KEY_DONATE_START_MS, 0L)
-        val launches = prefs.getInt(KEY_DONATE_LAUNCH_COUNT, 0)
-        val lastPrompt = prefs.getLong(KEY_DONATE_LAST_PROMPT_MS, 0L)
-        val promptCount = prefs.getInt(KEY_DONATE_PROMPT_COUNT, 0)
-
-        if (start <= 0L) {
-            prefs.edit().putLong(KEY_DONATE_START_MS, now).apply()
-            return
-        }
-        if (now - start < DONATE_FIRST_DELAY_MS) return
-        if (launches < DONATE_MIN_LAUNCHES) return
-        if (promptCount >= DONATE_MAX_AUTO_PROMPTS) return
-        if (lastPrompt > 0L && now - lastPrompt < DONATE_REPEAT_DELAY_MS) return
-
-        val days = Math.max(7L, (now - start) / DAY_MS)
-        prefs.edit()
-            .putLong(KEY_DONATE_LAST_PROMPT_MS, now)
-            .putInt(KEY_DONATE_PROMPT_COUNT, promptCount + 1)
-            .apply()
-
-        AlertDialog.Builder(this)
-            .setTitle(R.string.donate_reminder_title)
-            .setMessage(getString(R.string.donate_reminder_message, days))
-            .setPositiveButton(R.string.donate_button) { _, _ -> showDonateDialog() }
-            .setNegativeButton(R.string.donate_later, null)
-            .show()
-    }
-
     private fun openManagedApps() {
         waitingAdvancedScreenReturn = true
         startActivity(Intent(this, AdvancedAppsActivity::class.java))
     }
 
-    /** One flat Settings-style dialog body. The dialog itself owns the only About title. */
     private fun buildAppInfoCard(): View {
         val content = SettingsListUi.group(this).apply {
             setPadding(0, dp(4), 0, dp(8))
         }
 
-        // Plain information: do not render a second heading/card inside the dialog.
         SettingsListUi.row(
             this, content, R.drawable.sg_ic_info,
             getString(R.string.about_developer_label), getString(R.string.developer),
@@ -962,107 +871,6 @@ class MainActivity : Activity() {
         }
         content.addView(note, matchWidth())
         return content
-    }
-
-    private fun showDonateDialog() {
-        val usdtEvm = "0x4cC35bE54c358146E7b71E58f965532193848FDd"
-        val usdtTrc20 = "TD8fkqHy5cGQU3tFf7Qi7AeeqrAWi6e9Rm"
-
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(22), dp(10), dp(22), dp(12))
-        }
-
-        val thanks = TextView(this).apply {
-            text = getString(R.string.donate_thanks)
-            textSize = 14f
-            setTextColor(UiKit.TEXT)
-            gravity = Gravity.CENTER
-        }
-        content.addView(thanks, matchWidthWithBottom(dp(14)))
-
-        val qr = ImageView(this).apply {
-            setImageResource(R.drawable.donate_qr)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            adjustViewBounds = true
-            background = UiKit.rounded(Color.WHITE, 16, this@MainActivity)
-            setPadding(dp(10), dp(10), dp(10), dp(10))
-        }
-        content.addView(qr, LinearLayout.LayoutParams(dp(240), dp(240)))
-
-        val hint = UiKit.muted(this, getString(R.string.donate_qr_hint), 12f).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, dp(12), 0, dp(12))
-        }
-        content.addView(hint, matchWidth())
-
-        val cryptoTitle = TextView(this).apply {
-            text = getString(R.string.donate_usdt)
-            textSize = 13f
-            setTextColor(UiKit.TEXT)
-            setTypeface(this.typeFace, Typeface.BOLD)
-        }
-        content.addView(cryptoTitle, matchWidth())
-        content.addView(buildCryptoAddressRow("USDT - EVM", usdtEvm), matchWidthWithTop(dp(8)))
-        content.addView(buildCryptoAddressRow("USDT - TRC20", usdtTrc20), matchWidthWithTop(dp(8)))
-
-        val warning = UiKit.muted(this, getString(R.string.donate_network_warning), 10.5f).apply {
-            setPadding(0, dp(9), 0, 0)
-        }
-        content.addView(warning, matchWidth())
-
-        val scroll = ScrollView(this).apply {
-            addView(content, ScrollView.LayoutParams(-1, -2))
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.donate_dialog_title)
-            .setView(scroll)
-            .setPositiveButton(R.string.close, null)
-            .show()
-    }
-
-    private fun buildCryptoAddressRow(network: String, address: String): View {
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(11), dp(9), dp(9), dp(9))
-            background = UiKit.rounded(0xFFF8F7FF.toInt(), 12, this@MainActivity, UiKit.BORDER, 1)
-        }
-
-        val label = TextView(this).apply {
-            text = network
-            textSize = 12.5f
-            setTextColor(UiKit.TEXT)
-            setTypeface(this.typeFace, Typeface.BOLD)
-        }
-        box.addView(label, matchWidth())
-
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(5), 0, 0)
-        }
-
-        val value = TextView(this).apply {
-            text = address
-            textSize = 12.5f
-            setTextColor(UiKit.MUTED)
-            setTextIsSelectable(true)
-            setTypeface(Typeface.MONOSPACE)
-        }
-        row.addView(value, LinearLayout.LayoutParams(0, -2, 1f))
-
-        val copy = UiKit.secondaryButton(this, getString(R.string.copy)) {
-            val cm = getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager
-            cm?.setPrimaryClip(ClipData.newPlainText(network, address))
-            toast(getString(R.string.copied_address, network))
-        }
-        val copyLp = LinearLayout.LayoutParams(dp(82), dp(42)).apply {
-            leftMargin = dp(8)
-        }
-        row.addView(copy, copyLp)
-        box.addView(row, matchWidth())
-        return box
     }
 
     private fun openWriteSettingsAccess() {
@@ -1095,7 +903,7 @@ class MainActivity : Activity() {
             val request = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                 data = Uri.parse("package:$packageName")
             }
-            startActivity(request) // Android always asks the USER for consent.
+            startActivity(request)
         } catch (ignored: Throwable) {
             try {
                 startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
@@ -1107,9 +915,6 @@ class MainActivity : Activity() {
     }
 
     private fun openAutostartSettings() {
-        // Open only the dedicated HyperOS Autostart manager. Do NOT fall back to
-        // PermissionsEditorActivity: that is the long "Other permissions" screen
-        // with unrelated toggles the app does not need.
         val action = Intent("miui.intent.action.OP_AUTO_START").apply {
             setPackage("com.miui.securitycenter")
         }
