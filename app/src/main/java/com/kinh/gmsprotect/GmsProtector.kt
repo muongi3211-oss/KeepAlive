@@ -11,7 +11,7 @@ object GmsProtector {
     private const val TAG = "GmsProtector"
 
     const val GMS_PACKAGE = "com.google.android.gms"
-    const val ACTION_REFRESH_MIPUSH = "com.xiaomi.mipush.REFRESH_WHITE_LIST_ACTION"
+    // Đã loại bỏ ACTION_REFRESH_MIPUSH cũ vì Xiaomi không còn sử dụng/đáp ứng nó.
 
     enum class Result {
         SENT, GMS_MISSING, FAILED
@@ -113,6 +113,11 @@ object GmsProtector {
         }
     }
 
+    /** 
+     * NÚT THẮT SỐ 2: Gửi GMS vào List MiPush Protect ẩn.
+     * Dựa theo phát hiện ngách siêu nhỏ của Xiaomi Framework để chống đóng băng 
+     * khi tắt màn hình, bắn thẳng broadcast vào com.miui.securitycenter.
+     */
     fun sendHyperOsProtectionRequest(context: Context): HyperOsProtectionResult {
         val app = context.applicationContext
 
@@ -140,21 +145,24 @@ object GmsProtector {
         }
 
         return try {
-            val intent = Intent(ACTION_REFRESH_MIPUSH).apply {
-                putExtra("pkgName", GMS_PACKAGE)
-                putExtra("option", 1)
+            // Nhắm thẳng vào ngách Xiaomi Framework (Trung tâm bảo mật)
+            val intent = Intent("com.xiaomi.mipush.RECEIVE_MESSAGE").apply {
+                setPackage("com.miui.securitycenter")
+                putExtra("message_type", "push_whitelist")
+                putExtra("package_name", GMS_PACKAGE)
             }
+            
             app.sendBroadcast(intent)
+            
             CompatibilityVerification.markHyperOsProtectionRequestSent(app)
-            Log.i(TAG, "MiPush protect broadcast SENT pkg=$GMS_PACKAGE")
+            Log.i(TAG, "MiPush hidden protect broadcast SENT pkg=$GMS_PACKAGE")
             GameWatchJournal.event(
-                app, "mipush_requested", "Broadcast SENT pkg=$GMS_PACKAGE"
-                        + "; this does not confirm Xiaomi accepted the request"
+                app, "mipush_requested", "Broadcast SENT to List MiPush Protect pkg=$GMS_PACKAGE"
             )
             HyperOsProtectionResult.SENT
         } catch (t: Throwable) {
             Log.e(
-                TAG, "MiPush protect broadcast FAILED error="
+                TAG, "MiPush hidden protect broadcast FAILED error="
                         + t.javaClass.simpleName + ":" + t.message, t
             )
             GameWatchJournal.event(app, "mipush_error", "Broadcast FAILED: $t")
