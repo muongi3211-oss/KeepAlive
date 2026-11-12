@@ -129,7 +129,7 @@ object MilletNoRestrict {
                 val cached = parse(readLastGood(app))
                 if (!cached.isEmpty()) {
                     packages.addAll(cached)
-                    Log.i(TAG, "restored lastGood count=" + cached.size())
+                    Log.i(TAG, "restored lastGood count=" + cached.size)
                 } else {
                     Log.i(TAG, "lastGood unavailable; starting from empty list")
                 }
