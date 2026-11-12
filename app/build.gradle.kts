@@ -28,7 +28,7 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            minifyEnabled = false
+            isminifyEnabled = false
         }
     }
 }
