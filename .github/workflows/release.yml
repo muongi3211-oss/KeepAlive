@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Cấp quyền để GitHub Actions tạo Release mới độc lập
+      contents: write  
 
     steps:
     - name: Checkout repository
@@ -36,7 +36,7 @@ jobs:
         fi
         chmod +x gradlew
 
-    - name: Set up Dynamic Version (v2.0.01+)
+    - name: Set up Dynamic Version
       run: |
         RUN_NUM=${{ github.run_number }}
         PATCH_VERSION=$(printf "%02d" $RUN_NUM)
@@ -45,49 +45,37 @@ jobs:
         
         echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
         echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
-        echo "Building version: $VERSION_NAME (Code: $VERSION_CODE)"
 
     - name: Clean build files
       run: ./gradlew clean
 
-    - name: Build Release APK
-      run: ./gradlew assembleRelease -PAPK_VERSION_CODE=${{ env.VERSION_CODE }} -PAPK_VERSION_NAME=${{ env.VERSION_NAME }}
-
-    - name: Sign APK with apksigner
+    - name: Decode Keystore
       env:
         SIGNING_KEY_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      run: |
+        # Giải mã Keystore và đặt đúng vào thư mục app/ TRƯỚC KHI build
+        echo "$SIGNING_KEY_BASE64" | base64 --decode > app/keystore.jks
+
+    - name: Build and Sign Release APK via Gradle
+      env:
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: |
-        # Giải mã keystore từ Base64
-        echo "$SIGNING_KEY_BASE64" | base64 --decode > keystore.jks
-        
-        # Tìm đường dẫn apksigner trong Android SDK
-        BUILD_TOOLS_DIR=$(ls -d $ANDROID_SDK_ROOT/build-tools/* | tail -n 1)
-        APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
-        
-        # Tìm file APK vừa build
-        APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" ! -name "*-signed.apk")
-        
-        # Ký chữ ký số cho APK
-        $APKSIGNER sign --ks keystore.jks \
-          --ks-key-alias "$KEY_ALIAS" \
-          --ks-pass pass:"$KEYSTORE_PASSWORD" \
-          --key-pass pass:"$KEY_PASSWORD" \
-          "$APK_PATH"
-          
-        # Đổi tên file sau khi ký xong
-        mv "$APK_PATH" app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk
-        
-        # Dọn dẹp tệp keystore tạm
-        rm keystore.jks
+      run: ./gradlew assembleRelease -PAPK_VERSION_CODE=${{ env.VERSION_CODE }} -PAPK_VERSION_NAME=${{ env.VERSION_NAME }}
 
-    - name: Upload APK artifact (Dự phòng)
+    - name: Rename Signed APK
+      run: |
+        # Đổi tên file APK (đã được Gradle ký sẵn) thành tên phiên bản
+        mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk
+        
+        # Xóa file keystore nhạy cảm sau khi build xong
+        rm app/keystore.jks
+
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-release-apk
-        path: app/build/outputs/apk/release/*.apk
+        path: app/build/outputs/apk/release/GmsProtect-v*.apk
 
     - name: Publish Unique Release to GitHub
       env:
@@ -99,10 +87,9 @@ jobs:
 
         TAG_NAME="v${{ env.VERSION_NAME }}"
         
-        # Tạo tag và release mới độc lập hoàn toàn
         git tag "$TAG_NAME"
         git push origin "$TAG_NAME"
         
         gh release create "$TAG_NAME" app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
           --title "GmsProtect v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }})" \
-          --notes "Bản phát hành tự động v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
+          --notes "Bản phát hành tự động v${{ env.VERSION_NAME }} đã được biên dịch và ký số tự động."
