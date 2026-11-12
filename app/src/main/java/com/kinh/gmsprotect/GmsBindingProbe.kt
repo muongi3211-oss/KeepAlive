@@ -80,10 +80,10 @@ object GmsBindingProbe {
     }
 
     private fun tryCandidate(index: Int) {
-        val app: Context?
+        val app: Context
         synchronized(LOCK) {
-            app = appContext
-            if (app == null || connected) return
+            val currentApp = appContext
+            if (currentApp == null || connected) return
             if (index >= TARGET_ACTIONS.size) {
                 bindRequested = false
                 activeCandidate = -1
@@ -91,6 +91,7 @@ object GmsBindingProbe {
                 return
             }
             activeCandidate = index
+            app = currentApp
         }
 
         val targetAction = TARGET_ACTIONS[index]
@@ -157,8 +158,6 @@ object GmsBindingProbe {
 
         var accepted = false
         try {
-            // AUTO_CREATE is enough for the MIUI clientUid -> serviceUid
-            // connection map used by holdConnectionUids().
             accepted = app.bindService(intent, connection, Context.BIND_AUTO_CREATE)
             Log.i(
                 TAG, "bindService candidate=$targetAction"
@@ -181,8 +180,6 @@ object GmsBindingProbe {
             activeConnection = connection
         }
 
-        // If GMS accepted the bind request but never connects, move on. This is
-        // only a probe; a real successful candidate should connect quickly.
         MAIN.postDelayed({
             val stillWaiting: Boolean
             synchronized(LOCK) {
