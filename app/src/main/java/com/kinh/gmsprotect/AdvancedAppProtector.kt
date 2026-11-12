@@ -34,9 +34,11 @@ object AdvancedAppProtector {
             // Same action/payload as GmsProtector, without FCM reconnect or
             // GMS compatibility evidence changes. Broadcast is not an ack.
             try {
-                val request = Intent(GmsProtector.ACTION_REFRESH_MIPUSH).apply {
-                    putExtra("pkgName", e.pkg)
-                    putExtra("option", 1)
+                // Đã sửa: Sử dụng cơ chế ngách ẩn MiPush Protect của Xiaomi Framework
+                val request = Intent("com.xiaomi.mipush.RECEIVE_MESSAGE").apply {
+                    setPackage("com.miui.securitycenter")
+                    putExtra("message_type", "push_whitelist")
+                    putExtra("package_name", e.pkg)
                 }
                 app.sendBroadcast(request)
                 AdvancedAppStore.noteMiPush(app, e.pkg, true, null)
