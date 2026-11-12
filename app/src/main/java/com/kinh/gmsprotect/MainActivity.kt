@@ -33,7 +33,6 @@ class MainActivity : Activity() {
     private var waitingWriteSettingsReturn = false
     private var waitingBatterySettingsReturn = false
     private var waitingAdvancedScreenReturn = false
-    // UI only: replay the check animation when the app returns from background.
     private var googleServiceCheckRow: LinearLayout? = null
     private var recheckGoogleRowAfterPause = false
 
@@ -53,21 +52,12 @@ class MainActivity : Activity() {
                 View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         }
 
-        // User requirement: refresh MiPush protection every time the app is opened.
         protectResult = GmsProtector.protect(this)
-        // One-time migration: cancel any alarms/notification left by the removed
-        // optional background service. Does not schedule ongoing work.
         LegacyBackgroundCleanup.runOnce(this)
-
-        // Ask JobScheduler/system_server to watch the exact MILLET Settings.System
-        // URI. The process does not need to stay alive; the job repairs GMS/Play
-        // Store only when PowerKeeper later removes either entry.
         MilletWatchScheduler.schedule(this)
-        // Mandatory event-driven Game Allowlist watcher on supported Android versions.
         if (GameWatchCore.isEnabled(this)) {
             GameWatchCore.ensureTargets(this, "APP_OPEN")
         }
-        // User-selected packages reuse the same core Game Allowlist maintenance.
         AdvancedAppProtector.maintain(this, "APP_OPEN")
         if (GameWatchScheduler.shouldWatch(this)) {
             GameWatchScheduler.ensure(this, "APP_OPEN")
@@ -104,28 +94,22 @@ class MainActivity : Activity() {
 
         if (waitingAutostartSettingsReturn) {
             waitingAutostartSettingsReturn = false
-            // HyperOS may update the AppOp a moment after the settings screen closes.
             checkAutostartAfterReturn(0)
             return
         }
 
         if (waitingWriteSettingsReturn) {
             waitingWriteSettingsReturn = false
-            // HyperOS can apply WRITE_SETTINGS a fraction after this Activity resumes.
             checkWriteSettingsAfterReturn(0)
             return
         }
 
         if (waitingBatterySettingsReturn) {
             waitingBatterySettingsReturn = false
-            // Read Android's observable battery-exemption flags again. Xiaomi's
-            // private PowerKeeper mode is not exposed via a public read API.
             if (isSetupDone()) showMainScreen()
             else showOnboarding(2)
             return
         }
-        // Returning from Home/task switcher doesn't recreate this Activity.
-        // Re-run the UI-only status snapshot without rebuilding the scrolled page.
         if (recheckGoogleRowAfterPause && isSetupDone()
             && googleServiceCheckRow != null && googleServiceCheckRow!!.isAttachedToWindow()
         ) {
@@ -171,8 +155,6 @@ class MainActivity : Activity() {
         }
 
         if (state == XiaomiSetupState.AutostartState.UNKNOWN) {
-            // Some HyperOS versions hide the vendor AppOp from third-party apps.
-            // Stay on this step and expose a manual confirmation fallback.
             showOnboarding(0)
             return
         }
@@ -219,8 +201,6 @@ class MainActivity : Activity() {
         return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(KEY_SETUP_DONE, false)
     }
 
-    /** This flag records the USER'S confirmation, not a claim that Xiaomi's
-     * private PowerKeeper database could be read or changed silently. */
     private fun isBatteryUserConfirmed(): Boolean {
         return getSharedPreferences(PREFS, MODE_PRIVATE)
             .getBoolean(KEY_BATTERY_USER_CONFIRMED, false)
@@ -287,7 +267,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(10), dp(18), dp(14))
         }
-        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(page, FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val heading = LinearLayout(this).apply {
@@ -598,7 +578,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
         }
         UiKit.applyBottomSystemInset(page)
-        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(page, FrameLayout.LayoutParams(-1, -2))
         frame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
         SettingsMotion.collapsingBar(this, frame, scroll, getString(R.string.app_name), null)
         setContentView(frame)
