@@ -11,7 +11,6 @@ import java.text.SimpleDateFormat
 import java.util.ArrayList
 import java.util.Calendar
 import java.util.Date
-import java.util.List
 import java.util.Locale
 import java.util.regex.Pattern
 
@@ -77,7 +76,6 @@ object GameWatchJournal {
 
     /** Existing call sites remain API compatible; routine checks are never saved. */
     fun add(c: Context, category: String?, message: String?) {
-        // Preserve the original Logcat diagnostics independently from user-facing history.
         Log.i(TAG, "[$category] $message")
         val raw = message ?: ""
         val cat = category ?: ""
@@ -88,7 +86,7 @@ object GameWatchJournal {
             if (raw.startsWith("real URI dual-entry repair verified"))
                 event(c, "watch_verified", "GameWatchEvidence: $raw")
             else if (raw.contains("failed")) event(c, "game_error", "COMPAT $raw")
-            return // URI callback alone is not proof of repair.
+            return
         }
         if ("CHANGE" == cat) {
             if (!raw.startsWith("from=SELF_WRITE")) event(c, "game_changed", raw)
@@ -97,7 +95,6 @@ object GameWatchJournal {
         if ("REPAIR" == cat) {
             if (raw.contains("concurrent_settings_update")) event(c, "game_deferred", raw)
             else if (raw.contains("verified=true")) event(c, "game_repaired", raw)
-            // Failed write paths already invoke recordError(), so avoid a double entry.
             return
         }
         if ("WATCH" == cat) {
@@ -123,7 +120,7 @@ object GameWatchJournal {
     /** Called ONLY at existing state transitions, not by an automatic polling loop. */
     @Synchronized
     fun event(c: Context, code: String?, technicalDetail: String?) {
-        if (c == null || code.isNullOrEmpty()) return
+        if (code.isNullOrEmpty()) return
         try {
             val detail = sanitize(technicalDetail)
             val kind = kindFor(code)
@@ -152,14 +149,12 @@ object GameWatchJournal {
             if (!merged) all.add(0, Event(now, now, 1, kind, code, key, detail))
             persist(p, all)
         } catch (failure: RuntimeException) {
-            // Journaling must never break a Xiaomi settings write or a JobService.
             Log.w(TAG, "Optional event storage unavailable", failure)
         }
     }
 
-    /** Returns an immutable-snapshot-like copy; the caller cannot edit stored data. */
     @Synchronized
-    fun entries(c: Context): java.util.List<Event> {
+    fun entries(c: Context): List<Event> {
         var result = ArrayList<Event>()
         try {
             val p = prefs(c)
@@ -174,7 +169,6 @@ object GameWatchJournal {
         return result
     }
 
-    /** No locale-specific strings are persisted. Raw export is suitable for bug reports. */
     fun technicalHistory(c: Context): String {
         val out = StringBuilder()
         val iso = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
@@ -190,7 +184,6 @@ object GameWatchJournal {
         return out.toString()
     }
 
-    /** Backward-compatible helper for any older UI/diagnostic call sites. */
     fun history(c: Context): String = technicalHistory(c)
 
     private fun kindFor(code: String): String {
@@ -208,14 +201,11 @@ object GameWatchJournal {
     }
 
     private fun fingerprint(code: String, detail: String): String {
-        // Most protection events are keyed by effect, not volatile pid/reason.
-        // User-app events must remain distinct per package.
         if (code.startsWith("app_added") || code.startsWith("app_enabled")
             || code.startsWith("app_disabled") || code.startsWith("app_removed")
             || "mipush_requested_app" == code
         ) return "$code:$detail"
         if (code.endsWith("_error")) {
-            // Do not merge unrelated failures merely because both say ERROR.
             val signature = detail.replace("(?i)(reason|cause|pid)=[^ ]+".toRegex(), "$1=*")
                 .replace("\\b[0-9]{4,}\\b".toRegex(), "#")
             return "$code:" + if (signature.length > 100) signature.substring(0, 100) else signature
@@ -228,12 +218,12 @@ object GameWatchJournal {
         val json = p.getString(HISTORY, "[]")
         try {
             val a = JSONArray(json)
-            for (i in 0 until a.length() && list.size < LIMIT) {
+            for (i in 0 until a.length()) {
+                if (list.size >= LIMIT) break
                 val o = a.optJSONObject(i)
                 if (o != null && o.optLong("t", 0L) > 0) list.add(Event.parse(o))
             }
         } catch (invalid: JSONException) {
-            // Preserve the unreadable original for diagnostic recovery.
             if (!p.contains("corrupt_backup"))
                 p.edit().putString("corrupt_backup", json).apply()
             Log.w(TAG, "Unreadable journal JSON; original backed up", invalid)
@@ -241,9 +231,10 @@ object GameWatchJournal {
         return list
     }
 
-    private fun persist(p: SharedPreferences, all: java.util.List<Event>) {
+    private fun persist(p: SharedPreferences, all: List<Event>) {
         val a = JSONArray()
-        for (i in 0 until all.size && i < LIMIT) {
+        for (i in 0 until all.size) {
+            if (i >= LIMIT) break
             try {
                 a.put(all[i].json())
             } catch (invalid: JSONException) {
@@ -262,7 +253,6 @@ object GameWatchJournal {
         val now = System.currentTimeMillis()
         val lines = old.split("\r?\n".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
         for (line in lines) {
-            // Legacy order: newest -> oldest; preserve that order.
             if (into.size >= LIMIT) break
             val match = OLD_LINE.matcher(line)
             if (!match.matches()) continue
