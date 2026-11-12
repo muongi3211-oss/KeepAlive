@@ -297,7 +297,7 @@ class MainActivity : Activity() {
             val segment = View(this)
             val color = if (complete[i]) UiKit.SUCCESS
             else if (i == onboardingStep) UiKit.PRIMARY else UiKit.BORDER
-            segment.background = UiKit.rounded(color, 4, this)
+            segment.background = UiKit.rounded(color, 4, this@MainActivity)
             val lp = LinearLayout.LayoutParams(0, dp(5), 1f)
             if (i > 0) lp.leftMargin = dp(7)
             progress.addView(segment, lp)
@@ -322,7 +322,7 @@ class MainActivity : Activity() {
 
         val permissionRows = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = UiKit.rounded(UiKit.BG, 16, this)
+            background = UiKit.rounded(UiKit.BG, 16, this@MainActivity)
         }
         addOnboardingRow(
             permissionRows, 0, R.drawable.sg_ic_power,
@@ -366,7 +366,7 @@ class MainActivity : Activity() {
             gravity = Gravity.TOP
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(11), dp(10), dp(11), dp(10))
-            background = UiKit.rounded(UiKit.PRIMARY_SOFT, 12, this)
+            background = UiKit.rounded(UiKit.PRIMARY_SOFT, 12, this@MainActivity)
         }
         val hintIcon = ImageView(this).apply {
             setImageResource(R.drawable.sg_ic_info)
