@@ -67,7 +67,7 @@ class CompatibilityActivity : Activity() {
             orientation = LinearLayout.VERTICAL
         }
         UiKit.applyBottomSystemInset(page)
-        scroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(page, FrameLayout.LayoutParams(-1, -2))
         frame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
         SettingsMotion.collapsingBar(
             this, frame, scroll,
@@ -76,8 +76,6 @@ class CompatibilityActivity : Activity() {
         setContentView(frame)
         SettingsMotion.largeTitle(this, page, getString(R.string.compat_title))
 
-        // Read the same device signals and stored evidence as beta11.
-        // None of these checks changes system settings or invokes background jobs.
         val powerKeeper = packageExists("com.miui.powerkeeper")
         val milletReadable = MilletNoRestrict.canRead(this)
         val canWrite = MilletNoRestrict.canWrite(this)
@@ -115,7 +113,6 @@ class CompatibilityActivity : Activity() {
             overallState = RowState.PENDING
         }
 
-        // Single clean summary, not a prominent gradient/badge card.
         page.addView(SettingsListUi.heading(this, getString(R.string.compat_summary_section)), full())
         val summary = SettingsListUi.group(this).apply {
             setPadding(dp(16), dp(15), dp(16), dp(15))
@@ -188,7 +185,6 @@ class CompatibilityActivity : Activity() {
             hyper, R.string.compat_hyperos_protection,
             if (!powerKeeper) R.string.compat_not_supported
             else if (hyperOsProtectionSent) R.string.compat_request_sent else R.string.compat_not_checked,
-            // SENT is an acknowledged dispatch, not proof that Xiaomi applied it.
             if (!powerKeeper) RowState.ERROR else if (hyperOsProtectionSent) RowState.INFO else RowState.PENDING
         )
         page.addView(hyper, full())
@@ -222,7 +218,6 @@ class CompatibilityActivity : Activity() {
         addTextRow(recovery, getString(R.string.compat_last_verified), lastText)
         page.addView(recovery, full())
 
-        // Preserve passive Game Watch evidence, but match the normal Settings rows.
         page.addView(SettingsListUi.heading(this, getString(R.string.compat_game_section)), full())
         val game = SettingsListUi.group(this)
         val gwEnabled = GameWatchCore.isEnabled(this)
@@ -347,7 +342,6 @@ class CompatibilityActivity : Activity() {
     }
 
     private fun addTextRow(group: LinearLayout, title: String, value: String) {
-        // A timestamp is information, not a compatibility pass or failure.
         val row = SettingsListUi.row(
             this, group, title, null, value,
             SettingsListUi.NEUTRAL, null
@@ -356,9 +350,7 @@ class CompatibilityActivity : Activity() {
         row.contentDescription = "$title. $value"
     }
 
-    /** Replace the blank microG indent with a meaningful result icon. */
     private fun insertStatusIcon(row: LinearLayout, state: RowState) {
-        // SettingsListUi.row without an icon starts with a 56dp spacer.
         row.removeViewAt(0)
         row.addView(makeStatusIcon(state), 0, statusIconParams(27))
     }
