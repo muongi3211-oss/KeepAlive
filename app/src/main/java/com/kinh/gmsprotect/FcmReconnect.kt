@@ -33,40 +33,42 @@ object FcmReconnect {
             runCompletion(completion)
         }
 
-        client.request { status: String?, error: String? ->
-            // FCM Auto rule: unknown is not treated as disconnected.
-            if (error != null || "3" != status) {
-                finish.run()
-                return@request
-            }
-
-            // Recovery step 1 from FCM Auto: request an immediate MCS heartbeat.
-            try {
-                app.sendBroadcast(Intent(ACTION_HEARTBEAT_NOW).setPackage(GMS))
-            } catch (ignored: Throwable) {
-                // If heartbeat cannot be delivered, use the fallback reconnect below.
-                trySendReconnect(app)
-                finish.run()
-                return@request
-            }
-
-            main.postDelayed({
-                client.request { afterHeartbeat: String?, afterError: String? ->
-                    // Recovery step 2: only force GCM_RECONNECT if GMS still reports disconnected.
-                    if (afterError == null && "3" == afterHeartbeat) {
-                        trySendReconnect(app)
-                    }
+        client.request(object : GcmStatusClient.Callback {
+            override fun onResult(status: String?, error: String?) {
+                // FCM Auto rule: unknown is not treated as disconnected.
+                if (error != null || "3" != status) {
                     finish.run()
+                    return
                 }
-            }, HEARTBEAT_RECHECK_MS)
-        }
+
+                // Recovery step 1 from FCM Auto: request an immediate MCS heartbeat.
+                try {
+                    app.sendBroadcast(Intent(ACTION_HEARTBEAT_NOW).setPackage(GMS))
+                } catch (ignored: Throwable) {
+                    trySendReconnect(app)
+                    finish.run()
+                    return
+                }
+
+                main.postDelayed({
+                    client.request(object : GcmStatusClient.Callback {
+                        override fun onResult(afterHeartbeat: String?, afterError: String?) {
+                            // Recovery step 2: only force GCM_RECONNECT if GMS still reports disconnected.
+                            if (afterError == null && "3" == afterHeartbeat) {
+                                trySendReconnect(app)
+                            }
+                            finish.run()
+                        }
+                    })
+                }, HEARTBEAT_RECHECK_MS)
+            }
+        })
     }
 
     private fun trySendReconnect(app: Context) {
         try {
             app.sendBroadcast(Intent(ACTION_RECONNECT).setPackage(GMS))
         } catch (ignored: Throwable) {
-            // Best effort. USER_UNLOCKED/app open will retry protection/recovery later.
         }
     }
 
