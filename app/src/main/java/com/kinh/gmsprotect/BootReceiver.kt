@@ -12,50 +12,49 @@ class BootReceiver : BroadcastReceiver() {
             || Intent.ACTION_USER_UNLOCKED == action
             || Intent.ACTION_MY_PACKAGE_REPLACED == action
         ) {
+            // Dùng goAsync() để xin hệ thống thêm thời gian xử lý mà không block giao diện
             val pending = goAsync()
-            try {
-                // GAME_WATCH is deliberately independent of FCM recovery callbacks.
-                // Even if MiPush/FCM is unavailable, this watcher still rearms.
-                if (Intent.ACTION_LOCKED_BOOT_COMPLETED != action
-                    && GameWatchCore.isEnabled(context)
-                ) {
-                    val targetsReady = GameWatchCore.ensureTargets(
-                        context,
-                        "BOOT_$action"
-                    )
-                    val jobReady = GameWatchScheduler.ensure(
-                        context,
-                        "BOOT_$action"
-                    )
-                    if (Intent.ACTION_BOOT_COMPLETED == action
-                        || Intent.ACTION_USER_UNLOCKED == action
-                    ) {
-                        GameWatchEvidence.noteBoot(context, targetsReady && jobReady)
-                    }
-                }
-                if (Intent.ACTION_LOCKED_BOOT_COMPLETED != action) {
-                    try {
-                        AdvancedAppProtector.maintain(context, "BOOT_$action")
-                        if (GameWatchScheduler.shouldWatch(context)) {
-                            GameWatchScheduler.ensure(context, "BOOT_ADV_$action")
+            
+            // Chuyển toàn bộ tác vụ xuống luồng nền (Background Thread)
+            Thread {
+                try {
+                    // 1. Phục hồi cấu hình danh sách ứng dụng do người dùng cài đặt
+                    if (Intent.ACTION_LOCKED_BOOT_COMPLETED != action) {
+                        if (GameWatchCore.isEnabled(context)) {
+                            val targetsReady = GameWatchCore.ensureTargets(context, "BOOT_$action")
+                            val jobReady = GameWatchScheduler.ensure(context, "BOOT_$action")
+                            if (Intent.ACTION_BOOT_COMPLETED == action || Intent.ACTION_USER_UNLOCKED == action) {
+                                GameWatchEvidence.noteBoot(context, targetsReady && jobReady)
+                            }
                         }
-                    } catch (ignored: Throwable) {
+                        try {
+                            AdvancedAppProtector.maintain(context, "BOOT_$action")
+                            if (GameWatchScheduler.shouldWatch(context)) {
+                                GameWatchScheduler.ensure(context, "BOOT_ADV_$action")
+                            }
+                        } catch (ignored: Throwable) {
+                        }
+                        
+                        // Dọn dẹp rác (hủy các alarm cũ nếu có trên bản cập nhật)
+                        LegacyBackgroundCleanup.runOnce(context)
                     }
-                }
-                // Clear obsolete background alarms on upgrade / first regular boot.
-                // No new alarm, service or polling task is created.
-                if (Intent.ACTION_LOCKED_BOOT_COMPLETED != action) {
-                    LegacyBackgroundCleanup.runOnce(context)
-                }
-                // Arm the event-driven MILLET watcher after the normal boot protection
-                // pass. No polling or long-running process is required.
-                GmsProtector.protect(context) {
+
+                    // 2. VÁ LỖI CỐT LÕI (NÚT THẮT 1 & 2) CHO GMS
+                    MilletNoRestrict.ensureGms(context)
+                    GmsProtector.sendHyperOsProtectionRequest(context)
+
+                    // 3. ĐẶT BẪY SỰ KIỆN VÀ CHO APP NGỦ
+                    // Khởi tạo JobScheduler lắng nghe sự thay đổi của Settings.System.
+                    // Tuyệt đối không có startForegroundService ở đây.
                     MilletWatchScheduler.schedule(context)
+
+                } catch (t: Throwable) {
+                    // Bỏ qua lỗi, đảm bảo điện thoại khởi động an toàn
+                } finally {
+                    // Trả lại tài nguyên, hệ thống sẽ đưa app vào trạng thái ngủ đông
                     pending.finish()
                 }
-            } catch (t: Throwable) {
-                pending.finish()
-            }
+            }.start()
         }
     }
 }
