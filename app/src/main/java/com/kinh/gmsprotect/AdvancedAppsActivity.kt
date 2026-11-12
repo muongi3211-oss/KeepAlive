@@ -116,13 +116,9 @@ class AdvancedAppsActivity : Activity() {
             }
         }
         lastWritePermission = writeAllowed
-        // Resume Add app only when returning from a user-requested app settings visit.
-        // Do not mix this with WRITE_SETTINGS: it is a different Xiaomi permission.
         val continueAdd = pendingInstalledAppsSettings && canReadInstalledApps()
         pendingInstalledAppsSettings = false
         if (screenBuilt) {
-            // Returning from Autostart / Xiaomi Battery settings must immediately
-            // update the status chips without resetting the user's scroll position.
             val scrollY = mainScroll?.scrollY ?: 0
             render()
             mainScroll?.post { mainScroll?.scrollTo(0, scrollY) }
@@ -161,8 +157,6 @@ class AdvancedAppsActivity : Activity() {
     private fun render() {
         val currentContent = content ?: return
         currentContent.removeAllViews()
-        // Read Game Allowlist once per page refresh, never once per card.
-        // A null string is an empty list if the provider read itself succeeded.
         gameRawSnapshot = null
         gameSnapshotReadable = false
         try {
@@ -170,8 +164,6 @@ class AdvancedAppsActivity : Activity() {
             gameSnapshotReadable = true
         } catch (ignored: Throwable) {
         }
-        // Read MILLET once as well, and don't misreport permission/read failures
-        // as an absent package. This check is read-only; no policy changes here.
         milletRawSnapshot = null
         milletSnapshotReadable = false
         try {
@@ -191,8 +183,6 @@ class AdvancedAppsActivity : Activity() {
             if (current != null) {
                 collapsingHeader?.setTitle(getString(R.string.adv_detail_title))
                 collapsingHeader?.setCompactOnly(true)
-                // The fixed Settings toolbar is the only page title on detail screens.
-                // Do not add another giant heading above the app identity row.
                 currentContent.addView(View(this), LinearLayout.LayoutParams(-1, dp(66)))
                 currentContent.addView(buildAppDetail(current), spaceBottom(12))
                 return
@@ -203,9 +193,6 @@ class AdvancedAppsActivity : Activity() {
         collapsingHeader?.setCompactOnly(false)
         SettingsMotion.largeTitle(this, currentContent, getString(R.string.adv_title))
 
-        // Built-in GMS protection is represented here for clarity, but is not
-        // stored in AdvancedAppStore and cannot be edited/removed by the user.
-        // Always visible even if there are no user-managed applications.
         currentContent.addView(
             SettingsListUi.heading(this, getString(R.string.settings16_special_heading)),
             full()
@@ -251,7 +238,6 @@ class AdvancedAppsActivity : Activity() {
             }
             currentContent.addView(appGroup, spaceBottom(12))
         }
-        // Collapsed by default: plain Settings rows, not legacy long paragraphs/cards.
         val infoToggle = UiKit.muted(
             this,
             getString(if (infoExpanded) R.string.ui_hide_help else R.string.ui_show_help), 13f
@@ -323,7 +309,6 @@ class AdvancedAppsActivity : Activity() {
         }
     }
 
-    /** Non-interactive explanation row, visually consistent with microG Settings. */
     private fun addHelpRow(container: LinearLayout, iconRes: Int, titleRes: Int, descriptionRes: Int) {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -378,7 +363,6 @@ class AdvancedAppsActivity : Activity() {
         return false
     }
 
-    /** Read-only built-in protection. Never writes to the user-managed app list. */
     private View buildSpecialGmsRow(): View {
         var status = SettingsListUi.NEUTRAL
         var statusRes = R.string.settings16_special_unknown
@@ -409,7 +393,6 @@ class AdvancedAppsActivity : Activity() {
             status = SettingsListUi.BAD
             statusRes = R.string.settings16_special_missing
         } catch (ignored: Throwable) {
-            // Do not present success when SettingsProvider or PM is unreadable.
         }
 
         val markerIcon = if (status == SettingsListUi.GOOD)
@@ -472,8 +455,7 @@ class AdvancedAppsActivity : Activity() {
         return row
     }
 
-    /** Single compact row per app. Full permission diagnostics remain in detail. */
-    private View buildAppSummary(AdvancedAppStore.Entry entry): View {
+    private fun buildAppSummary(entry: AdvancedAppStore.Entry): View {
         val state = inspect(entry)
         val statuses = intArrayOf(
             state.autostart.kind, state.doze.kind, state.millet.kind,
@@ -584,8 +566,7 @@ class AdvancedAppsActivity : Activity() {
         }
     }
 
-    /** Flat native Settings detail, intentionally without rounded cards or status pills. */
-    private View buildAppDetail(AdvancedAppStore.Entry entry): View {
+    private fun buildAppDetail(entry: AdvancedAppStore.Entry): View {
         val page = SettingsListUi.group(this)
         val pm = packageManager
 
@@ -1130,4 +1111,49 @@ class AdvancedAppsActivity : Activity() {
                 filtered.clear()
                 for (app in all) {
                     if (app.label.lowercase(Locale.ROOT).contains(filter)
-                        || app.pkg.
+                        || app.pkg.lowercase(Locale.ROOT).contains(filter)) {
+                        filtered.add(app)
+                    }
+                }
+                adapter.notifyDataSetChanged()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        dialog.show()
+    }
+
+    private fun openAutostartSettings(pkg: String) {
+        try {
+            val intent = Intent("miui.intent.action.OP_AUTO_START").apply {
+                setPackage("com.miui.securitycenter")
+            }
+            startActivity(intent)
+        } catch (ignored: Throwable) {
+            openAppDetails(pkg)
+        }
+    }
+
+    private fun openXiaomiBatterySettings(pkg: String) {
+        try {
+            val intent = Intent().setComponent(
+                ComponentName("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity")
+            ).putExtra("package_name", pkg)
+            startActivity(intent)
+        } catch (ignored: Throwable) {
+            openAppDetails(pkg)
+        }
+    }
+
+    private fun openAppDetails(pkg: String) {
+        try {
+            startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:$pkg")
+                )
+            )
+        } catch (ignored: Throwable) {
+        }
+    }
+}
