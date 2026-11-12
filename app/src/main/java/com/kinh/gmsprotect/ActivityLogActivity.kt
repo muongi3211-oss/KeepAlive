@@ -1,7 +1,5 @@
 package com.kinh.gmsprotect
 
-import android.view.ViewGroup.LayoutParams
-import android.widget.LinearLayout.LayoutParams
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
