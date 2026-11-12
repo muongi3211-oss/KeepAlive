@@ -6,9 +6,6 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.content.pm.PermissionInfo
-import android.content.pm.PackageInfo
-import android.content.pm.ResolveInfo
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -32,10 +29,12 @@ import android.text.TextUtils
 
 import java.util.ArrayList
 import java.util.Collections
-import java.util.List
 import java.util.LinkedHashMap
 import java.util.Locale
 import java.text.Collator
+
+class AppChoice(val pkg: String, val label: String, val system: Boolean)
+class PickerHolder(val icon: ImageView, val name: TextView, val pkg: TextView)
 
 /** Optional UI. Does not participate in the mandatory GMS setup flow. */
 class AdvancedAppsActivity : Activity() {
@@ -143,7 +142,7 @@ class AdvancedAppsActivity : Activity() {
             orientation = LinearLayout.VERTICAL
         }
         UiKit.applyBottomSystemInset(content!!)
-        mainScroll?.addView(content, ScrollView.LayoutParams(-1, -2))
+        mainScroll?.addView(content, FrameLayout.LayoutParams(-1, -2))
         frame.addView(mainScroll, FrameLayout.LayoutParams(-1, -1))
         collapsingHeader = SettingsMotion.collapsingBar(this, frame, mainScroll!!,
             getString(R.string.adv_title)
@@ -363,7 +362,7 @@ class AdvancedAppsActivity : Activity() {
         return false
     }
 
-    private View buildSpecialGmsRow(): View {
+    private fun buildSpecialGmsRow(): View {
         var status = SettingsListUi.NEUTRAL
         var statusRes = R.string.settings16_special_unknown
         try {
@@ -909,7 +908,7 @@ class AdvancedAppsActivity : Activity() {
         }
     }
 
-    private fun scanInstalledApps(existing: java.util.Set<String>): InstalledAppScan {
+    private fun scanInstalledApps(existing: Set<String>): InstalledAppScan {
         val pm = packageManager
         val result = InstalledAppScan()
         val found = LinkedHashMap<String, ApplicationInfo>()
@@ -988,7 +987,7 @@ class AdvancedAppsActivity : Activity() {
             toast(R.string.adv_save_failed)
             return
         }
-        val existing = java.util.HashSet<String>()
+        val existing: MutableSet<String> = java.util.HashSet()
         for (e in current) existing.add(e.pkg)
         val scan = scanInstalledApps(existing)
         if (scan.looksRestricted()) {
@@ -1002,7 +1001,7 @@ class AdvancedAppsActivity : Activity() {
         }
         val all = scan.choices
         val collator = Collator.getInstance(Locale.getDefault())
-        Collections.sort(all) { a, b ->
+        Collections.sort(all) { a: AppChoice, b: AppChoice ->
             if (a.system != b.system) if (a.system) 1 else -1
             else {
                 val res = collator.compare(a.label, b.label)
@@ -1031,7 +1030,7 @@ class AdvancedAppsActivity : Activity() {
             dividerHeight = 0
             isFastScrollEnabled = true
         }
-        val filtered = ArrayList(all)
+        val filtered = ArrayList<AppChoice>(all)
         val adapter = object : BaseAdapter() {
             override fun getCount(): Int = filtered.size
             override fun getItem(position: Int): Any = filtered[position]
