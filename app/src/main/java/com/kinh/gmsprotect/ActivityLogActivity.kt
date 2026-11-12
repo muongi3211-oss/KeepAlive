@@ -23,7 +23,7 @@ class ActivityLogActivity : Activity() {
     private var entries: LinearLayout? = null
     private var filters: LinearLayout? = null
     private var scroll: ScrollView? = null
-    private var selectedFilter = 0 // all / important / errors
+    private var selectedFilter = 0
 
     private fun dp(value: Int): Int = UiKit.dp(this, value)
 
@@ -72,7 +72,7 @@ class ActivityLogActivity : Activity() {
         }
         UiKit.applyBottomSystemInset(page)
 
-        scroll?.addView(page, ScrollView.LayoutParams(-1, -2))
+        scroll?.addView(page, FrameLayout.LayoutParams(-1, -2))
         frame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
 
         SettingsMotion.collapsingBar(
@@ -317,7 +317,7 @@ class ActivityLogActivity : Activity() {
         if (e.code.startsWith("app_added") || e.code.startsWith("app_enabled")
             || e.code.startsWith("app_disabled") || e.code.startsWith("app_removed")
         ) {
-            return e.detail // package name, not raw debug data
+            return e.detail
         }
         return when (e.code) {
             "millet_repaired" -> getString(R.string.activity_log_desc_millet_repaired)
