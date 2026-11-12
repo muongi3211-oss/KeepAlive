@@ -92,4 +92,4 @@ jobs:
         
         gh release create "$TAG_NAME" app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
           --title "GmsProtect v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }})" \
-          --notes "Bản phát hành tự động v${{ env.VERSION_NAME }} đã được biên dịch và ký số tự động."
+          --notes "Bản phát hành tự động v${{ env.VERSION_NAME }} đã được biên dịch và ký số tự động thành công."
