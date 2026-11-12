@@ -33,7 +33,7 @@ object FcmReconnect {
             runCompletion(completion)
         }
 
-        client.request { status, error ->
+        client.request { status: String?, error: String? ->
             // FCM Auto rule: unknown is not treated as disconnected.
             if (error != null || "3" != status) {
                 finish.run()
@@ -51,7 +51,7 @@ object FcmReconnect {
             }
 
             main.postDelayed({
-                client.request { afterHeartbeat, afterError ->
+                client.request { afterHeartbeat: String?, afterError: String? ->
                     // Recovery step 2: only force GCM_RECONNECT if GMS still reports disconnected.
                     if (afterError == null && "3" == afterHeartbeat) {
                         trySendReconnect(app)
