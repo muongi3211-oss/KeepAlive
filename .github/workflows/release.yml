@@ -25,19 +25,20 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: '8.5'
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+    - name: Auto-generate Gradle Wrapper if missing
+      run: |
+        if [ ! -f "gradlew" ]; then
+          echo "Gradle wrapper missing, generating on the fly..."
+          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
+          unzip -q gradle-8.5-bin.zip
+          export PATH=$PWD/gradle-8.5/bin:$PATH
+          gradle wrapper --gradle-version 8.5
+        fi
+        chmod +x gradlew
 
     - name: Set up Dynamic Version (v2.0.01+)
       run: |
         RUN_NUM=${{ github.run_number }}
-        
-        # Định dạng số thứ tự thành 2 chữ số (01, 02, 03, ...) để đi sau v2.0.
         PATCH_VERSION=$(printf "%02d" $RUN_NUM)
         VERSION_CODE=$RUN_NUM
         VERSION_NAME="2.0.$PATCH_VERSION"
