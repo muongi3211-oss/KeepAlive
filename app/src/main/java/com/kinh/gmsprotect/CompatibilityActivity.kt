@@ -17,8 +17,6 @@ import android.widget.FrameLayout
 import java.text.DateFormat
 import java.util.Date
 
-/** Compatibility evidence screen, styled like the native Settings UI. Read-only
- * until the user explicitly taps "Check current status". */
 class CompatibilityActivity : Activity() {
     private enum class RowState {
         OK, PENDING, ERROR, INFO
