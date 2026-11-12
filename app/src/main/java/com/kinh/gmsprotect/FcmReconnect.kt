@@ -6,11 +6,6 @@ import android.os.Handler
 import android.os.Looper
 import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * One-shot FCM recovery derived from FCM Auto.
- * It never runs a scheduler: after MiPush Protect, check local/status once.
- * Only status=3 (disconnected) is actively recovered.
- */
 object FcmReconnect {
     private const val GMS = "com.google.android.gms"
     private const val ACTION_HEARTBEAT_NOW = "com.google.android.gms.gcm.ACTION_HEARTBEAT_NOW"
@@ -35,13 +30,11 @@ object FcmReconnect {
 
         client.request(object : GcmStatusClient.Callback {
             override fun onResult(status: String?, error: String?) {
-                // FCM Auto rule: unknown is not treated as disconnected.
                 if (error != null || "3" != status) {
                     finish.run()
                     return
                 }
 
-                // Recovery step 1 from FCM Auto: request an immediate MCS heartbeat.
                 try {
                     app.sendBroadcast(Intent(ACTION_HEARTBEAT_NOW).setPackage(GMS))
                 } catch (ignored: Throwable) {
@@ -53,7 +46,6 @@ object FcmReconnect {
                 main.postDelayed({
                     client.request(object : GcmStatusClient.Callback {
                         override fun onResult(afterHeartbeat: String?, afterError: String?) {
-                            // Recovery step 2: only force GCM_RECONNECT if GMS still reports disconnected.
                             if (afterError == null && "3" == afterHeartbeat) {
                                 trySendReconnect(app)
                             }
