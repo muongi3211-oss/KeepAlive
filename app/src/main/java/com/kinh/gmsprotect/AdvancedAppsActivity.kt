@@ -36,7 +36,6 @@ import java.text.Collator
 class AppChoice(val pkg: String, val label: String, val system: Boolean)
 class PickerHolder(val icon: ImageView, val name: TextView, val pkg: TextView)
 
-/** Optional UI. Does not participate in the mandatory GMS setup flow. */
 class AdvancedAppsActivity : Activity() {
     private var content: LinearLayout? = null
     private var mainScroll: ScrollView? = null
