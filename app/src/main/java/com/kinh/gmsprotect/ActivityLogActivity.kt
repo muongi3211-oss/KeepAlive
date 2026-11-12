@@ -18,7 +18,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Read-only log viewer. No permission, system write, watcher or background work. */
 class ActivityLogActivity : Activity() {
     private var entries: LinearLayout? = null
     private var filters: LinearLayout? = null
