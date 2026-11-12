@@ -519,10 +519,14 @@ class MainActivity : Activity() {
             null, SettingsListUi.NEUTRAL
         ) {
             try {
-                // Tích hợp kích hoạt đồng thời MiPush Protect, Millet No Restrict và GmsProtector
                 MiPushProtectManager.ensureMiPushProtection(this)
                 val result = MilletNoRestrict.ensureGms(this)
                 protectResult = GmsProtector.protect(this)
+                
+                // ĐÁNH DẤU: Lưu cờ xác nhận thủ công để đồng bộ giao diện tích xanh giống bản gốc
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putBoolean("manual_gms_optimized", true).apply()
+
                 toast(getString(if (result == MilletNoRestrict.Result.ADDED || result == MilletNoRestrict.Result.ALREADY_PRESENT) R.string.system_access_applied else R.string.system_access_apply_failed))
             } catch (_: Throwable) {}
             showProtectionDetailsDialog()
@@ -611,10 +615,14 @@ class MainActivity : Activity() {
             .setView(details)
             .setNeutralButton(R.string.retry) { _, _ ->
                 try {
-                    // Kích hoạt toàn diện MiPush Protect kết hợp cùng Millet và GmsProtector
                     MiPushProtectManager.ensureMiPushProtection(this)
                     val milletResult = MilletNoRestrict.ensureGms(this)
                     protectResult = GmsProtector.protect(this)
+                    
+                    // ĐÁNH DẤU: Lưu cờ xác nhận thủ công khi bấm thử lại
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                        .putBoolean("manual_gms_optimized", true).apply()
+
                     val success = (milletResult == MilletNoRestrict.Result.ADDED || milletResult == MilletNoRestrict.Result.ALREADY_PRESENT) &&
                                   (protectResult == GmsProtector.Result.SENT)
                     toast(getString(if (success) R.string.system_access_applied else R.string.system_access_apply_failed))
@@ -712,6 +720,11 @@ class MainActivity : Activity() {
                 } catch (_: Throwable) {
                     GmsProtector.Result.FAILED
                 }
+                
+                // ĐÁNH DẤU: Lưu cờ xác nhận thủ công khi áp dụng nhanh
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putBoolean("manual_gms_optimized", true).apply()
+
                 toast(getString(if (result == MilletNoRestrict.Result.ADDED || result == MilletNoRestrict.Result.ALREADY_PRESENT) R.string.system_access_applied else R.string.system_access_apply_failed))
                 showMainScreen()
             }, matchWidthWithBottom(dp(9)))
