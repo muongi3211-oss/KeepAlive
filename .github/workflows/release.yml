@@ -1,17 +1,23 @@
-name: Build and Sign Release APK
+name: Build GmsProtect APK
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Cấp quyền để GitHub Actions tạo Release mới độc lập
 
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        clean: true
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -19,22 +25,83 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.5'
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Restore Keystore from Secrets
+    - name: Set up Dynamic Version (v2.0.01+)
       run: |
-        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/keystore.jks
+        RUN_NUM=${{ github.run_number }}
+        
+        # Định dạng số thứ tự thành 2 chữ số (01, 02, 03, ...) để đi sau v2.0.
+        PATCH_VERSION=$(printf "%02d" $RUN_NUM)
+        VERSION_CODE=$RUN_NUM
+        VERSION_NAME="2.0.$PATCH_VERSION"
+        
+        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+        echo "Building version: $VERSION_NAME (Code: $VERSION_CODE)"
+
+    - name: Clean build files
+      run: ./gradlew clean
 
     - name: Build Release APK
-      run: ./gradlew assembleRelease -PAPK_VERSION_CODE=658 -PAPK_VERSION_NAME=2.0.658
+      run: ./gradlew assembleRelease -PAPK_VERSION_CODE=${{ env.VERSION_CODE }} -PAPK_VERSION_NAME=${{ env.VERSION_NAME }}
+
+    - name: Sign APK with apksigner
       env:
+        SIGNING_KEY_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: |
+        # Giải mã keystore từ Base64
+        echo "$SIGNING_KEY_BASE64" | base64 --decode > keystore.jks
+        
+        # Tìm đường dẫn apksigner trong Android SDK
+        BUILD_TOOLS_DIR=$(ls -d $ANDROID_SDK_ROOT/build-tools/* | tail -n 1)
+        APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
+        
+        # Tìm file APK vừa build
+        APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" ! -name "*-signed.apk")
+        
+        # Ký chữ ký số cho APK
+        $APKSIGNER sign --ks keystore.jks \
+          --ks-key-alias "$KEY_ALIAS" \
+          --ks-pass pass:"$KEYSTORE_PASSWORD" \
+          --key-pass pass:"$KEY_PASSWORD" \
+          "$APK_PATH"
+          
+        # Đổi tên file sau khi ký xong
+        mv "$APK_PATH" app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk
+        
+        # Dọn dẹp tệp keystore tạm
+        rm keystore.jks
 
-    - name: Upload Signed APK Artifact
+    - name: Upload APK artifact (Dự phòng)
       uses: actions/upload-artifact@v4
       with:
-        name: release-apk
-        path: app/build/outputs/apk/release/app-release.apk
+        name: app-release-apk
+        path: app/build/outputs/apk/release/*.apk
+
+    - name: Publish Unique Release to GitHub
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+        TAG_NAME="v${{ env.VERSION_NAME }}"
+        
+        # Tạo tag và release mới độc lập hoàn toàn
+        git tag "$TAG_NAME"
+        git push origin "$TAG_NAME"
+        
+        gh release create "$TAG_NAME" app/build/outputs/apk/release/GmsProtect-v${{ env.VERSION_NAME }}.apk \
+          --title "GmsProtect v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }})" \
+          --notes "Bản phát hành tự động v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }}) đã được ký chữ ký số thành công."
