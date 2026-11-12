@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.kinh.gmsprotect" // Bắt buộc thêm khai báo namespace trên AGP 8.0+
+    namespace = "com.kinh.gmsprotect" 
     compileSdk = 34 
 
     defaultConfig {
@@ -14,6 +14,15 @@ android {
         
         versionCode = (project.findProperty("APK_VERSION_CODE") as? String)?.toInt() ?: 658
         versionName = (project.findProperty("APK_VERSION_NAME") as? String) ?: "2.0.658"
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
     signingConfigs {
