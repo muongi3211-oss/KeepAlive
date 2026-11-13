@@ -198,8 +198,8 @@ class MainActivity : Activity() {
     }
 
     private fun isSetupDone(): Boolean {
-        return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(KEY_SETUP_DONE, false)
-    }
+    return false // Ép ứng dụng luôn hiểu là CHƯA hoàn thành setup
+}
 
     private fun isBatteryUserConfirmed(): Boolean {
         return getSharedPreferences(PREFS, MODE_PRIVATE)
