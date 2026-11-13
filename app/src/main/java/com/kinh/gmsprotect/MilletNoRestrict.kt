@@ -252,9 +252,13 @@ object MilletNoRestrict {
             .replace('\n', ',')
             .replace('\t', ',')
 
-        for (token in normalized.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()) {
+        // SỬA LỖI: Dùng phân tách chuỗi đơn giản giống Java, không dùng toRegex() rườm rà
+        val tokens = normalized.split(",")
+        for (token in tokens) {
             val value = token.trim()
-            if (value.isNotEmpty()) out.add(value)
+            if (value.isNotEmpty()) {
+                out.add(value)
+            }
         }
         return out
     }
