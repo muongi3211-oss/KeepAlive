@@ -17,18 +17,22 @@ object AdvancedAppProtector {
     fun maintain(context: Context, reason: String) {
         val app = context.applicationContext
         val rows = AdvancedAppStore.list(app)
-        val gamePackages = ArrayList<String>()
+                val gamePackages = ArrayList<String>()
         var requests = 0
         
+        // VÁ LỖI: Bắt buộc phải đưa GMS và GMS Protect vào Game Allowlist đầu tiên
+        // Nếu thiếu 2 dòng này, danh sách Game sẽ bị ghi đè và xóa mất GMS!
+        gamePackages.add(GmsProtector.GMS_PACKAGE)
+        gamePackages.add(app.packageName)
+
         for (e in rows) {
             if (!e.enabled) continue
             if (!isInstalled(app, e.pkg)) {
                 Log.i(TAG, "SKIP missing app=" + e.pkg)
                 continue
             }
-            // Xiaomi stores entries separated by underscores. Package identifiers
-            // containing underscores cannot be represented unambiguously there.
-            if (e.pkg.indexOf('_') < 0) {
+            // Đảm bảo không thêm trùng lặp
+            if (e.pkg.indexOf('_') < 0 && !gamePackages.contains(e.pkg)) {
                 gamePackages.add(e.pkg)
             }
             // Same action/payload as GmsProtector, without FCM reconnect or
