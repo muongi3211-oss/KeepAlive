@@ -4,21 +4,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.os.Build
 import android.util.Log
 
 object GmsProtector {
     private const val TAG = "GmsProtector"
 
     const val GMS_PACKAGE = "com.google.android.gms"
+    const val ACTION_REFRESH_MIPUSH = "com.xiaomi.mipush.REFRESH_WHITE_LIST_ACTION"
 
-    enum class Result {
-        SENT, GMS_MISSING, FAILED
-    }
-
-    enum class HyperOsProtectionResult {
-        SENT, GMS_MISSING, FAILED
-    }
+    enum class Result { SENT, GMS_MISSING, FAILED }
+    enum class HyperOsProtectionResult { SENT, GMS_MISSING, FAILED }
 
     fun protect(context: Context): Result {
         return protect(context, null)
@@ -29,7 +24,7 @@ object GmsProtector {
         Log.i(TAG, "protect START package=" + app.packageName)
 
         try {
-            val info: ApplicationInfo = if (Build.VERSION.SDK_INT >= 33) {
+            val info: ApplicationInfo = if (android.os.Build.VERSION.SDK_INT >= 33) {
                 app.packageManager.getApplicationInfo(
                     GMS_PACKAGE,
                     PackageManager.ApplicationInfoFlags.of(0L)
@@ -47,32 +42,30 @@ object GmsProtector {
             runCompletion(recoveryFinished)
             return Result.GMS_MISSING
         } catch (t: Throwable) {
-            Log.w(
-                TAG, "GMS package probe failed; continuing error="
-                        + t.javaClass.simpleName + ":" + t.message
-            )
+            Log.w(TAG, "GMS package probe failed; continuing error="
+                    + t.javaClass.simpleName + ":" + t.message)
         }
 
-        // 1. Kích hoạt Millet Whitelist
+        // 1. Đảm bảo Millet được kích hoạt (chuẩn bản gốc)
         val milletResult = MilletNoRestrict.ensureGms(app)
         val milletOk = milletResult == MilletNoRestrict.Result.ADDED
                 || milletResult == MilletNoRestrict.Result.ALREADY_PRESENT
 
-        Log.i(
-            TAG, "MILLET result=$milletResult"
-                    + " canWrite=" + MilletNoRestrict.canWrite(app)
-                    + " containsGms=" + MilletNoRestrict.containsGms(app)
-        )
+        Log.i(TAG, "MILLET result=" + milletResult
+                + " canWrite=" + MilletNoRestrict.canWrite(app)
+                + " containsGms=" + MilletNoRestrict.containsGms(app))
+        
         if (milletResult == MilletNoRestrict.Result.ADDED) {
             GameWatchJournal.event(app, "millet_repaired", "GmsProtector.protect: $milletResult")
         } else if (!milletOk) {
             GameWatchJournal.event(app, "millet_error", "GmsProtector.protect: $milletResult")
         }
 
-        // BỎ QẶC CHẶN NGẶT: Dù Millet có thể bị HyperOS che giấu chuỗi đọc lại,
-        // ta vẫn cho phép tiến trình đi tiếp để ép ghi đè và kích hoạt MiPush ẩn.
+        // Khôi phục lại điều kiện kiểm tra nghiêm ngặt như bản gốc để tránh bỏ sót trạng thái
         if (!milletOk) {
-            Log.w(TAG, "MILLET verify returned $milletResult, applying best-effort continuation...")
+            Log.e(TAG, "protect FAILED because MILLET is not active result=$milletResult")
+            runCompletion(recoveryFinished)
+            return Result.FAILED
         }
 
         try {
@@ -96,23 +89,18 @@ object GmsProtector {
             Log.i(TAG, "protect DONE result=SENT")
             Result.SENT
         } catch (t: Throwable) {
-            Log.e(
-                TAG, "protect FAILED after MILLET error="
-                        + t.javaClass.simpleName + ":" + t.message, t
-            )
+            Log.e(TAG, "protect FAILED after MILLET error="
+                    + t.javaClass.simpleName + ":" + t.message, t)
             runCompletion(recoveryFinished)
             Result.FAILED
         }
     }
 
-    /** 
-     * Kích hoạt gói tin MiPush Protect ẩn nhắm thẳng vào com.miui.securitycenter
-     */
     fun sendHyperOsProtectionRequest(context: Context): HyperOsProtectionResult {
         val app = context.applicationContext
 
         try {
-            val info: ApplicationInfo = if (Build.VERSION.SDK_INT >= 33) {
+            val info: ApplicationInfo = if (android.os.Build.VERSION.SDK_INT >= 33) {
                 app.packageManager.getApplicationInfo(
                     GMS_PACKAGE,
                     PackageManager.ApplicationInfoFlags.of(0L)
@@ -121,29 +109,32 @@ object GmsProtector {
                 app.packageManager.getApplicationInfo(GMS_PACKAGE, 0)
             }
             if (info.uid <= 0) {
+                Log.w(TAG, "HyperOS protection request skipped: GMS missing uid=" + info.uid)
                 return HyperOsProtectionResult.GMS_MISSING
             }
-        } catch (_: PackageManager.NameNotFoundException) {
+        } catch (e: PackageManager.NameNotFoundException) {
+            Log.w(TAG, "HyperOS protection request skipped: GMS missing")
             return HyperOsProtectionResult.GMS_MISSING
-        } catch (_: Throwable) {}
+        } catch (t: Throwable) {
+            Log.w(TAG, "GMS package probe failed before HyperOS protection request; continuing error="
+                    + t.javaClass.simpleName + ":" + t.message)
+        }
 
         return try {
-            val intent = Intent("com.xiaomi.mipush.RECEIVE_MESSAGE").apply {
-                setPackage("com.miui.securitycenter")
-                putExtra("message_type", "push_whitelist")
-                putExtra("package_name", GMS_PACKAGE)
+            // Quay lại đúng chuẩn Action MiPush của bản gốc
+            val intent = Intent(ACTION_REFRESH_MIPUSH).apply {
+                putExtra("pkgName", GMS_PACKAGE)
+                putExtra("option", 1)
             }
-            
             app.sendBroadcast(intent)
-            
             CompatibilityVerification.markHyperOsProtectionRequestSent(app)
-            Log.i(TAG, "MiPush hidden protect broadcast SENT pkg=$GMS_PACKAGE")
-            GameWatchJournal.event(
-                app, "mipush_requested", "Broadcast SENT to List MiPush Protect pkg=$GMS_PACKAGE"
-            )
+            Log.i(TAG, "MiPush protect broadcast SENT pkg=$GMS_PACKAGE")
+            GameWatchJournal.event(app, "mipush_requested", "Broadcast SENT pkg=$GMS_PACKAGE"
+                    + "; this does not confirm Xiaomi accepted the request")
             HyperOsProtectionResult.SENT
         } catch (t: Throwable) {
-            Log.e(TAG, "MiPush hidden protect broadcast FAILED error=${t.message}", t)
+            Log.e(TAG, "MiPush protect broadcast FAILED error="
+                    + t.javaClass.simpleName + ":" + t.message, t)
             GameWatchJournal.event(app, "mipush_error", "Broadcast FAILED: $t")
             HyperOsProtectionResult.FAILED
         }
@@ -159,7 +150,8 @@ object GmsProtector {
         try {
             FcmReconnect.recoverIfDisconnected(app, recoveryFinished)
         } catch (t: Throwable) {
-            Log.w(TAG, "FCM recovery failed after MiPush send error=${t.message}")
+            Log.w(TAG, "FCM recovery failed after MiPush send error="
+                    + t.javaClass.simpleName + ":" + t.message)
             runCompletion(recoveryFinished)
         }
         return true
