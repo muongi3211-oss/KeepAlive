@@ -74,10 +74,10 @@ object GmsProtector {
             GameWatchJournal.event(app, "millet_error", "GmsProtector.protect: $milletResult")
         }
 
-        if (!milletOk) {
-            Log.e(TAG, "protect FAILED because MILLET is not active result=$milletResult")
-            runCompletion(recoveryFinished)
-            return Result.FAILED
+                if (!milletOk) {
+            // VÁ LỖI: Dù MILLET bị HyperOS lọc, VẪN PHẢI ĐI TIẾP để bảo vệ Game Allowlist và MiPush!
+            Log.w(TAG, "MILLET verify failed (HyperOS filters Google apps). Continuing to next layers...")
+            // (Đã xóa lệnh return Result.FAILED)
         }
 
         // Always request the Game Allowlist on supported ROMs as another layer.
