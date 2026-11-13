@@ -851,24 +851,34 @@ class MainActivity : Activity() {
         return content
     }
 
-        private fun openWriteSettingsAccess() {
+            private void openWriteSettingsAccess() {
+        waitingWriteSettingsReturn = true;
+        
+        // 1. Cố gắng ép mở trang "Quyền khác" (Other Permissions) chuyên sâu của Xiaomi MIUI/HyperOS
+        Intent xiaomiIntent = new Intent("miui.intent.action.APP_PERM_EDITOR");
+        xiaomiIntent.setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity");
+        xiaomiIntent.putExtra("extra_pkgname", getPackageName());
+        
         try {
-            // Thử mở trang cài đặt hệ thống chuẩn trước
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
-                    data = Uri.parse("package:$packageName")
-                }
-                startActivity(intent)
-            }
-        } catch (e: Exception) {
-            // Fallback: Nếu máy Xiaomi chặn, mở thẳng màn hình Thông tin ứng dụng (App Info) 
-            // để người dùng dễ dàng bấm vào mục "Quyền khác" (Other permissions) như hình 990.jpg
-            try {
-                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.parse("package:$packageName")
-                }
-                startActivity(intent)
-            } catch (_: Exception) {}
+            startActivity(xiaomiIntent);
+            return;
+        } catch (Throwable ignored) {}
+
+        // 2. Fallback sang Intent quản lý Write Settings chuẩn của Android
+        try {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+            return;
+        } catch (Throwable ignored) {}
+
+        // 3. Fallback cuối cùng: Mở App Info tiêu chuẩn
+        try {
+            startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())));
+        } catch (Throwable ignoredAgain) {
+            waitingWriteSettingsReturn = false;
+            toast(getString(R.string.system_access_settings_fallback));
         }
     }
 
