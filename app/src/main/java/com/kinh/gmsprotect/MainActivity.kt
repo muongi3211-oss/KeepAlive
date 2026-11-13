@@ -851,22 +851,24 @@ class MainActivity : Activity() {
         return content
     }
 
-    private fun openWriteSettingsAccess() {
-        waitingWriteSettingsReturn = true
+        private fun openWriteSettingsAccess() {
         try {
-            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
-                data = Uri.parse("package:$packageName")
+            // Thử mở trang cài đặt hệ thống chuẩn trước
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
             }
-            startActivity(intent)
-            return
-        } catch (ignored: Throwable) {
-        }
-
-        try {
-            startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS))
-        } catch (ignored: Throwable) {
-            waitingWriteSettingsReturn = false
-            openAppDetails(getString(R.string.system_access_settings_fallback))
+        } catch (e: Exception) {
+            // Fallback: Nếu máy Xiaomi chặn, mở thẳng màn hình Thông tin ứng dụng (App Info) 
+            // để người dùng dễ dàng bấm vào mục "Quyền khác" (Other permissions) như hình 990.jpg
+            try {
+                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } catch (_: Exception) {}
         }
     }
 
