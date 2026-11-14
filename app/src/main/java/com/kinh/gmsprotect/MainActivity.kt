@@ -851,34 +851,37 @@ class MainActivity : Activity() {
         return content
     }
 
-            private void openWriteSettingsAccess() {
-        waitingWriteSettingsReturn = true;
+    private fun openWriteSettingsAccess() {
+        waitingWriteSettingsReturn = true
         
         // 1. Cố gắng ép mở trang "Quyền khác" (Other Permissions) chuyên sâu của Xiaomi MIUI/HyperOS
-        Intent xiaomiIntent = new Intent("miui.intent.action.APP_PERM_EDITOR");
-        xiaomiIntent.setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity");
-        xiaomiIntent.putExtra("extra_pkgname", getPackageName());
-        
         try {
-            startActivity(xiaomiIntent);
-            return;
-        } catch (Throwable ignored) {}
+            val xiaomiIntent = Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity")
+                putExtra("extra_pkgname", packageName)
+            }
+            startActivity(xiaomiIntent)
+            return
+        } catch (_: Throwable) {}
 
         // 2. Fallback sang Intent quản lý Write Settings chuẩn của Android
         try {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
-            intent.setData(Uri.parse("package:" + getPackageName()));
-            startActivity(intent);
-            return;
-        } catch (Throwable ignored) {}
+            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            startActivity(intent)
+            return
+        } catch (_: Throwable) {}
 
         // 3. Fallback cuối cùng: Mở App Info tiêu chuẩn
         try {
-            startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.parse("package:" + getPackageName())));
-        } catch (Throwable ignoredAgain) {
-            waitingWriteSettingsReturn = false;
-            toast(getString(R.string.system_access_settings_fallback));
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            startActivity(intent)
+        } catch (_: Throwable) {
+            waitingWriteSettingsReturn = false
+            toast(getString(R.string.system_access_settings_fallback))
         }
     }
 
