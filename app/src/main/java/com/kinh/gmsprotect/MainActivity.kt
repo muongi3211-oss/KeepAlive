@@ -3,8 +3,12 @@ package com.kinh.gmsprotect
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
+import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -13,12 +17,14 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
-import android.widget.ImageView
-import android.widget.FrameLayout
 
 class MainActivity : Activity() {
     companion object {
@@ -197,7 +203,7 @@ class MainActivity : Activity() {
         showMainScreen()
     }
 
-        private fun isSetupDone(): Boolean {
+    private fun isSetupDone(): Boolean {
         return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(KEY_SETUP_DONE, false)
     }
 
@@ -852,14 +858,37 @@ class MainActivity : Activity() {
     }
 
     private fun openWriteSettingsAccess() {
+        waitingWriteSettingsReturn = true
+        
+        // 1. Cố gắng ép mở trang "Quyền khác" (Other Permissions) chuyên sâu của Xiaomi MIUI/HyperOS
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
-                    data = Uri.parse("package:$packageName")
-                }
-                startActivity(intent)
+            val xiaomiIntent = Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity")
+                putExtra("extra_pkgname", packageName)
             }
-        } catch (_: Exception) {}
+            startActivity(xiaomiIntent)
+            return
+        } catch (_: Throwable) {}
+
+        // 2. Fallback sang Intent quản lý Write Settings chuẩn của Android
+        try {
+            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            startActivity(intent)
+            return
+        } catch (_: Throwable) {}
+
+        // 3. Fallback cuối cùng: Mở App Info tiêu chuẩn
+        try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            startActivity(intent)
+        } catch (_: Throwable) {
+            waitingWriteSettingsReturn = false
+            toast(getString(R.string.system_access_settings_fallback))
+        }
     }
 
     private fun requestAndroidBatteryExemption() {
