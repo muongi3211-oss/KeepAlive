@@ -4,13 +4,14 @@ import android.content.Context
 import android.os.Build
 import android.provider.Settings
 import android.text.TextUtils
+import android.util.Log
 import java.util.LinkedHashSet
 
 object MilletNoRestrict {
     private const val TAG = "MilletNoRestrict"
 
     const val KEY = "MILLET_NO_RESTRICT_APP"
-    const val GMS_PACKAGE = "com.google.android.gms"
+    val GMS_PACKAGE: String = GmsProtector.GMS_PACKAGE
     const val PLAY_STORE_PACKAGE = "com.android.vending"
 
     private const val PREFS = "millet_no_restrict_state"
@@ -31,12 +32,20 @@ object MilletNoRestrict {
         } catch (t: Throwable) {
             Log.w(TAG, "canRead FAILED error=" + errorOf(t))
             false
+        }
     }
         
     fun canWrite(context: Context): Boolean {
         return try {
-            Settings.System.canWrite(context.applicationContext)
-        } catch (e: Throwable) {
+            val app = context.applicationContext
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                app.checkCallingOrSelfPermission(android.Manifest.permission.WRITE_SETTINGS) ==
+                        android.content.pm.PackageManager.PERMISSION_GRANTED
+            } else {
+                Settings.System.canWrite(app)
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "canWrite FAILED error=" + errorOf(t))
             false
         }
     }
@@ -153,5 +162,10 @@ object MilletNoRestrict {
             if (value.isNotEmpty()) out.add(value)
         }
         return out
+    }
+
+    private fun errorOf(t: Throwable?): String {
+        if (t == null) return "unknown"
+        return t.javaClass.simpleName + ":" + t.message
     }
 }
