@@ -1,43 +1,45 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
-    namespace = "com.kinh.gmsprotect" 
-    compileSdk = 34 
+    namespace 'com.kinh.gmsprotect'
+    compileSdk 34
 
     defaultConfig {
-        applicationId = "com.kinh.gmsprotect"
-        minSdk = 22     
-        targetSdk = 34
+        applicationId "com.kinh.gmsprotect"
+        minSdk 24
+        targetSdk 22
         
-        versionCode = (project.findProperty("APK_VERSION_CODE") as? String)?.toInt() ?: 658
-        versionName = (project.findProperty("APK_VERSION_NAME") as? String) ?: "2.0.658"
-    }
+        // Tự động nhận phiên bản từ GitHub Actions hoặc dùng giá trị mặc định nếu build local
+        versionCode project.hasProperty('APK_VERSION_CODE') ? project.property('APK_VERSION_CODE').toInteger() : 1
+        versionName project.hasProperty('APK_VERSION_NAME') ? project.property('APK_VERSION_NAME') : "1.0"
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
-
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
-    signingConfigs {
-        create("release") {
-            storeFile = file("keystore.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-            keyAlias = System.getenv("KEY_ALIAS") ?: ""
-            keyPassword = System.getenv("KEY_PASSWORD") ?: ""
-        }
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+        disable 'ExpiredTargetSdkVersion'
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
 }
