@@ -24,6 +24,15 @@ object MilletNoRestrict {
         FAILED
     }
 
+    fun canRead(context: Context): Boolean {
+        return try {
+            Settings.System.getString(context.applicationContext.contentResolver, KEY)
+            true
+        } catch (t: Throwable) {
+            Log.w(TAG, "canRead FAILED error=" + errorOf(t))
+            false
+    }
+        
     fun canWrite(context: Context): Boolean {
         return try {
             Settings.System.canWrite(context.applicationContext)
