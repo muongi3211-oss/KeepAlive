@@ -852,37 +852,14 @@ class MainActivity : Activity() {
     }
 
     private fun openWriteSettingsAccess() {
-        waitingWriteSettingsReturn = true
-        
-        // 1. Cố gắng ép mở trang "Quyền khác" (Other Permissions) chuyên sâu của Xiaomi MIUI/HyperOS
         try {
-            val xiaomiIntent = Intent("miui.intent.action.APP_PERM_EDITOR").apply {
-                setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity")
-                putExtra("extra_pkgname", packageName)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
             }
-            startActivity(xiaomiIntent)
-            return
-        } catch (_: Throwable) {}
-
-        // 2. Fallback sang Intent quản lý Write Settings chuẩn của Android
-        try {
-            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
-                data = Uri.parse("package:$packageName")
-            }
-            startActivity(intent)
-            return
-        } catch (_: Throwable) {}
-
-        // 3. Fallback cuối cùng: Mở App Info tiêu chuẩn
-        try {
-            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.parse("package:$packageName")
-            }
-            startActivity(intent)
-        } catch (_: Throwable) {
-            waitingWriteSettingsReturn = false
-            toast(getString(R.string.system_access_settings_fallback))
-        }
+        } catch (_: Exception) {}
     }
 
     private fun requestAndroidBatteryExemption() {
