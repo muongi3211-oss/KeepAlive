@@ -9,10 +9,9 @@ android {
 
     defaultConfig {
         applicationId = "com.kinh.gmsprotect"
-        minSdk = 24
+        minSdk = 22
         targetSdk = 22
         
-        // Tự động nhận phiên bản từ GitHub Actions hoặc dùng giá trị mặc định khi build local
         versionCode = if (project.hasProperty("APK_VERSION_CODE")) {
             project.property("APK_VERSION_CODE").toString().toInt()
         } else {
@@ -48,6 +47,16 @@ android {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
         }
+    }
+
+    // ĐÃ SỬA: Đồng bộ hóa phiên bản Java và Kotlin target lên 17 cho khớp với môi trường GitHub Actions
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    
+    kotlinOptions {
+        jvmTarget = "17"
     }
 }
 
