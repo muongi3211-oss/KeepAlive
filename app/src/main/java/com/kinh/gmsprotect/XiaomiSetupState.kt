@@ -28,21 +28,29 @@ object XiaomiSetupState {
 
         return try {
             val method: Method = AppOpsManager::class.java.getDeclaredMethod(
-                "checkOpNoThrow", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, String::class.java
+                "checkOpNoThrow", 
+                Int::class.javaPrimitiveType, 
+                Int::class.javaPrimitiveType, 
+                String::class.java
             ).apply {
                 isAccessible = true
             }
+
             val value = method.invoke(
                 manager,
                 OP_AUTO_START,
                 app.applicationInfo.uid,
                 app.packageName
             )
+
             if (value !is Int) return AutostartState.UNKNOWN
 
-            val mode = value
-            if (mode == AppOpsManager.MODE_ALLOWED) AutostartState.ALLOWED else AutostartState.DENIED
-        } catch (ignored: Throwable) {
+            if (value == AppOpsManager.MODE_ALLOWED) {
+                AutostartState.ALLOWED
+            } else {
+                AutostartState.DENIED
+            }
+        } catch (_: Throwable) {
             AutostartState.UNKNOWN
         }
     }
