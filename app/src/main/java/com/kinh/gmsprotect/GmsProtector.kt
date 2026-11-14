@@ -12,7 +12,7 @@ object GmsProtector {
     const val GMS_PACKAGE = "com.google.android.gms"
     const val ACTION_REFRESH_MIPUSH = "com.xiaomi.mipush.REFRESH_WHITE_LIST_ACTION"
 
-    enum class Result { SENT, GMS_MISSING, FAILED }
+    enum class Result { SENT, GMS_MISSING, FAILED, UNSUPPORTED }
     enum class HyperOsProtectionResult { SENT, GMS_MISSING, FAILED }
 
     fun protect(context: Context): Result {
@@ -23,6 +23,7 @@ object GmsProtector {
         val app = context.applicationContext
         Log.i(TAG, "protect START package=" + app.packageName)
 
+        // 1. Kiểm tra GMS có tồn tại không
         try {
             val info: ApplicationInfo = if (android.os.Build.VERSION.SDK_INT >= 33) {
                 app.packageManager.getApplicationInfo(
@@ -46,7 +47,7 @@ object GmsProtector {
                     + t.javaClass.simpleName + ":" + t.message)
         }
 
-        // 1. Đảm bảo Millet được kích hoạt (chuẩn bản gốc)
+        // 2. Kích hoạt Millet Whitelist
         val milletResult = MilletNoRestrict.ensureGms(app)
         val milletOk = milletResult == MilletNoRestrict.Result.ADDED
                 || milletResult == MilletNoRestrict.Result.ALREADY_PRESENT
@@ -61,7 +62,6 @@ object GmsProtector {
             GameWatchJournal.event(app, "millet_error", "GmsProtector.protect: $milletResult")
         }
 
-        // Khôi phục lại điều kiện kiểm tra nghiêm ngặt như bản gốc để tránh bỏ sót trạng thái
         if (!milletOk) {
             Log.e(TAG, "protect FAILED because MILLET is not active result=$milletResult")
             runCompletion(recoveryFinished)
@@ -77,6 +77,7 @@ object GmsProtector {
             Log.w(TAG, "Game Allowlist auto-maintenance unavailable", t)
         }
 
+        // 3. Gửi MiPush Whitelist Broadcast và hoàn tất
         return try {
             GmsBindingProbe.ensureBound(app)
 
@@ -121,7 +122,6 @@ object GmsProtector {
         }
 
         return try {
-            // Quay lại đúng chuẩn Action MiPush của bản gốc
             val intent = Intent(ACTION_REFRESH_MIPUSH).apply {
                 putExtra("pkgName", GMS_PACKAGE)
                 putExtra("option", 1)
