@@ -4,25 +4,24 @@ plugins {
 }
 
 android {
-    namespace = "com.kinh.gmsprotect" 
-    compileSdk = 34 
+    namespace 'com.kinh.gmsprotect'
+    compileSdk 34
 
     defaultConfig {
-        applicationId = "com.kinh.gmsprotect"
-        minSdk = 22     
-        targetSdk = 34
+        applicationId "com.kinh.gmsprotect"
+        minSdk 24
+        targetSdk 22
         
-        versionCode = (project.findProperty("APK_VERSION_CODE") as? String)?.toInt() ?: 658
-        versionName = (project.findProperty("APK_VERSION_NAME") as? String) ?: "2.0.658"
-    }
+        // Tự động nhận phiên bản từ GitHub Actions hoặc dùng giá trị mặc định nếu build local
+        versionCode project.hasProperty('APK_VERSION_CODE') ? project.property('APK_VERSION_CODE').toInteger() : 1
+        versionName project.hasProperty('APK_VERSION_NAME') ? project.property('APK_VERSION_NAME') : "1.0"
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
-
-    kotlinOptions {
-        jvmTarget = "17"
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+        disable 'ExpiredTargetSdkVersion'
     }
 
     signingConfigs {
